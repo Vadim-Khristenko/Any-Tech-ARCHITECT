@@ -763,8 +763,10 @@ export const en: Catalog = {
   /* ── Находки валидаторов ────────────────────────────────────────────── */
   // Тексты живут здесь, а не в валидаторах: находка несёт код и значения,
   // а предложение собирается на языке читателя.
-  "find.awg3.version_mismatch":
-    "AWG 3.0 parameters are set, but the config version is {version}.",
+"find.awg3.version_mismatch":
+"AWG 3.0 parameters are set, but the config version is {version}.",
+"find.awg3.flags_version_mismatch":
+"RandomTrailers/DisableCookies are understood by AWG 3.1 only; a device on {version} refuses these keys when reading the config.",
   "find.awg3.hpk_format":
     "HeaderProtectionKey must be {bytes} bytes in base64 ({chars} characters).",
   "find.awg3.s_below_nonce":
@@ -1209,6 +1211,8 @@ export const en: Catalog = {
   "awgParam.HeaderProtectionKey": "ChaCha20 key for encrypting headers. The nonce comes from the first 12 bytes of the S padding.",
   "awgParam.ContentPaddingAddition": "Random padding inside the encrypted payload. The receiver does not need to know it.",
   "awgParam.timer": "A protocol timer. Each side keeps its own.",
+"awgParam.RandomTrailers": "A random-length trailer appended to every outgoing packet. Needs no agreement with the other side.",
+"awgParam.DisableCookies": "The device stays silent instead of sending a Cookie Reply. Breaks NAT keepalive under load, so turn it on knowingly.",
   "xrayParam.inbound.port": "The port the server listens on and the client connects to.",
   "xrayParam.vless.id": "The client UUID. A non-UUID string is accepted too — the core hashes it into one.",
   "xrayParam.vless.flow": "Vision only works over TLS or REALITY.",

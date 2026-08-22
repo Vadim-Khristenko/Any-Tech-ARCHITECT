@@ -132,6 +132,13 @@ export function renderMihomoProxy(cfg: AWGConfig): string {
     for (const [field, value] of timers) {
       if (value !== "") out.push(`      ${field}: ${q(value)}`);
     }
+
+    // The 3.1 switches. mihomo spells them the way its own docs do and
+    // forwards both to the device's UAPI untouched.
+    if (caps.featureFlags) {
+      if (p.randomTrailers) out.push("      random-trailers: true");
+      if (p.disableCookies) out.push("      disable-cookies: true");
+    }
   }
 
   return out.join("\n") + "\n";

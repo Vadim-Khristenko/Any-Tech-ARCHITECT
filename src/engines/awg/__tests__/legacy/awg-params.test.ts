@@ -95,7 +95,7 @@ describe("the sets agree with what gets rendered", () => {
         clientId: "amneziavpn",
         useHeaderProtection: true,
         useContentPadding: true,
-        useRandomTimings: true,
+        useRandomTimings: true, useRandomTrailers: false, useDisableCookies: false,
       };
 
       const written = new Set(

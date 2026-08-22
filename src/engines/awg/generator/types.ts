@@ -5,7 +5,7 @@ import type { AwgEngine } from "./engines";
  * AmneziaWG Architect — Generator public types.
  */
 
-export type AWGVersion = "1.0" | "1.5" | "2.0" | "3.0";
+export type AWGVersion = "1.0" | "1.5" | "2.0" | "3.0" | "3.1";
 export type Intensity = "low" | "medium" | "high";
 
 export type MimicProfile =
@@ -96,13 +96,20 @@ export interface GeneratorInput {
 
   /** AWG 3.0 — randomise the protocol timers instead of the fixed constants. */
   useRandomTimings: boolean;
+
+  /** AWG 3.1 — append a random tail to every packet (RandomTrailers). */
+  useRandomTrailers: boolean;
+
+  /** AWG 3.1 — never send cookie replies (DisableCookies). */
+  useDisableCookies: boolean;
 }
 
 /**
- * AWG 3.0 parameter block.
+ * The 3.x parameter block.
  *
  * Verified against amneziawg-go v3.0.1 (`device/uapi.go`, `device/send.go`,
- * `device/timers.go`) and amneziawg-tools `feat/awg3` (`src/config.c`).
+ * `device/timers.go`), amneziawg-tools `master` (`src/config.c`) and the
+ * v3.1 line (`random_trailers`, `disable_cookies` in `device/uapi.go`).
  */
 export interface AWG3Params {
   /**
@@ -120,6 +127,15 @@ export interface AWG3Params {
   rejectAfterTime: string;
   keepaliveTimeout: string;
   maxHandshakeAttempts: string;
+
+  /** AWG 3.1 — a random-length trailer on every packet the device sends. */
+  randomTrailers: boolean;
+
+  /**
+   * AWG 3.1 — the device stays silent when it would send a cookie reply.
+   * Breaks NAT keepalive under load, which is why the generator defaults off.
+   */
+  disableCookies: boolean;
 }
 
 /** Generated AmneziaWG obfuscation configuration. */
@@ -157,7 +173,7 @@ export interface AWGConfig {
   i4: string;
   i5: string;
 
-  /** AWG 3.0 block — present only when version === "3.0". */
+  /** The 3.x block — present only on versions that carry it (3.0, 3.1). */
   awg3?: AWG3Params;
 }
 

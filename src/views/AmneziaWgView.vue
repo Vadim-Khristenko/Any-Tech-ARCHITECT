@@ -1331,7 +1331,7 @@ function toSimulator() {
             </section>
 
             <!-- ── AWG 3.0 ────────────────────────────────────────────── -->
-            <section v-if="version === '3.0'" class="zone gen-span-12">
+            <section v-if="version === '3.0' || version === '3.1'" class="zone gen-span-12">
                 <div class="zone-head">
                     <span class="zone-title">{{ t("gen.zone.transport") }}</span>
                     <span class="zone-aside">
@@ -1364,6 +1364,22 @@ function toSimulator() {
                         <span class="switch-track"></span>
                         <span>{{ t("awg3.timings.title") }}</span>
                     </label>
+                    <!--
+                        The 3.1 switches. A 3.0 device refuses both keys at
+                        config parse, so they exist only on the 3.1 tab.
+                    -->
+                    <template v-if="version === '3.1'">
+                        <label class="switch">
+                            <input v-model="config.useRandomTrailers" type="checkbox" @change="generate()" />
+                            <span class="switch-track"></span>
+                            <span class="mono">RandomTrailers</span>
+                        </label>
+                        <label class="switch">
+                            <input v-model="config.useDisableCookies" type="checkbox" @change="generate()" />
+                            <span class="switch-track"></span>
+                            <span class="mono">DisableCookies</span>
+                        </label>
+                    </template>
                 </div>
 
                 <div class="disclose" :class="{ 'is-open': openHelp === 'awg3' }">

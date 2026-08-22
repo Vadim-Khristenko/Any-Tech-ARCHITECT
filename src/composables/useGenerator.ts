@@ -151,6 +151,14 @@ export function useGenerator() {
     useContentPadding: true,
     // Рандомизация таймеров протокола вместо фиксированных констант.
     useRandomTimings: true,
+
+    // ── AWG 3.1 ─────────────────────────────────────────────────────────────
+    // Случайный хвост каждому исходящему пакету. Выключено по умолчанию:
+    // фича свежая, а трафик растёт на каждый байт хвоста.
+    useRandomTrailers: false,
+    // Полный отказ от cookie-ответов. Выключено по умолчанию: без cookie
+    // ломается keepalive за NAT при нагрузке.
+    useDisableCookies: false,
   });
 
   // ── Состояние UI ──────────────────────────────────────────────────────────
@@ -198,6 +206,8 @@ export function useGenerator() {
       useHeaderProtection: config.useHeaderProtection,
       useContentPadding: config.useContentPadding,
       useRandomTimings: config.useRandomTimings,
+      useRandomTrailers: config.useRandomTrailers,
+      useDisableCookies: config.useDisableCookies,
     };
   }
 

@@ -35,6 +35,7 @@
  */
 
 import type { AWG3Params, GeneratorInput, Intensity } from "./types";
+import type { VersionCapability } from "./versions";
 import { rnd } from "./utils";
 import { cryptoB64 } from "@/shared/rng";
 
@@ -176,8 +177,14 @@ function genTimings(intensity: Intensity): {
   };
 }
 
-/** Build the AWG 3.0 block for a config. */
-export function genAwg3(input: GeneratorInput): AWG3Params {
+/**
+ * Build the 3.x block for a config.
+ *
+ * `caps` decides which knobs exist: the 3.1 switches are read only where the
+ * version understands them, so a 3.0 config never carries a key its device
+ * would refuse at parse time.
+ */
+export function genAwg3(input: GeneratorInput, caps: VersionCapability): AWG3Params {
   const empty: AWG3Params = {
     headerProtectionKey: "",
     contentPaddingAddition: "",
@@ -186,6 +193,8 @@ export function genAwg3(input: GeneratorInput): AWG3Params {
     rejectAfterTime: "",
     keepaliveTimeout: "",
     maxHandshakeAttempts: "",
+    randomTrailers: false,
+    disableCookies: false,
   };
 
   if (input.useHeaderProtection) {
@@ -200,12 +209,18 @@ export function genAwg3(input: GeneratorInput): AWG3Params {
   if (input.useRandomTimings) {
     Object.assign(empty, genTimings(input.intensity));
   }
+  if (caps.featureFlags) {
+    empty.randomTrailers = input.useRandomTrailers;
+    empty.disableCookies = input.useDisableCookies;
+  }
 
   return empty;
 }
 
-/** True when the block carries at least one active 3.0 parameter. */
+/** True when the block carries at least one active parameter. */
 export function hasAwg3Params(p: AWG3Params | undefined): boolean {
   if (!p) return false;
-  return Object.values(p).some((v) => v !== "");
+  // Strings read "" when off; the 3.1 switches read false. Both count as
+  // absent — an all-off block is not a parameter set.
+  return Object.values(p).some((v) => v !== "" && v !== false);
 }

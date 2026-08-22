@@ -223,6 +223,13 @@ export function renderConfLines(
       lines.push(cm(`# ${L.awg3Timers}`));
       for (const [key, value] of active) lines.push(kv(key, value));
     }
+
+    // The 3.1 switches. Written only when on: a device that predates them
+    // refuses the keys outright, and an off switch says nothing worth a line.
+    if (caps.featureFlags) {
+      if (p.randomTrailers) lines.push(kv("RandomTrailers", "true"));
+      if (p.disableCookies) lines.push(kv("DisableCookies", "true"));
+    }
   }
 
   /*

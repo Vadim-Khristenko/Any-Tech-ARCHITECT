@@ -391,7 +391,7 @@ export function genCfg(input: GeneratorInput): AWGConfig {
     i3,
     i4,
     i5,
-    ...(caps.headerProtection ? { awg3: genAwg3(input) } : {}),
+    ...(caps.headerProtection ? { awg3: genAwg3(input, caps) } : {}),
   };
 
   // Safety net: throw if we ever emit a config that fails our own validators.

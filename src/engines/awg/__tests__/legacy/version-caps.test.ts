@@ -31,21 +31,27 @@ const inputFor = (version: GeneratorInput["version"]): GeneratorInput => ({
   clientId: "amneziavpn",
   useHeaderProtection: true,
   useContentPadding: true,
-  useRandomTimings: true,
+  useRandomTimings: true, useRandomTrailers: false, useDisableCookies: false,
 });
 
 const RANGE = /^\d+-\d+$/;
 
 describe("version capability table", () => {
   it("covers every version the tab strip offers, newest first", () => {
-    expect(AWG_VERSIONS.map((v) => v.id)).toEqual(["3.0", "2.0", "1.5", "1.0"]);
+    expect(AWG_VERSIONS.map((v) => v.id)).toEqual([
+      "3.1",
+      "3.0",
+      "2.0",
+      "1.5",
+      "1.0",
+    ]);
     expect(AWG_VERSIONS.filter((v) => v.isNewest)).toHaveLength(1);
     expect(AWG_VERSIONS[0].isNewest).toBe(true);
   });
 
   it("falls back to the newest entry for an unknown version", () => {
     // A saved config from a future build must not render as a blank panel.
-    expect(capsFor("9.9" as never).id).toBe("3.0");
+    expect(capsFor("9.9" as never).id).toBe("3.1");
   });
 
   for (const caps of AWG_VERSIONS) {

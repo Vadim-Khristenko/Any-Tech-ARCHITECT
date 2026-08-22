@@ -216,6 +216,28 @@ export const AWG_PARAMETERS: readonly AWGParameter[] = [
       source: "device/timers.go",
     }),
   ),
+
+  // ── AWG 3.1 ──────────────────────────────────────────────────────────────
+  {
+    key: "RandomTrailers",
+    group: "awg3",
+    kind: "flag",
+    scope: "local",
+    since: "3.1",
+    field: "awg3.randomTrailers",
+    note: "awgParam.RandomTrailers",
+    source: "device/uapi.go: random_trailers",
+  },
+  {
+    key: "DisableCookies",
+    group: "awg3",
+    kind: "flag",
+    scope: "local",
+    since: "3.1",
+    field: "awg3.disableCookies",
+    note: "awgParam.DisableCookies",
+    source: "device/uapi.go: disable_cookies",
+  },
 ] as const;
 
 /* ── Per-version sets ─────────────────────────────────────────────────────── */
@@ -228,7 +250,7 @@ export const AWG_PARAMETERS: readonly AWGParameter[] = [
  */
 export const AWG_CATALOGUE: ParamCatalogue<AWGParameter> = {
   parameters: AWG_PARAMETERS,
-  order: ["1.0", "1.5", "2.0", "3.0"],
+  order: ["1.0", "1.5", "2.0", "3.0", "3.1"],
 };
 
 /** Lookup by version, for code that has the version as a value. */
@@ -248,6 +270,9 @@ export const AWGParamSet2 = AWG_PARAM_SETS["2.0"];
 
 /** AmneziaWG 3.0 — adds header protection, content padding and the timers. */
 export const AWGParamSet3 = AWG_PARAM_SETS["3.0"];
+
+/** AmneziaWG 3.1 — adds the RandomTrailers and DisableCookies switches. */
+export const AWGParamSet31 = AWG_PARAM_SETS["3.1"];
 
 /* ── Questions the sets answer ────────────────────────────────────────────── */
 

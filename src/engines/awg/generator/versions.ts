@@ -32,8 +32,15 @@ export interface VersionCapability {
   /** CPS signature chain I1–I5 is available. */
   cps: boolean;
 
-  /** Carries the 3.0 block: header protection, content padding, timers. */
+  /** Carries the 3.x block: header protection, content padding, timers. */
   headerProtection: boolean;
+
+  /**
+   * Understands the 3.1 switches: RandomTrailers and DisableCookies.
+   * A 3.0 device rejects both keys at config parse, so they are emitted
+   * only where the version reads them.
+   */
+  featureFlags: boolean;
 }
 
 /**
@@ -41,13 +48,23 @@ export interface VersionCapability {
  */
 export const AWG_VERSIONS: readonly VersionCapability[] = [
   {
-    id: "3.0",
-    label: "AWG 3.0",
+    id: "3.1",
+    label: "AWG 3.1",
     isNewest: true,
     rangedHeaders: true,
     extraSizes: true,
     cps: true,
     headerProtection: true,
+    featureFlags: true,
+  },
+  {
+    id: "3.0",
+    label: "AWG 3.0",
+    rangedHeaders: true,
+    extraSizes: true,
+    cps: true,
+    headerProtection: true,
+    featureFlags: false,
   },
   {
     id: "2.0",
@@ -56,6 +73,7 @@ export const AWG_VERSIONS: readonly VersionCapability[] = [
     extraSizes: true,
     cps: true,
     headerProtection: false,
+    featureFlags: false,
   },
   {
     id: "1.5",
@@ -64,6 +82,7 @@ export const AWG_VERSIONS: readonly VersionCapability[] = [
     extraSizes: false,
     cps: true,
     headerProtection: false,
+    featureFlags: false,
   },
   {
     id: "1.0",
@@ -72,6 +91,7 @@ export const AWG_VERSIONS: readonly VersionCapability[] = [
     extraSizes: false,
     cps: false,
     headerProtection: false,
+    featureFlags: false,
   },
 ] as const;
 

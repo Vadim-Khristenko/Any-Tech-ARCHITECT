@@ -232,7 +232,7 @@ export function validateAwg3(cfg: AWGConfig): ValidationFinding[] {
   if (!p) return out;
 
   if (!capsFor(cfg.version).headerProtection) {
-    const active = Object.values(p).some((v) => v !== "");
+    const active = Object.values(p).some((v) => v !== "" && v !== false);
     if (active) {
       out.push({
         field: "AWG3",
@@ -242,6 +242,16 @@ export function validateAwg3(cfg: AWGConfig): ValidationFinding[] {
       });
     }
     return out;
+  }
+
+  /* The 3.1 switches — a 3.0 device refuses both keys at config parse. */
+  if (!capsFor(cfg.version).featureFlags && (p.randomTrailers || p.disableCookies)) {
+    out.push({
+      field: "RandomTrailers",
+      level: "warn",
+      code: "awg3.flags_version_mismatch",
+      values: { version: cfg.version },
+    });
   }
 
   /* HeaderProtectionKey — 32 bytes, base64 (same encoding as PrivateKey). */

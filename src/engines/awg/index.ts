@@ -74,6 +74,8 @@ function createDefaults(): GeneratorInput {
     useHeaderProtection: true,
     useContentPadding: true,
     useRandomTimings: true,
+    useRandomTrailers: false,
+    useDisableCookies: false,
   };
 }
 

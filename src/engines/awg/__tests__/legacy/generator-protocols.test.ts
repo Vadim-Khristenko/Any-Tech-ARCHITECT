@@ -23,7 +23,7 @@ const baseInput: GeneratorInput = {
     clientId: "amneziavpn",
     useHeaderProtection: true,
     useContentPadding: true,
-    useRandomTimings: true,
+    useRandomTimings: true, useRandomTrailers: false, useDisableCookies: false,
 };
 
 const profiles: MimicProfile[] = [

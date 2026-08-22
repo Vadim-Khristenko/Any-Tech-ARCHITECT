@@ -51,12 +51,20 @@ const RANGE = /^\d+\s*-\s*\d+$/;
 /**
  * Which version the parameters describe.
  *
- * Ranged headers arrived with 2.0, the 3.0 block with 3.0, and the I chain
- * with 1.5. Anything with none of those is 1.0. This intentionally ignores the
- * `# AmneziaWG x.y` comment the generator writes: it is the easiest part of
- * the file to edit and the hardest to notice being wrong.
+ * Ranged headers arrived with 2.0, the 3.x block with 3.0, and the I chain
+ * with 1.5. Anything with none of those is 1.0. The 3.1 switches name their
+ * own version: a 3.0 device refuses those keys at parse, so their presence
+ * is proof of 3.1. A 3.1 config with both switches off reads as 3.0, which
+ * is honest — on the wire the two are identical.
+ *
+ * This intentionally ignores the `# AmneziaWG x.y` comment the generator
+ * writes: it is the easiest part of the file to edit and the hardest to
+ * notice being wrong.
  */
 function inferVersion(conf: ParsedConf, raw: string[]): AWGVersion {
+  if (lookup(conf, raw, "RandomTrailers") || lookup(conf, raw, "DisableCookies")) {
+    return "3.1";
+  }
   if (lookup(conf, raw, "HeaderProtectionKey") || lookup(conf, raw, "ContentPaddingAddition")) {
     return "3.0";
   }
@@ -94,7 +102,15 @@ function text(conf: ParsedConf, raw: string[], key: string): string {
   return lookup(conf, raw, key)?.value ?? "";
 }
 
-/** Read the 3.0 block. Absent fields mean the feature is off, not broken. */
+/** What `parse_bool` in amneziawg-tools accepts, and then some. */
+const TRUTHY = /^(true|yes|on|1)$/i;
+
+function flag(conf: ParsedConf, raw: string[], key: string): boolean {
+  const hit = lookup(conf, raw, key);
+  return !!hit && TRUTHY.test(hit.value);
+}
+
+/** Read the 3.x block. Absent fields mean the feature is off, not broken. */
 function readAwg3(conf: ParsedConf, raw: string[]): AWG3Params {
   return {
     headerProtectionKey: text(conf, raw, "HeaderProtectionKey"),
@@ -104,6 +120,8 @@ function readAwg3(conf: ParsedConf, raw: string[]): AWG3Params {
     rejectAfterTime: text(conf, raw, "RejectAfterTime"),
     keepaliveTimeout: text(conf, raw, "KeepaliveTimeout"),
     maxHandshakeAttempts: text(conf, raw, "MaxHandshakeAttempts"),
+    randomTrailers: flag(conf, raw, "RandomTrailers"),
+    disableCookies: flag(conf, raw, "DisableCookies"),
   };
 }
 

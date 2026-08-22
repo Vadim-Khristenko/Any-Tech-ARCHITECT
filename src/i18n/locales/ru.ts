@@ -770,8 +770,10 @@ export const ru = {
   /* ── Находки валидаторов ────────────────────────────────────────────── */
   // Тексты живут здесь, а не в валидаторах: находка несёт код и значения,
   // а предложение собирается на языке читателя.
-  "find.awg3.version_mismatch":
-    "Параметры AWG 3.0 заданы, но версия конфига — {version}.",
+"find.awg3.version_mismatch":
+"Параметры AWG 3.0 заданы, но версия конфига — {version}.",
+"find.awg3.flags_version_mismatch":
+"RandomTrailers/DisableCookies понимает только AWG 3.1; устройство на версии {version} отвергнет эти ключи при чтении конфига.",
   "find.awg3.hpk_format":
     "HeaderProtectionKey должен быть {bytes} байт в base64 ({chars} символа).",
   "find.awg3.s_below_nonce":
@@ -1218,6 +1220,8 @@ export const ru = {
   "awgParam.HeaderProtectionKey": "Ключ ChaCha20 для шифрования заголовков. Nonce берётся из первых 12 байт S-паддинга.",
   "awgParam.ContentPaddingAddition": "Случайный паддинг внутри шифрованной нагрузки. Получателю знать его не нужно.",
   "awgParam.timer": "Таймер протокола. У каждой стороны свой.",
+"awgParam.RandomTrailers": "Случайный по длине хвост в конце каждого исходящего пакета. Согласования с другой стороной не требует.",
+"awgParam.DisableCookies": "Устройство молчит вместо отправки Cookie Reply. Ломает keepalive за NAT под нагрузкой — включать осознанно.",
   "xrayParam.inbound.port": "Порт, который слушает сервер и в который идёт клиент.",
   "xrayParam.vless.id": "UUID клиента. Строка не-UUID тоже принимается — ядро хеширует её в UUID.",
   "xrayParam.vless.flow": "Vision работает только поверх TLS или REALITY.",

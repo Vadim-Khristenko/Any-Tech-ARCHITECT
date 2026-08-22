@@ -15,6 +15,11 @@ import type { GeneratorInput } from "@/engines/awg/generator";
 const inputFor = (version: string): GeneratorInput => ({
   ...awgEngine.createDefaults(),
   version: version as GeneratorInput["version"],
+  // The 3.1 switches must be on for the round trip to see them: a config
+  // with both off is wire-identical to a 3.0 one and parses back as such.
+  ...(version === "3.1"
+    ? { useRandomTrailers: true, useDisableCookies: true }
+    : {}),
 });
 
 describe("AmneziaWG round trip", () => {
