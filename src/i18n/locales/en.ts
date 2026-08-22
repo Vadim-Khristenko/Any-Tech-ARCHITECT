@@ -231,6 +231,7 @@ export const en: Catalog = {
   "xg.out.client": "Client",
   "xg.out.copyJson": "Copy JSON",
   "xg.out.downloadJson": "Download inbound.json",
+  "xg.out.downloadPanel": "Download for panels (3x-ui)",
   "xg.out.copyLinks": "Copy the links",
   "xg.out.downloadLinks": "Download the links",
   "xg.out.empty": "Press Generate.",

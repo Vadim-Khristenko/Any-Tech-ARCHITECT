@@ -231,6 +231,7 @@ export const ru = {
   "xg.out.client": "Клиент",
   "xg.out.copyJson": "Копировать JSON",
   "xg.out.downloadJson": "Скачать inbound.json",
+  "xg.out.downloadPanel": "Скачать для панели (3x-ui)",
   "xg.out.copyLinks": "Копировать ссылки",
   "xg.out.downloadLinks": "Скачать ссылки",
   "xg.out.empty": "Нажмите «Сгенерировать».",

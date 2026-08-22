@@ -71,7 +71,11 @@ import {
     readPath,
     writePath,
 } from "@/engines/xray/bindings";
-import { buildServerInbound, buildClientUris } from "@/engines/xray/render";
+import {
+    buildServerInbound,
+    buildClientUris,
+    buildPanelInbound,
+} from "@/engines/xray/render";
 import SendToForge from "@/components/SendToForge.vue";
 import type { XrayConfig, XrayInput } from "@/engines/xray/types";
 import { handOffToSimulator } from "@/shared/simHandoff";
@@ -472,6 +476,11 @@ const serverJson = computed(() =>
     config.value ? JSON.stringify(buildServerInbound(config.value), null, 2) : "",
 );
 
+/** The panel spelling of the same inbound — see buildPanelInbound. */
+const panelJson = computed(() =>
+    config.value ? JSON.stringify(buildPanelInbound(config.value), null, 2) : "",
+);
+
 const clientUris = computed(() =>
     config.value ? buildClientUris(config.value) : [],
 );
@@ -803,6 +812,15 @@ function toSimulator() {
         config: cfg,
     });
     router.push(at("/simulator"));
+}
+
+/** The inbound as hosting panels want it — see buildPanelInbound. */
+function downloadPanel() {
+    downloadText(
+        panelJson.value,
+        "AnyTech_Architect_XRay_panel_inbound.json",
+        "application/json",
+    );
 }
 
 function setServerNames(event: Event) {
@@ -1396,6 +1414,9 @@ function setServerNames(event: Event) {
                 </button>
                 <button class="btn btn--ghost btn--sm" @click="downloadOut">
                     <Download :size="14" /> {{ outView === 'server' ? t("xg.out.downloadJson") : t("xg.out.downloadLinks") }}
+                </button>
+                <button class="btn btn--ghost btn--sm" @click="downloadPanel">
+                    <Download :size="14" /> {{ t("xg.out.downloadPanel") }}
                 </button>
                 <button class="btn btn--ghost btn--sm" @click="toSimulator">
                     <Activity :size="14" /> {{ t("gen.act.simulator") }}

@@ -310,6 +310,42 @@ export function renderServer(cfg: XrayConfig): EngineLine[] {
   return jsonToLines(buildServerInbound(cfg));
 }
 
+/**
+ * The same inbound, spelled for hosting panels.
+ *
+ * Panels validate a pasted streamSettings against a schema of their own, and
+ * theirs still speaks only the pre-rename vocabulary: the network value
+ * `raw` and the key `rawSettings` are unknown to it, so an inbound the core
+ * accepts comes back from the panel as an input error.
+ *
+ * The core takes both spellings — `case "raw", "tcp"` normalises to tcp, and
+ * a `rawSettings` block is folded into `TCPSettings` — so renaming here costs
+ * nothing on the wire and buys a config that pastes cleanly.
+ *
+ * What is deliberately not renamed: `maxTimeDiff`. The panel's model keeps a
+ * legacy spelling of that field and strips ours silently; renaming would
+ * trade a silent drop for a key the core does not read. Neither reaches the
+ * device, and saying so beats papering over it.
+ */
+export function buildPanelInbound(cfg: XrayConfig): Record<string, unknown> {
+  const inbound = buildServerInbound(cfg) as Record<string, unknown>;
+  const stream = {
+    ...(inbound.streamSettings as Record<string, unknown>),
+  };
+
+  // The network value: `raw` is the new name, `tcp` the one panels know.
+  if (stream.method === "raw") stream.method = "tcp";
+  if (stream.network === "raw") stream.network = "tcp";
+
+  // The transport block, for the one transport that changed its key.
+  if ("rawSettings" in stream) {
+    stream.tcpSettings = stream.rawSettings;
+    delete stream.rawSettings;
+  }
+
+  return { ...inbound, streamSettings: stream };
+}
+
 /* ── Client side ──────────────────────────────────────────────────────────── */
 
 /**
