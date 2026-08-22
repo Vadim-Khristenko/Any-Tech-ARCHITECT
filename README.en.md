@@ -5,7 +5,7 @@
 [Русский](README.md) · **English**
 
 [![Open the generator](https://img.shields.io/badge/Open_the_generator-architect.vai--rice.space-e8a840?style=for-the-badge)](https://architect.vai-rice.space/en)
-[![AmneziaWG 3.0](https://img.shields.io/badge/AmneziaWG-3.0-5fbf7f?style=for-the-badge)](#amneziawg)
+[![AmneziaWG 3.1](https://img.shields.io/badge/AmneziaWG-3.1-5fbf7f?style=for-the-badge)](#amneziawg)
 [![XRay REALITY](https://img.shields.io/badge/XRay-REALITY-5b9bd5?style=for-the-badge)](#xray)
 [![MIT](https://img.shields.io/badge/License-MIT-c49040?style=for-the-badge)](LICENSE)
 
@@ -51,24 +51,28 @@ AmneziaWG adds an obfuscation layer over the same cryptography. Architect picks
 its parameters so they are valid, compatible with your client, and do not
 accidentally recreate the very fingerprint you were escaping.
 
-| | Junk `Jc/Jmin/Jmax` | `S1 S2` | `S3 S4` | CPS `I1–I5` | Headers `H1–H4` | 3.0 parameters |
-|:--|:--:|:--:|:--:|:--:|:--:|:--:|
-| **1.0** | ✅ | ✅ | — | — | fixed | — |
-| **1.5** | ✅ | ✅ | — | client only | fixed | — |
-| **2.0** | ✅ | ✅ | ✅ | ✅ | ranges | — |
-| **3.0** | ✅ | ✅ | ✅ | ✅ | ranges | ✅ |
+| | Junk `Jc/Jmin/Jmax` | `S1 S2` | `S3 S4` | CPS `I1–I5` | Headers `H1–H4` | 3.x block | 3.1 flags<br>`RandomTrailers` / `DisableCookies` |
+|:--|:--:|:--:|:--:|:--:|:--:|:--:|:--:|
+| **1.0** | ✅ | ✅ | — | — | fixed | — | — |
+| **1.5** | ✅ | ✅ | — | client only | fixed | — | — |
+| **2.0** | ✅ | ✅ | ✅ | ✅ | ranges | — | — |
+| **3.0** | ✅ | ✅ | ✅ | ✅ | ranges | ✅ | — |
+| **3.1** | ✅ | ✅ | ✅ | ✅ | ranges | ✅ | ✅ |
 
-### What 3.0 added
+### What 3.0 and 3.1 added
 
-These parameters were derived **from the sources** — `amneziawg-go v3.0.1` and
-the `feat/awg3` branch of `amneziawg-tools` — rather than from the docs, which
-still describe 2.0 at the time of writing.
+These parameters were derived **from the sources** — `amneziawg-go v3.0.1`, the
+`feat/awg3` branch of `amneziawg-tools`, and the `v3.1.*` tags of both
+repositories — rather than from the docs, which still describe 2.0 at the time
+of writing.
 
 | Parameter | What it does |
 |:--|:--|
 | `HeaderProtectionKey` | A shared 32-byte ChaCha20 key. Handshake and cookie messages are encrypted whole; transport packets only in their 16-byte header. Written as base64 in `.conf`, like `PrivateKey`; as hex over UAPI. |
 | `ContentPaddingAddition` | Random extra padding on every transport packet, instead of aligning to 16 bytes. |
 | `RekeyAfterTime`<br>`RekeyTimeout`<br>`RejectAfterTime`<br>`KeepaliveTimeout`<br>`MaxHandshakeAttempts` | Ranges instead of WireGuard's fixed constants, so a steady handshake rhythm stops being a fingerprint. |
+| `RandomTrailers` <sub>3.1</sub> | A random-length trailer appended to every outgoing packet. Needs no agreement with the other side. |
+| `DisableCookies` <sub>3.1</sub> | The device stays silent instead of sending a Cookie Reply. Breaks NAT keepalive under load, so the generator ships it off by default. |
 
 > [!WARNING]
 > **With header protection on, S1–S4 cannot go below 12.** The cipher nonce is
@@ -86,7 +90,9 @@ send path — they are groundwork for AWG 4.0, so the generator does not emit th
 
 Plus **11 mimicry profiles** (QUIC Initial, QUIC 0-RTT, TLS 1.3, DTLS 1.3,
 HTTP/3, SIP, DNS, Noise_IK and composites) and a **compatibility matrix covering
-10 clients** — each has its own ceilings, and the generator knows them.
+13 clients** — each has its own ceilings, and the generator knows them. For
+those who picked mihomo as their client, the generator emits a proxy block in
+its YAML dialect alongside the `.conf`.
 
 ---
 
@@ -120,6 +126,10 @@ plainly, rather than left to look like an omission.
 The donor database holds **over 1100 entries** with a regional filter, each
 recording what is actually known about the site rather than an invented "status".
 
+For hosting panels there is a separate export: their validators only know the
+pre-rename vocabulary (`tcp` rather than `raw`), and the panel button renames
+exactly those two places — the core takes both spellings.
+
 ---
 
 ## The tools
@@ -136,7 +146,9 @@ key, or collect containers from several keys into a single master key. All local
 <img src="public/assets/og-simulator-en.png" alt="Packet Simulator" width="100%">
 <h3>Packet Simulator</h3>
 Shows what a session start looks like: the CPS chain, the junk train, the
-handshake and data. Version-aware — 1.0 and 1.5 are drawn without what they lack.
+handshake and data. Works for both engines, AmneziaWG and XRay, and is aware
+of the version and the client — 1.0 and 1.5 are drawn without what they lack,
+and WireSock without the chain it never sends.
 </td>
 </tr>
 <tr>
