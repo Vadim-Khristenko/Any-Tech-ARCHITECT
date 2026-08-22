@@ -77,6 +77,27 @@ describe("every engine satisfies the contract", () => {
         expect(result.config).toBeNull();
         expect(result.findings.length).toBeGreaterThan(0);
       });
+
+      it("carries a simulator that can draw its own traffic", () => {
+        // The simulator page is generic: it reads kinds, legend and packets
+        // off whatever the registry hands it. An engine without a working
+        // simulator would leave that page with a legend and nothing else.
+        const sim = engine.simulator!;
+        expect(Object.keys(sim.kinds).length).toBeGreaterThan(0);
+        expect(sim.legend.length).toBeGreaterThan(0);
+        for (const id of sim.legend) {
+          expect(sim.kinds[id], `${engine.id}: ${id}`).toBeTruthy();
+        }
+        const config = engine.generate(engine.createDefaults() as never);
+        const result = sim.simulate(config as never);
+        expect(result.packets.length).toBeGreaterThan(0);
+        for (const packet of result.packets) {
+          expect(sim.kinds[packet.kind], packet.kind).toBeTruthy();
+        }
+        // Totals must agree with the packets they summarise.
+        const summed = result.packets.reduce((s, p) => s + p.size, 0);
+        expect(result.totals.totalBytes).toBe(summed);
+      });
     });
   }
 });

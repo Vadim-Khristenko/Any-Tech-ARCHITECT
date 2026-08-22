@@ -21,6 +21,7 @@
 import type { Component } from "vue";
 import { sortFindings } from "./findings";
 import type { Finding } from "./findings";
+import type { Simulator } from "./simulation";
 
 export type { Finding, FindingLevel } from "./findings";
 
@@ -190,6 +191,16 @@ export interface Engine<TInput = unknown, TConfig = unknown> {
    * type of its own.
    */
   inspect(text: string): Inspection<TConfig>;
+
+  /**
+   * The protocol's packet simulator, where its wire shape is worth showing.
+   *
+   * Lives on the engine rather than beside the shell's simulator page because
+   * the page is generic — it reads kinds, legend and packets off this object
+   * and cannot tell AmneziaWG from XRay. An engine without one simply has no
+   * button leading there.
+   */
+  simulator?: Simulator<TConfig, unknown>;
 }
 
 /** Convenience for the registry, where parameter types differ per entry. */

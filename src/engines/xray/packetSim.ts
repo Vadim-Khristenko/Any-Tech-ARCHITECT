@@ -17,6 +17,7 @@ import { translate } from "@/i18n";
 import {
   kindTable,
   toResult,
+  type ExtraField,
   type PacketKind as SharedPacketKind,
   type SimPacket as SharedSimPacket,
   type SimResult as SharedSimResult,
@@ -328,4 +329,33 @@ export const xraySimulator: Simulator<XrayConfig, XrayPacketExtra> = {
   kinds: XRAY_KIND_TABLE,
   legend: XRAY_LEGEND,
   simulate: simulateXray,
+
+  /**
+   * The one thing worth saying before the run: with `security: "none"` there
+   * is no handshake at all, and a diagram that opens straight onto VLESS
+   * reads as broken unless someone says it is not.
+   */
+  notes(cfg) {
+    return cfg.security === "none"
+      ? [translate("sim.note.plain")]
+      : [];
+  },
+
+  /** Frame type and framing cost are XRay's alone. */
+  describeExtra(extra) {
+    const fields: ExtraField[] = [
+      { label: translate("sim.detail.frame"), value: extra.frame },
+      {
+        label: translate("sim.detail.framing"),
+        value: `+${extra.framing} ${translate("sim.bytes")}`,
+      },
+    ];
+    if (extra.carriesRealityAuth) {
+      fields.push({
+        label: translate("sim.detail.realityAuth"),
+        value: translate("sim.detail.realityAuth.carried"),
+      });
+    }
+    return fields;
+  },
 };

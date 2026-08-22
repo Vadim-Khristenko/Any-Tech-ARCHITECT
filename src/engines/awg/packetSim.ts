@@ -17,6 +17,7 @@ import { capsFor } from "@/engines/awg/generator/versions";
 import {
   kindTable,
   toResult,
+  type ExtraField,
   type PacketKind as SharedPacketKind,
   type SimPacket as SharedSimPacket,
   type SimResult as SharedSimResult,
@@ -289,6 +290,40 @@ export const awgSimulator: Simulator<AWGConfig, AwgPacketExtra> = {
   kinds: AWG_KIND_TABLE,
   legend: AWG_LEGEND,
   simulate: simulateHandshake,
+
+  /**
+   * What this version actually puts on the wire, said before any packet is
+   * drawn. Moved here from the view when the view went generic: these are
+   * protocol facts, and the protocol is what this file describes.
+   */
+  notes(cfg) {
+    const out: string[] = [];
+    if (cfg.version === "1.0") out.push(translate("sim.version.note.10"));
+    else if (cfg.version === "1.5") out.push(translate("sim.version.note.15"));
+    if (capsFor(cfg.version).headerProtection && cfg.awg3?.headerProtectionKey) {
+      out.push(translate("sim.hp.note"));
+    }
+    return out;
+  },
+
+  /** The magic header and the encryption state are AmneziaWG's alone. */
+  describeExtra(extra) {
+    const fields: ExtraField[] = [
+      {
+        label: translate("sim.detail.header"),
+        value: extra.header ? String(extra.header) : "—",
+      },
+    ];
+    if (extra.headerProtected) {
+      fields.push({
+        label: translate("sim.detail.crypto"),
+        value: extra.encryptedWhole
+          ? translate("sim.hp.whole")
+          : translate("sim.hp.badge"),
+      });
+    }
+    return fields;
+  },
 };
 
 export function kindColor(kind: PacketKind): string {

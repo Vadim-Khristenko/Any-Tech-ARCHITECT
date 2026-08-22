@@ -70,6 +70,7 @@ import { paramsFor } from "@/engines/awg/generator/params";
 import { awgParamBlocks } from "@/engines/awg/generator";
 import { REGIONS } from "@/shared/domains";
 import { SIZED_FINGERPRINTS } from "@/shared/fingerprints";
+import { handOffToSimulator } from "@/shared/simHandoff";
 import type { AWGConfig, AWGVersion, Intensity } from "@/engines/awg/generator";
 import { localizePath, useI18n } from "@/i18n";
 
@@ -594,7 +595,28 @@ onMounted(() => {
     if (!currentAwg.value) void generateAndRemember();
 });
 
+/**
+ * Into the simulator, config in hand.
+ *
+ * The hand-off used to be a sessionStorage write somewhere upstream and this
+ * button only navigated; after the MergeKeys rework the write was gone and
+ * the page always showed its empty state. The payload now leaves from right
+ * here: engine name for the registry, caption for the subtitle, client notes
+ * so the simulator can say why this pairing's traffic looks the way it does.
+ */
 function toSimulator() {
+    const cfg = currentAwg.value;
+    if (!cfg) return;
+    const profile =
+        PROFILES.find((p) => p.id === cfg.profile)?.label ?? cfg.profile;
+    handOffToSimulator({
+        engine: "awg",
+        caption: ["AmneziaWG", cfg.version, profile]
+            .filter(Boolean)
+            .join(" · "),
+        notes: clientNotes.value,
+        config: cfg,
+    });
     router.push(at("/simulator"));
 }
 </script>

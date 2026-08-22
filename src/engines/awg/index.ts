@@ -34,6 +34,7 @@ import {
 } from "@/engines/awg/generator";
 import { AWG_VERSIONS } from "@/engines/awg/generator/versions";
 import { buildVpnConfig } from "@/engines/awg/awgFormat";
+import { awgSimulator } from "./packetSim";
 
 import { defineEngine, linesToText } from "@/types/engine";
 import type { EngineLabels, EngineLine, EngineFinding } from "@/types/engine";
@@ -127,4 +128,6 @@ export const awgEngine = defineEngine<GeneratorInput, AWGConfig>({
     // payload is derived from the same render everyone else sees.
     return buildVpnConfig(linesToText(renderConfLines(config)));
   },
+
+  simulator: awgSimulator,
 });

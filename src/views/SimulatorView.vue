@@ -1,4 +1,14 @@
 <script setup lang="ts">
+/**
+ * The packet simulator page.
+ *
+ * Generic on purpose: it knows about engines, not protocols. A generator
+ * hands over a config through `shared/simHandoff`, the engine is resolved
+ * from the registry by name, and everything drawn here — kinds, legend,
+ * notes, the per-packet extras — comes off that engine's own simulator.
+ * Adding a protocol to this page is adding a simulator to its engine; the
+ * page itself does not change.
+ */
 import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import {
@@ -9,121 +19,111 @@ import {
     Server,
     Monitor,
     ArrowRight,
-    ArrowLeft as ArrowLeftIcon,
     Info,
     Clock,
     Database,
     Gauge,
-    ShieldCheck,
-    Lock,
 } from "lucide-vue-next";
-import {
-    simulateHandshake,
-    kindColor,
-    kindLabel,
-    kindDescription,
-} from "@/engines/awg/packetSim";
-import type { SimPacket, SimResult } from "@/engines/awg/packetSim";
-import type { AWGConfig, AWGVersion } from "@/engines/awg/generator/types";
+import { pendingSimulation } from "@/shared/simHandoff";
+import { engineById } from "@/engines/registry";
+import type {
+    ExtraField,
+    SimPacket,
+    SimResult,
+    Simulator,
+} from "@/shared/simulation";
 import { localizePath, useI18n } from "@/i18n";
 
 const { locale, t } = useI18n();
 
 const router = useRouter();
 
-const cfg = ref<AWGConfig | null>(null);
-const sim = ref<SimResult | null>(null);
-const selectedPacket = ref<SimPacket | null>(null);
+/*
+ * The hand-off, read once. The registry hands back engines with their config
+ * types erased, so the simulator is widened at this seam — the one place that
+ * holds both the typed engine and the untyped payload.
+ */
+const pending = pendingSimulation();
+const engine = pending ? engineById(pending.engine) : undefined;
+const simulator = (engine?.simulator ?? null) as Simulator<
+    unknown,
+    unknown
+> | null;
+const cfg = pending?.config ?? null;
 
-onMounted(() => {
-    loadConfig();
-    runSim();
-});
+const sim = ref<SimResult<unknown> | null>(null);
+const selectedPacket = ref<SimPacket<unknown> | null>(null);
 
-function loadConfig() {
-    try {
-        const raw = sessionStorage.getItem("awg_pending_cfg");
-        if (!raw) return;
-        const parsed = JSON.parse(raw);
-        if (!parsed.cfg) return;
-        const c = parsed.cfg;
-        const version: AWGVersion = parsed.ver || "2.0";
-
-        // 1.0 has no CPS chains at all; 1.5 sends them client-side only. Both
-        // predate S3/S4. Zeroing them here keeps the simulation honest about
-        // what each version actually puts on the wire.
-        const hasCps = version !== "1.0";
-        const hasS34 = version === "2.0" || version === "3.0";
-
-        cfg.value = {
-            version,
-            profile: parsed.profile || "quic_initial",
-            h1: c.h1 || "100000000-100000100",
-            h2: c.h2 || "1200000000-1200000100",
-            h3: c.h3 || "2400000000-2400000100",
-            h4: c.h4 || "3600000000-3600000100",
-            h1s: c.h1s ?? 100_000_000,
-            h2s: c.h2s ?? 1_200_000_000,
-            h3s: c.h3s ?? 2_400_000_000,
-            h4s: c.h4s ?? 3_600_000_000,
-            s1: c.s1 ?? 10,
-            s2: c.s2 ?? 10,
-            s3: hasS34 ? (c.s3 ?? 10) : 0,
-            s4: hasS34 ? (c.s4 ?? 10) : 0,
-            jc: c.jc ?? 5,
-            jmin: c.jmin ?? 100,
-            jmax: c.jmax ?? 200,
-            i1: hasCps ? c.i1 || "" : "",
-            i2: hasCps ? c.i2 || "" : "",
-            i3: hasCps ? c.i3 || "" : "",
-            i4: hasCps ? c.i4 || "" : "",
-            i5: hasCps ? c.i5 || "" : "",
-            ...(version === "3.0" && c.awg3 ? { awg3: c.awg3 } : {}),
-        };
-    } catch {
-        cfg.value = null;
-    }
-}
+onMounted(runSim);
 
 function runSim() {
-    if (!cfg.value) return;
-    sim.value = simulateHandshake(cfg.value);
+    if (!simulator || !cfg) return;
+    sim.value = simulator.simulate(cfg);
     selectedPacket.value = null;
 }
 
 function goBack() {
-    router.push(localizePath("/amneziawg", locale.value));
+    router.push(localizePath(engine?.route ?? "/", locale.value));
 }
 
-function selectPacket(p: SimPacket) {
-    selectedPacket.value = selectedPacket.value?.id === p.id ? null : p;
+function selectPacket(p: SimPacket<unknown>) {
+    selectedPacket.value =
+        selectedPacket.value?.id === p.id ? null : p;
 }
 
-const profileName = computed(() => cfg.value?.profile ?? "unknown");
+const caption = computed(() => pending?.caption ?? "");
 
-/** True when this config carries a header-protection key (3.0 only). */
-const headerProtected = computed(
-    () => cfg.value?.version === "3.0" && !!cfg.value.awg3?.headerProtectionKey,
+/** Facts the engine itself states about this particular config. */
+const engineNotes = computed(() =>
+    simulator && cfg ? (simulator.notes?.(cfg) ?? []) : [],
 );
 
-/** Explains what the selected version omits, for 1.0 and 1.5. */
-const versionNote = computed(() => {
-    const v = cfg.value?.version;
-    if (v === "1.0") return t("sim.version.note.10");
-    if (v === "1.5") return t("sim.version.note.15");
-    return "";
-});
+/** Facts the sending view stated about the client behind the config. */
+const clientNotes = computed(() => pending?.notes ?? []);
 
 const stats = computed(() => {
     if (!sim.value) return null;
+    const totals = sim.value.totals;
     return {
-        total: sim.value.totalBytes,
-        handshake: sim.value.handshakeBytes,
-        data: sim.value.dataBytes,
-        overhead: sim.value.overheadBytes,
         count: sim.value.packets.length,
+        total: totals.totalBytes,
+        payload: totals.payloadBytes,
+        overhead: totals.overheadBytes,
+        share: Math.round(totals.overheadShare * 100),
         seconds: sim.value.estSeconds10mbps,
     };
+});
+
+/** Legend entries in the engine's own order. */
+const legendItems = computed(() => {
+    if (!simulator) return [];
+    return simulator.legend
+        .map((id) => ({ id, kind: simulator.kinds[id] }))
+        .filter((e) => e.kind);
+});
+
+/** Kinds this run never produced draw dimmed, so the legend reads honestly. */
+function kindUsed(id: string): boolean {
+    return !!sim.value?.totals.byKind[id];
+}
+
+function kindColor(id: string): string {
+    return simulator?.kinds[id]?.accent ?? "";
+}
+
+function kindLabel(id: string): string {
+    return simulator?.kinds[id]?.label ?? id;
+}
+
+function sideName(side: "client" | "server"): string {
+    return side === "client" ? t("sim.client") : t("sim.server");
+}
+
+/** Engine-specific rows for the detail panel, via the engine itself. */
+const extraRows = computed<readonly ExtraField[]>(() => {
+    const p = selectedPacket.value;
+    if (!p || !simulator?.describeExtra) return [];
+    return simulator.describeExtra(p.extra);
 });
 </script>
 
@@ -138,28 +138,36 @@ const stats = computed(() => {
                     <Activity :size="20" class="text-accent" />
                     <div>
                         <h1>Packet Simulator</h1>
-                        <span v-if="cfg" class="sim-subtitle">
-                            {{ profileName }} · AWG {{ cfg.version }}
+                        <span v-if="caption" class="sim-subtitle">
+                            {{ caption }}
                         </span>
                     </div>
                 </div>
             </header>
 
-            <div v-if="!cfg" class="alert alert-info">
+            <div v-if="!simulator || !cfg" class="alert alert-info">
                 {{ t("sim.noData") }}
                 <router-link :to="localizePath('/', locale)" class="link">{{ t("sim.noData.link") }}</router-link>.
             </div>
 
             <template v-else>
-                <!-- What this version actually puts on the wire -->
-                <div v-if="versionNote" class="alert alert-info">
+                <!-- What this config actually puts on the wire -->
+                <div
+                    v-for="(note, i) in engineNotes"
+                    :key="`en${i}`"
+                    class="alert alert-info"
+                >
                     <Info :size="16" class="alert-icon" />
-                    <div class="alert-content">{{ versionNote }}</div>
+                    <div class="alert-content">{{ note }}</div>
                 </div>
 
-                <div v-if="headerProtected" class="alert alert-success">
-                    <ShieldCheck :size="16" class="alert-icon" />
-                    <div class="alert-content">{{ t("sim.hp.note") }}</div>
+                <div
+                    v-for="(note, i) in clientNotes"
+                    :key="`cn${i}`"
+                    class="alert alert-info"
+                >
+                    <Info :size="16" class="alert-icon" />
+                    <div class="alert-content">{{ note }}</div>
                 </div>
 
                 <div class="sim-toolbar">
@@ -178,12 +186,14 @@ const stats = computed(() => {
                         <span class="stat-label">{{ t("sim.stat.bytes") }}</span>
                     </div>
                     <div class="stat-card">
-                        <span class="stat-value">{{ stats.handshake }}</span>
-                        <span class="stat-label">{{ t("sim.stat.handshake") }}</span>
+                        <span class="stat-value">{{ stats.payload }}</span>
+                        <span class="stat-label">{{ t("sim.stat.payload") }}</span>
                     </div>
                     <div class="stat-card">
                         <span class="stat-value">{{ stats.overhead }}</span>
-                        <span class="stat-label">{{ t("sim.stat.overhead") }}</span>
+                        <span class="stat-label">
+                            {{ t("sim.stat.overhead") }} · {{ stats.share }}%
+                        </span>
                     </div>
                     <div class="stat-card">
                         <Clock :size="16" class="stat-icon" />
@@ -208,7 +218,7 @@ const stats = computed(() => {
                         </div>
                         <div class="timeline">
                             <div
-                                v-for="(p, idx) in sim?.packets"
+                                v-for="p in sim?.packets"
                                 :key="p.id"
                                 class="packet-row"
                                 :class="{ right: p.from === 'client' }"
@@ -219,18 +229,20 @@ const stats = computed(() => {
                             >
                                 <span class="packet-step">{{ p.step }}</span>
                                 <span class="packet-badge">
-                                    {{ kindLabel(p.kind) }}
+                                    {{ p.label }}
                                 </span>
                                 <component
                                     :is="
                                         p.from === 'client'
                                             ? ArrowRight
-                                            : ArrowLeftIcon
+                                            : ArrowLeft
                                     "
                                     :size="14"
                                     class="packet-arrow"
                                 />
-                                <span class="packet-size">{{ p.size }} B</span>
+                                <span class="packet-size">
+                                    {{ p.size }} {{ t("sim.bytes") }}
+                                </span>
                             </div>
                         </div>
                         <div class="lane">
@@ -250,26 +262,18 @@ const stats = computed(() => {
                     </div>
                     <div class="legend-grid">
                         <div
-                            v-for="kind in [
-                                'cps',
-                                'junk',
-                                'init',
-                                'response',
-                                'cookie',
-                                'data',
-                            ]"
-                            :key="kind"
+                            v-for="entry in legendItems"
+                            :key="entry.id"
                             class="legend-item"
+                            :class="{ 'is-dim': !kindUsed(entry.id) }"
                         >
                             <span
                                 class="legend-dot"
-                                :style="{
-                                    background: kindColor(kind as any),
-                                }"
+                                :style="{ background: kindColor(entry.id) }"
                             ></span>
                             <div class="legend-text">
-                                <strong>{{ kindLabel(kind as any) }}</strong>
-                                <span>{{ kindDescription(kind as any) }}</span>
+                                <strong>{{ entry.kind.label }}</strong>
+                                <span>{{ t(entry.kind.descriptionKey as never) }}</span>
                             </div>
                         </div>
                     </div>
@@ -288,42 +292,33 @@ const stats = computed(() => {
                         <div class="detail-item">
                             <span class="detail-label">{{ t("sim.detail.direction") }}</span>
                             <span class="detail-value">
-                                {{ selectedPacket.from === 'client' ? t('sim.client') : t('sim.server') }}
+                                {{ sideName(selectedPacket.from) }}
                                 →
-                                {{ selectedPacket.to === 'client' ? t('sim.client') : t('sim.server') }}
+                                {{ sideName(selectedPacket.to) }}
                             </span>
                         </div>
                         <div class="detail-item">
                             <span class="detail-label">{{ t("sim.detail.size") }}</span>
-                            <span class="detail-value"
-                                >{{ selectedPacket.size }} {{ t("sim.bytes") }}</span
-                            >
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">{{ t("sim.detail.header") }}</span>
-                            <span class="detail-value"
-                                >{{ selectedPacket.header || '—' }}</span
-                            >
+                            <span class="detail-value">
+                                {{ selectedPacket.size }} {{ t("sim.bytes") }}
+                            </span>
                         </div>
                         <div class="detail-item">
                             <span class="detail-label">{{ t("sim.detail.payload") }}</span>
-                            <span class="detail-value"
-                                >{{ selectedPacket.payload }} {{ t("sim.bytes") }}</span
-                            >
+                            <span class="detail-value">
+                                {{ selectedPacket.payload }} {{ t("sim.bytes") }}
+                            </span>
+                        </div>
+                        <div
+                            v-for="row in extraRows"
+                            :key="row.label"
+                            class="detail-item"
+                        >
+                            <span class="detail-label">{{ row.label }}</span>
+                            <span class="detail-value">{{ row.value }}</span>
                         </div>
                     </div>
                     <p class="detail-desc">{{ selectedPacket.description }}</p>
-                    <p
-                        v-if="selectedPacket.headerProtected"
-                        class="detail-crypto"
-                    >
-                        <Lock :size="13" />
-                        {{
-                            selectedPacket.encryptedWhole
-                                ? t("sim.hp.whole")
-                                : t("sim.hp.badge")
-                        }}
-                    </p>
                 </div>
 
                 <!-- Packet list -->
@@ -340,7 +335,6 @@ const stats = computed(() => {
                                     <th>{{ t("sim.table.type") }}</th>
                                     <th>{{ t("sim.table.direction") }}</th>
                                     <th>{{ t("sim.table.size") }}</th>
-                                    <th>{{ t("sim.table.header") }}</th>
                                     <th class="desc">{{ t("sim.table.desc") }}</th>
                                 </tr>
                             </thead>
@@ -361,15 +355,14 @@ const stats = computed(() => {
                                                 color: kindColor(p.kind),
                                             }"
                                         >
-                                            {{ kindLabel(p.kind) }}
+                                            {{ p.label }}
                                         </span>
                                     </td>
-                                    <td>
-                                        {{ p.from === 'client' ? 'C' : 'S' }} →
-                                        {{ p.to === 'client' ? 'C' : 'S' }}
+                                    <td class="dir">
+                                        {{ sideName(p.from) }} →
+                                        {{ sideName(p.to) }}
                                     </td>
-                                    <td>{{ p.size }}</td>
-                                    <td>{{ p.header || '—' }}</td>
+                                    <td>{{ p.size }} {{ t("sim.bytes") }}</td>
                                     <td class="desc">{{ p.description }}</td>
                                 </tr>
                             </tbody>
@@ -534,6 +527,11 @@ const stats = computed(() => {
     display: flex;
     align-items: flex-start;
     gap: 10px;
+    transition: opacity var(--trans-fast);
+}
+/* A kind this run never produced stays visible but quiet. */
+.legend-item.is-dim {
+    opacity: 0.35;
 }
 .legend-dot {
     width: 12px;
@@ -584,20 +582,6 @@ const stats = computed(() => {
     line-height: 1.5;
 }
 
-.detail-crypto {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin: -8px 16px 16px;
-    padding: 7px 10px;
-    border-radius: var(--radius-sm);
-    background: var(--green-bg);
-    color: var(--green);
-    font-family: var(--fw);
-    font-weight: 700;
-    font-size: 0.74rem;
-}
-
 /* Table */
 .table-wrap {
     overflow-x: auto;
@@ -631,6 +615,9 @@ const stats = computed(() => {
     border-radius: 999px;
     font-size: 0.72rem;
     font-weight: 600;
+}
+.dir {
+    white-space: nowrap;
 }
 .desc {
     color: var(--muted);

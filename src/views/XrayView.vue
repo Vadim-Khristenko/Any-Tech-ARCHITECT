@@ -28,6 +28,7 @@
  */
 
 import { computed, onMounted, onUnmounted, ref } from "vue";
+import { useRouter } from "vue-router";
 import {
     Sparkles,
     Copy,
@@ -43,6 +44,7 @@ import {
     Server,
     Search,
     TriangleAlert,
+    Activity,
 } from "lucide-vue-next";
 
 import { useCopyFeedback } from "@/composables/useCopyFeedback";
@@ -72,9 +74,11 @@ import {
 import { buildServerInbound, buildClientUris } from "@/engines/xray/render";
 import SendToForge from "@/components/SendToForge.vue";
 import type { XrayConfig, XrayInput } from "@/engines/xray/types";
+import { handOffToSimulator } from "@/shared/simHandoff";
 import { localizePath, useI18n } from "@/i18n";
 
 const { locale, t } = useI18n();
+const router = useRouter();
 const at = (path: string) => localizePath(path, locale.value);
 const { copy, isCopied } = useCopyFeedback();
 
@@ -783,6 +787,24 @@ function downloadOut() {
     }
 }
 
+/**
+ * Into the simulator, config in hand — the same hand-off the AmneziaWG page
+ * makes. The simulator page is generic; this side only says which engine
+ * owns the config and how to caption it.
+ */
+function toSimulator() {
+    const cfg = config.value;
+    if (!cfg) return;
+    handOffToSimulator({
+        engine: "xray",
+        caption: ["XRay", cfg.security, cfg.transport]
+            .filter(Boolean)
+            .join(" · "),
+        config: cfg,
+    });
+    router.push(at("/simulator"));
+}
+
 function setServerNames(event: Event) {
     input.value.serverNames = (event.target as HTMLInputElement).value
         .split(",")
@@ -1374,6 +1396,9 @@ function setServerNames(event: Event) {
                 </button>
                 <button class="btn btn--ghost btn--sm" @click="downloadOut">
                     <Download :size="14" /> {{ outView === 'server' ? t("xg.out.downloadJson") : t("xg.out.downloadLinks") }}
+                </button>
+                <button class="btn btn--ghost btn--sm" @click="toSimulator">
+                    <Activity :size="14" /> {{ t("gen.act.simulator") }}
                 </button>
             </div>
         </section>

@@ -15,6 +15,7 @@ import { createDefaults, generateXray } from "./generate";
 import { renderServer, buildClientUri } from "./render";
 import { parseXray } from "./parse";
 import { validateXray } from "./validate";
+import { xraySimulator } from "./packetSim";
 import type { XrayConfig, XrayInput } from "./types";
 
 export const xrayEngine = defineEngine<XrayInput, XrayConfig>({
@@ -55,6 +56,8 @@ export const xrayEngine = defineEngine<XrayInput, XrayConfig>({
   },
 
   validate: validateXray,
+
+  simulator: xraySimulator,
 });
 
 export * from "./types";

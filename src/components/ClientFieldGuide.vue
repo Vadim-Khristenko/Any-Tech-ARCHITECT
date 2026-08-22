@@ -16,6 +16,7 @@ import { ref, computed, onMounted, nextTick } from "vue";
 import { Copy, Check, Info, ChevronDown, LayoutGrid } from "lucide-vue-next";
 import { useI18n } from "@/i18n";
 import { useCopyFeedback } from "@/composables/useCopyFeedback";
+import { pendingSimulation } from "@/shared/simHandoff";
 import type { AWGConfig } from "@/engines/awg/generator";
 import { capsFor } from "@/engines/awg/generator/versions";
 
@@ -33,10 +34,14 @@ const open = ref(false);
 
 onMounted(() => {
     try {
-        const raw = sessionStorage.getItem("awg_pending_cfg");
-        if (raw) {
-            const parsed = JSON.parse(raw);
-            if (parsed?.cfg) cfg.value = { ...parsed.cfg, version: parsed.ver };
+        const pending = pendingSimulation();
+        if (pending && pending.engine === "awg") {
+            const c = pending.config as Partial<AWGConfig> | null;
+            // The hand-off config carries its version inside, unlike the old
+            // envelope that kept it in a sibling field.
+            if (c && typeof c === "object" && c.version) {
+                cfg.value = c as AWGConfig;
+            }
         }
     } catch {
         // A malformed entry just means placeholders — nothing to report.

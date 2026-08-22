@@ -402,7 +402,7 @@ export const en: Catalog = {
   "sim.restart": "Restart",
   "sim.stat.packets": "packets",
   "sim.stat.bytes": "bytes total",
-  "sim.stat.handshake": "handshake",
+  "sim.stat.payload": "payload",
   "sim.stat.overhead": "overhead",
   "sim.stat.at10mbit": "at 10 Mbit/s",
   "sim.diagram.title": "Packet exchange diagram",
@@ -413,13 +413,17 @@ export const en: Catalog = {
   "sim.detail.direction": "Direction",
   "sim.detail.size": "Size",
   "sim.detail.header": "Header (H)",
+  "sim.detail.crypto": "Encryption",
+  "sim.detail.frame": "Frame",
+  "sim.detail.framing": "Framing",
+  "sim.detail.realityAuth": "REALITY authentication",
+  "sim.detail.realityAuth.carried": "carried by this packet",
   "sim.detail.payload": "Payload",
-  "sim.bytes": "bytes",
+  "sim.bytes": "B",
   "sim.table.title": "Packet table",
   "sim.table.type": "Type",
   "sim.table.direction": "Direction",
   "sim.table.size": "Size",
-  "sim.table.header": "Header",
   "sim.table.desc": "Description",
   "sim.desc.cps": "CPS packet I{n}: {profile}",
   "sim.desc.junk": "Junk train {i}/{total} — traffic cover",
@@ -465,6 +469,8 @@ export const en: Catalog = {
   "sim.desc.xrayVlessRequest": "VLESS header, {bytes} B, flow={flow}",
   "sim.desc.xrayEncryption": "VLESS Encryption key exchange: ML-KEM-768 plus X25519.",
   "sim.desc.xrayAppData": "Application data over {transport}, +{overhead} B of framing",
+  "sim.note.plain":
+    "No encryption: the session opens straight onto application data, everything visible as it is.",
 
   /* ── MergeKeys ────────────────────────────────────────────────────────── */
   "mk.err.notBase64":
