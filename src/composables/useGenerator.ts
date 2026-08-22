@@ -35,6 +35,7 @@ import { copyText } from "@/utils/clipboard";
 import { downloadText } from "@/utils/download";
 import { confToVpn, buildVpnConfig } from "@/engines/awg/awgFormat";
 import type { VpnConfig } from "@/engines/awg/awgFormat";
+import { renderMihomoProxy } from "@/engines/awg/mihomoFormat";
 import type { AwgContainer } from "@/engines/keys";
 import type { GeneratorInput } from "@/engines/awg/generator";
 import { AWG_VERSIONS, capsFor } from "@/engines/awg/generator/versions";
@@ -432,6 +433,32 @@ export function useGenerator() {
     );
   }
 
+  /**
+   * mihomoText — тот же параметр-сет, но в YAML-диалекте mihomo (Clash.Meta).
+   * Пустая строка, пока нечего экспортировать, как и у jsonText.
+   */
+  const mihomoText = computed(() =>
+    currentAwg.value ? renderMihomoProxy(currentAwg.value) : "",
+  );
+
+  /**
+   * copyMihomo — копирует mihomo-прокси в буфер обмена.
+   */
+  async function copyMihomo(): Promise<boolean> {
+    return copyToClipboard(mihomoText.value, translate("log.copiedYaml"));
+  }
+
+  /**
+   * downloadMihomo — скачивает mihomo-прокси как .yaml файл.
+   */
+  function downloadMihomo() {
+    downloadBlob(
+      mihomoText.value,
+      `amneziawg-${version.value}-${Date.now()}.yaml`,
+      "application/yaml",
+    );
+  }
+
   async function copyToClipboard(text: string, okMsg: string): Promise<boolean> {
     if (!text) {
       addLog(translate("log.generateFirst"), "bad");
@@ -669,6 +696,8 @@ export function useGenerator() {
     downloadConfig,
     copyJson,
     downloadJson,
+    copyMihomo,
+    downloadMihomo,
     addLog,
 
     // Вычисляемые
@@ -676,6 +705,7 @@ export function useGenerator() {
     previewLines,
     jsonPayload,
     jsonText,
+    mihomoText,
     showCustomHost,
     isCPSSupported,
     isFullObfuscation,

@@ -168,6 +168,8 @@ export const en: Catalog = {
   "gen.out.downloadConf": "Download .conf",
   "gen.out.copyJson": "Copy JSON",
   "gen.out.downloadJson": "Download JSON",
+  "gen.out.copyYaml": "Copy YAML (mihomo)",
+  "gen.out.downloadYaml": "Download YAML (mihomo)",
 
   "gen.forge.send": "Open in the key workbench",
   "gen.links.title": "If something does not add up",
@@ -346,6 +348,7 @@ export const en: Catalog = {
   "log.hostUnreachable": "{host} — unreachable ({error})",
   "log.copiedConf": "Config copied to the clipboard",
   "log.copiedJson": "JSON copied to the clipboard",
+  "log.copiedYaml": "mihomo YAML copied to the clipboard",
 
   /* ── Generated .conf comments ─────────────────────────────────────────── */
   "conf.privateKey": "PrivateKey = <your private key>",

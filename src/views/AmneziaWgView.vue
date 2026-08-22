@@ -91,6 +91,8 @@ const {
     downloadConfig,
     copyJson,
     downloadJson,
+    copyMihomo,
+    downloadMihomo,
     plainText,
     batchCount,
     batchResults,
@@ -1514,6 +1516,18 @@ function toSimulator() {
                 <button class="btn btn--ghost btn--sm" @click="downloadJson()">
                     <Download :size="14" /> {{ t("gen.out.downloadJson") }}
                 </button>
+                <!--
+                    mihomo speaks a format of its own, so the export exists
+                    only for the visitor who picked mihomo as the client.
+                -->
+                <template v-if="config.clientId === 'mihomo'">
+                    <button class="btn btn--ghost btn--sm" @click="copyMihomo()">
+                        <Braces :size="14" /> {{ t("gen.out.copyYaml") }}
+                    </button>
+                    <button class="btn btn--ghost btn--sm" @click="downloadMihomo()">
+                        <Download :size="14" /> {{ t("gen.out.downloadYaml") }}
+                    </button>
+                </template>
                 <button class="btn btn--ghost btn--sm" @click="toSimulator">
                     <Activity :size="14" /> {{ t("gen.act.simulator") }}
                 </button>

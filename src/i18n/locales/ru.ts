@@ -168,6 +168,8 @@ export const ru = {
   "gen.out.downloadConf": "Скачать .conf",
   "gen.out.copyJson": "Копировать JSON",
   "gen.out.downloadJson": "Скачать JSON",
+  "gen.out.copyYaml": "Копировать YAML (mihomo)",
+  "gen.out.downloadYaml": "Скачать YAML (mihomo)",
 
   "gen.forge.send": "Открыть в кузнице ключей",
   "gen.links.title": "Если что-то не сходится",
@@ -346,6 +348,7 @@ export const ru = {
   "log.hostUnreachable": "{host} — недоступен ({error})",
   "log.copiedConf": "Конфиг скопирован в буфер",
   "log.copiedJson": "JSON скопирован в буфер",
+  "log.copiedYaml": "YAML для mihomo скопирован в буфер",
 
   /* ── Generated .conf comments ─────────────────────────────────────────── */
   "conf.privateKey": "PrivateKey = <ваш приватный ключ>",
