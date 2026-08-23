@@ -1,0 +1,116 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# Mirror deploy — builds the mirror bundle and pushes it to a Yandex Object
+# Storage bucket over its S3-compatible API.
+#
+# The bucket hosts a mirror of architect.vai-rice.space: the build carries the
+# mirror banner and noindex tags (VITE_SITE_MIRROR=1, see scripts/run-mirror.ts),
+# so search engines keep sending people to the main origin while the mirror
+# serves everyone whose access to it is degraded.
+#
+# Manual trigger only, on purpose: the main pipeline already publishes every
+# release, and the mirror following it automatically can wait until this has
+# proven itself. To make it follow releases, add:
+#
+#   on:
+#     push:
+#       tags: ["v*.*.*"]
+#
+# ── What you need before the first run ────────────────────────────────────────
+#
+#   1. A service account in Yandex Cloud (not a personal key): console →
+#      your catalog → Service accounts → Create. Name it after the job,
+#      e.g. architect-mirror-deploy.
+#   2. The role storage.uploader on the account, scoped to the folder or
+#      catalog holding the bucket. Uploader rather than editor: the least the
+#      deploy needs is put/get/list/delete on objects.
+#   3. A static access key for the account: account page → Create new key →
+#      Create static access key. It shows once — copy both halves.
+#   4. Repository settings:
+#        Settings → Secrets and variables → Actions → Secrets:
+#          YANDEX_ACCESS_KEY_ID      = key id from step 3
+#          YANDEX_SECRET_ACCESS_KEY  = secret from step 3
+#        Same page, Variables tab:
+#          YANDEX_BUCKET             = bucket name (not a secret)
+#
+#   The keys reach the runner only through env, never through ${{ }} inside
+#   run: — same rule the main pipeline enforces after the v3.2.0 incident.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+name: Deploy Mirror (Yandex Cloud)
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: mirror-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: 🪞 Build & upload to the bucket
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v7
+
+      - name: 🥟 Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: 📦 Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: 🔨 Mirror build
+        # The banner and the noindex tags come from VITE_SITE_MIRROR inside
+        # this script; nothing here needs to know about them.
+        run: bun run build:mirror
+
+      - name: 🚀 Upload to the bucket
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.YANDEX_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.YANDEX_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ru-central1
+          AWS_ENDPOINT_URL: https://storage.yandexcloud.net
+          BUCKET: ${{ vars.YANDEX_BUCKET }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "$BUCKET" ]; then
+            echo "::error::Variable YANDEX_BUCKET is not set — see the header of this workflow."
+            exit 1
+          fi
+
+          # Hashed asset names first, with an immutable cache: by the time any
+          # HTML references them they are already there.
+          aws s3 sync dist/assets "s3://$BUCKET/assets" \
+            --cache-control "public,max-age=31536000,immutable"
+
+          # Then everything else, deletable: HTML must revalidate, and files
+          # the new build dropped must leave the bucket. --delete does not
+          # touch what the previous pass excluded.
+          aws s3 sync dist/ "s3://$BUCKET/" \
+            --exclude "assets/*" \
+            --delete \
+            --cache-control "public,max-age=0,must-revalidate"
+
+          echo "Mirror deployed to s3://$BUCKET/"
+
+      - name: 📋 Summary
+        env:
+          BUCKET: ${{ vars.YANDEX_BUCKET }}
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          ### 🪞 Mirror deployed
+
+          | | |
+          |---|---|
+          | Bucket | \`$BUCKET\` |
+          | Build | \`bun run build:mirror\` |
+          | Cache | assets immutable · HTML must-revalidate |
+          EOF
