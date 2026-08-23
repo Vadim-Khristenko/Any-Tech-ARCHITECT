@@ -747,6 +747,10 @@ export const ru = {
   "footer.slogan.lead": "Шифруем реальность.",
   "footer.slogan.accent": "Архитектура свободы",
   "footer.slogan.tail": "— в каждом пакете.",
+
+  "mirror.badge": "Зеркало",
+  "mirror.text": "Для лучшей доступности пользуйтесь основным сайтом, но и это зеркало работает.",
+  "mirror.donate": "Живёт на пожертвованиях YooMoney — поддержите проект",
   "footer.donate.title": "Поддержать проект",
   "footer.donate.methods": "YooMoney · Patreon · DaLink · крипта",
   "footer.col.resources": "Ресурсы",

@@ -24,11 +24,51 @@
             }
         </style>
 
-        <title>Any Tech ARCHITECT — конструктор параметров обфускации</title>
+        <title>Any Tech ARCHITECT — генератор конфигов AmneziaWG и XRay REALITY</title>
         <meta
             name="description"
-            content="Профессиональный инструмент для тонкой настройки и генерации конфигураций AmneziaWG. Защита от DPI, управление мусорными пакетами и оптимизация протокола."
+            content="Any Tech ARCHITECT (ранее AmneziaWG Architect) — генератор параметров обфускации для AmneziaWG 1.0–3.1 и XRay/REALITY. Junk-поезда, диапазоны заголовков H1–H4, CPS-подписи I1–I5 и одиннадцать профилей мимикрии по RFC. Всё считается в браузере — ключи и параметры не покидают устройство."
         />
+        <meta
+            name="keywords"
+            content="Any Tech Architect, AmneziaWG Architect, AmneziaWG generator, генератор AmneziaWG, генератор конфигов AmneziaWG, AWG генератор, XRay Architect, XRay REALITY generator, обфускация WireGuard, обход блокировок, DPI, VPN, VLESS"
+        />
+
+        <!-- Structured data for the tool as a whole. The old name lives in
+             alternateName: people search for both "Any Tech ARCHITECT" and the
+             "AmneziaWG Architect" it used to be, and the two must connect.
+             Every route stub is built from this template, so the block rides
+             along to every page. -->
+        <script type="application/ld+json">
+        {
+            "@context": "https://schema.org",
+            "@type": "WebApplication",
+            "name": "Any Tech ARCHITECT",
+            "alternateName": [
+                "AmneziaWG Architect",
+                "AmneziaWG Generator",
+                "XRay Architect",
+                "XRay REALITY Generator"
+            ],
+            "url": "https://architect.vai-rice.space/",
+            "description": "Генератор параметров обфускации для AmneziaWG 1.0–3.1 и XRay/REALITY: junk-поезда, диапазоны заголовков, CPS-подписи и профили мимикрии. Всё считается в браузере.",
+            "applicationCategory": "SecurityApplication",
+            "operatingSystem": "Web",
+            "browserRequirements": "Requires JavaScript",
+            "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+            "inLanguage": ["ru", "en"],
+            "featureList": [
+                "AmneziaWG 1.0–3.1 configuration generator",
+                "XRay / REALITY / VLESS configuration generator",
+                "CPS signature chains (I1–I5) with per-tag control",
+                "Eleven mimicry profiles: QUIC, TLS 1.3, DTLS, HTTP/3, SIP, DNS",
+                "vpn:// key merging and editing (MergeKeys)",
+                "Packet simulator for AmneziaWG and XRay handshakes",
+                "Client compatibility matrix for 13 clients",
+                "Everything computed locally in the browser"
+            ]
+        }
+        </script>
 
         <!-- Favicons -->
         <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg" />
@@ -50,11 +90,11 @@
         <meta property="og:type" content="website" />
         <meta
             property="og:title"
-            content="AmneziaWG Architect — Генератор конфигураций"
+            content="Any Tech ARCHITECT — генератор конфигов AmneziaWG и XRay"
         />
         <meta
             property="og:description"
-            content="Тонкая настройка параметров AmneziaWG: Jc, Jmin, Jmax, S1–S4, H1–H4, CPS I1–I5. Профили мимикрии QUIC/TLS/DTLS/SIP. Защита от блокировок."
+            content="Генератор параметров обфускации для AmneziaWG 1.0–3.1 и XRay/REALITY: Jc, Jmin, Jmax, S1–S4, H1–H4, CPS I1–I5. Профили мимикрии QUIC/TLS/DTLS/SIP. Всё в браузере."
         />
         <meta property="og:image" content="/assets/og-image.png" />
         <meta name="apple-mobile-web-app-title" content="AWG-AiT" />

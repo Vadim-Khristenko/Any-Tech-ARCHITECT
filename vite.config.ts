@@ -43,6 +43,14 @@ const STUB_ROUTES = [
 
 const STUB_LOCALES = ["ru", "en"] as const;
 
+/*
+ * Mirror builds (`VITE_SITE_MIRROR=1`, see scripts/run-mirror.ts) are meant
+ * for a hosting bucket behind the main site. They carry the mirror banner and
+ * ask crawlers to keep the copy out of the index: duplicate content would
+ * only split the ranking the main origin earned.
+ */
+const SITE_MIRROR = process.env.VITE_SITE_MIRROR === "1";
+
 const ROUTE_STUBS: RouteStub[] = STUB_LOCALES.flatMap((loc) =>
   STUB_ROUTES.filter(
     // The site root is index.html itself, not a stub directory.
@@ -256,12 +264,14 @@ export function buildStubHtml(
   if (html.includes('name="robots"')) {
     html = html.replace(
       /(<meta\s+name="robots"\s+content=")[^"]*(")/,
-      `$1index,follow$2`,
+      `$1${SITE_MIRROR ? "noindex,follow" : "index,follow"}$2`,
     );
   } else {
     html = html.replace(
       /<\/title>/,
-      `</title>\n    <meta name="robots" content="index,follow" />`,
+      `</title>\n    <meta name="robots" content="${
+        SITE_MIRROR ? "noindex,follow" : "index,follow"
+      }" />`,
     );
   }
 
@@ -282,6 +292,21 @@ function createSpaFallbackPlugin(): Plugin {
       const siteOrigin = inferSiteOrigin();
       const isRelativeBase = base === "./";
       const effectiveBase = isRelativeBase ? "/" : base;
+
+      /*
+       * A mirror asks every crawler out of its index, including for the root
+       * document itself: the stubs carry their own robots tag from
+       * buildStubHtml, but index.html is served as-is and 404.html / 200.html
+       * are copies of it.
+       */
+      let pageIndex = rawIndex;
+      if (SITE_MIRROR && !pageIndex.includes('name="robots"')) {
+        pageIndex = pageIndex.replace(
+          /<\/title>/,
+          `</title>\n    <meta name="robots" content="noindex,follow" />`,
+        );
+        fs.writeFileSync(indexPath, pageIndex, "utf-8");
+      }
 
       for (const route of ROUTE_STUBS) {
         const stubDir = path.join(outDir, route.slug);
@@ -310,7 +335,9 @@ function createSpaFallbackPlugin(): Plugin {
       ].join("\n");
 
       fs.writeFileSync(cfPages, rewriteRules, "utf-8");
-      fs.writeFileSync(gitlabPages, rawIndex, "utf-8");
+      // pageIndex, not rawIndex: a mirror build patched the robots tag into
+      // the root document, and these copies have to carry it too.
+      fs.writeFileSync(gitlabPages, pageIndex, "utf-8");
 
       /*
        * sitemap.xml with hreflang alternates.
@@ -383,7 +410,7 @@ function createSpaFallbackPlugin(): Plugin {
 
       // We no longer write a manual HTML 404 because Vue Router handles it via 200/404 rewrites
       // or the index fallback. If needed by simple hosts, we point 404 to index
-      fs.writeFileSync(fallback404, rawIndex, "utf-8");
+      fs.writeFileSync(fallback404, pageIndex, "utf-8");
 
       if (
         process.env.GITHUB_ACTIONS ||

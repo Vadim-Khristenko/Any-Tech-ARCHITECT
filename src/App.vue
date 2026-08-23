@@ -3,9 +3,17 @@ import { onMounted } from "vue";
 import { RouterView, useRouter } from "vue-router";
 import MainHeader from "./components/MainHeader.vue";
 import MainFooter from "./components/MainFooter.vue";
+import MirrorBanner from "./components/MirrorBanner.vue";
 import { accentFor, applyAccent } from "./composables/useTheme";
 
 const router = useRouter();
+
+/*
+ * Mirror builds carry a notice strip above the header. Vite substitutes the
+ * env constant at compile time, so a normal build sees `false` and shakes the
+ * banner out entirely; only the mirror build ships it.
+ */
+const SITE_MIRROR = import.meta.env.VITE_SITE_MIRROR === "1";
 
 /**
  * Recolour the app for the page that is about to appear.
@@ -36,7 +44,7 @@ onMounted(() => {
 </script>
 
 <template>
-    <div class="app-wrapper">
+    <div class="app-wrapper" :class="{ 'is-mirror': SITE_MIRROR }">
         <!--
             The sheet the whole application is drawn on. Four layers instead of
             the eight the aurora needed, and only one of them moves.
@@ -50,6 +58,7 @@ onMounted(() => {
         </div>
 
         <!-- ── App Shell ──────────────────────────────────────────────── -->
+        <MirrorBanner v-if="SITE_MIRROR" />
         <MainHeader />
 
         <main class="main-content">
@@ -77,6 +86,21 @@ onMounted(() => {
     flex-direction: column;
     z-index: 1;
     isolation: isolate;
+}
+
+/*
+ * Mirror builds push the whole fixed shell down by the banner's height. One
+ * variable drives every offset — the banner, the header under it and the
+ * content padding — so the strip can grow or shrink in one place.
+ */
+.app-wrapper.is-mirror {
+    --mirror-h: 38px;
+}
+.app-wrapper.is-mirror .header {
+    top: var(--mirror-h);
+}
+.app-wrapper.is-mirror .main-content {
+    padding-top: calc(80px + var(--mirror-h));
 }
 
 .main-content {

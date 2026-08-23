@@ -740,6 +740,10 @@ export const en: Catalog = {
   "footer.slogan.lead": "Encrypting reality.",
   "footer.slogan.accent": "An architecture of freedom",
   "footer.slogan.tail": "— in every packet.",
+
+  "mirror.badge": "Mirror",
+  "mirror.text": "For the best availability use the main site, but this mirror works too.",
+  "mirror.donate": "Runs on YooMoney donations — support the project",
   "footer.donate.title": "Support the project",
   "footer.donate.methods": "YooMoney · Patreon · DaLink · crypto",
   "footer.col.resources": "Resources",
