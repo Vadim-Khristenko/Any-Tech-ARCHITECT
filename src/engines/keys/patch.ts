@@ -25,7 +25,7 @@ const AWG_CLIENT_FIELDS_CPS: readonly string[] = ["I1", "I2", "I3", "I4", "I5"];
 
 /**
  * Get the list of client fields to update based on AWG version.
- * awgVer: "1" (AWG 1.0) | "2" (AWG 1.5/2.0)
+ * awgVer: "1" (AWG 1.0) | "2" (AWG 1.5/2.0/3.0/3.1)
  */
 export function getClientFields(awgVer: "1" | "2"): string[] {
   if (awgVer === "1") return [...AWG_CLIENT_FIELDS_BASE];
@@ -36,7 +36,7 @@ export function getClientFields(awgVer: "1" | "2"): string[] {
  * Build an obfuscation patch object from generated params.
  *
  * @param p - Generated config params (from genCfg())
- * @param selectedVer - Selected AWG version in generator ("1.0" | "1.5" | "2.0")
+ * @param selectedVer - Selected AWG version in generator ("1.0" | "1.5" | "2.0" | "3.0" | "3.1")
  */
 export function buildObfuscationPatch(
   p: GeneratedParams,
@@ -124,10 +124,18 @@ export function patchJsonString(
  * Apply obfuscation patch to an AWG container object.
  * Updates:
  *   1. Top-level fields (awg.Jc, awg.I1, ...)
- *   2. awg.last_config (JSON string)
+ *   2. awg.last_config (JSON string) — both the JSON fields and the
+ *      embedded wg-quick `config` inside it
  *   3. awg.config (wg-quick string)
  *
  * Returns list of changed fields.
+ *
+ * A container stores the same config three times (fields, last_config,
+ * config) and the third copy appears twice: `awg.config` and
+ * `JSON.parse(awg.last_config).config`. Missing any one of them leaves a
+ * key that contradicts itself and whose `.conf` export stays stale — which
+ * is exactly the 4.0 bug where `vpn://` and `json` updated but `.conf` did
+ * not.
  */
 export function applyObfPatchToAwg(
   awg: AwgContainer,
@@ -135,27 +143,75 @@ export function applyObfPatchToAwg(
 ): string[] {
   const changed: string[] = [];
   const fields = Object.keys(patch) as (keyof ObfuscationPatch)[];
+  const present: (keyof ObfuscationPatch)[] = [];
 
   for (const field of fields) {
     const newVal = patch[field];
     if (newVal === undefined) continue;
+    present.push(field);
 
     const oldVal = awg[field];
 
-    // 1. Top-level
+    // 1. Top-level — Jc/Jmin/Jmax only if already present, I1-I5 always
+    // (a CPS field absent on the original key is still added).
     if (awg[field] !== undefined || AWG_CLIENT_FIELDS_CPS.includes(field)) {
       awg[field] = newVal;
       if (oldVal !== newVal) changed.push(field);
     }
+  }
 
-    // 2. last_config
-    if (awg.last_config && typeof awg.last_config === "string") {
-      awg.last_config = patchJsonString(awg.last_config, field, newVal);
+  if (present.length === 0) return changed;
+
+  // 2. last_config — JSON fields + inner wg-quick `config`
+  if (awg.last_config && typeof awg.last_config === "string") {
+    try {
+      const obj = JSON.parse(awg.last_config) as Record<string, unknown>;
+      let touched = false;
+
+      for (const field of present) {
+        const newVal = patch[field]!;
+        // Keep the JSON mirror in sync with the top level: add the field
+        // even if the original key did not carry it (e.g. I3-I5 on a key
+        // that only had I1/I2). `patchJsonString` preserves the old
+        // "do not add" contract for its direct callers; the container sync
+        // cannot keep it — otherwise top and inner diverge.
+        if (obj[field] !== newVal) {
+          obj[field] = newVal;
+          touched = true;
+        }
+      }
+
+      if (typeof obj.config === "string" && obj.config.includes("[Interface]")) {
+        let innerConf = obj.config as string;
+        for (const field of present) {
+          innerConf = patchWgQuickString(innerConf, field, patch[field]!);
+        }
+        if (innerConf !== obj.config) {
+          obj.config = innerConf;
+          touched = true;
+        }
+      }
+
+      if (touched) {
+        awg.last_config = JSON.stringify(obj, null, 4) + "\n";
+      }
+    } catch {
+      // Unparseable — fall back to line-wise patching so the operation
+      // still reaches the visible text.
+      for (const field of present) {
+        awg.last_config = patchWgQuickString(
+          awg.last_config as string,
+          field,
+          patch[field]!,
+        );
+      }
     }
+  }
 
-    // 3. config (wg-quick)
-    if (awg.config && typeof awg.config === "string") {
-      awg.config = patchWgQuickString(awg.config, field, newVal);
+  // 3. config (wg-quick) at the top level
+  if (awg.config && typeof awg.config === "string") {
+    for (const field of present) {
+      awg.config = patchWgQuickString(awg.config as string, field, patch[field]!);
     }
   }
 

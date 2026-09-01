@@ -140,8 +140,21 @@ export interface Engine<TInput = unknown, TConfig = unknown> {
 
   /* — encode — */
 
-  /** Render to the protocol's own config format. */
-  render(config: TConfig, labels?: EngineLabels): EngineLine[];
+  /**
+   * Render to the protocol's own config format.
+   *
+   * `options` carries what only some renders want — an endpoint to name in a
+   * [Peer] section, a preview flag — as loose string flags rather than a
+   * per-engine type, so the shell can hand a form field through without
+   * knowing the protocol. An engine that has no use for a flag ignores it;
+   * one that silently drops a flag the form did send is how the "whatever I
+   * type never shows up in the file" bugs are born.
+   */
+  render(
+    config: TConfig,
+    labels?: EngineLabels,
+    options?: Readonly<Record<string, string>>,
+  ): EngineLine[];
 
   /** Share link, where the protocol has one: `vpn://`, `vless://`. */
   toUri?(config: TConfig): string | null;

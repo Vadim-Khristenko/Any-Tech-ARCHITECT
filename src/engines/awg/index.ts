@@ -101,8 +101,13 @@ export const awgEngine = defineEngine<GeneratorInput, AWGConfig>({
 
   generate: (input) => genCfg(input),
 
-  render(config, labels: EngineLabels): EngineLine[] {
-    return renderConfLines(config, { labels: labels as Partial<RenderLabels> });
+  render(config, labels: EngineLabels, options?: Readonly<Record<string, string>>): EngineLine[] {
+    // The form's endpoint field rides in through options: the shell knows it
+    // as a string flag, the renderer knows what to build from it.
+    return renderConfLines(config, {
+      labels: labels as Partial<RenderLabels>,
+      endpoint: options?.endpoint ?? "",
+    });
   },
 
   /**

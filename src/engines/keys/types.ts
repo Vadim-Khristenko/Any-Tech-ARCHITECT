@@ -85,5 +85,5 @@ export interface MergeResult {
   };
 }
 
-/** AWG version string */
-export type AwgVersion = "1.0" | "1.5" | "2.0";
+/** AWG version string — matches generator's AWGVersion for patch building */
+export type AwgVersion = "1.0" | "1.5" | "2.0" | "3.0" | "3.1";
