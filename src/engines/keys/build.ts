@@ -19,6 +19,7 @@ import {
 } from "./containers";
 import { containerBody, inferProtocol } from "./identify";
 import { buildVless, fromContainer } from "./vless";
+import { getAwgWgQuick } from "./wgQuick";
 import type { ContainerEntry, VpnConfig } from "./types";
 
 /* ── Taking a key apart ───────────────────────────────────────────────────── */
@@ -33,24 +34,7 @@ import type { ContainerEntry, VpnConfig } from "./types";
 export function extractWgQuick(entry: ContainerEntry): string | null {
   const found = containerBody(entry);
   if (!found) return null;
-
-  const body = found.body;
-  if (typeof body.config === "string" && body.config.includes("[Interface]")) {
-    return body.config;
-  }
-
-  if (typeof body.last_config === "string") {
-    try {
-      const inner = JSON.parse(body.last_config) as Record<string, unknown>;
-      if (typeof inner.config === "string" && inner.config.includes("[Interface]")) {
-        return inner.config;
-      }
-    } catch {
-      // Unreadable inner copy; validation reports it separately.
-    }
-  }
-
-  return null;
+  return getAwgWgQuick(found.body as import("./types").AwgContainer);
 }
 
 /**

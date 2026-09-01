@@ -15,6 +15,7 @@
 
 import { vpnDecode, vpnEncode } from "@/engines/keys";
 import type { VpnConfig, AwgContainer } from "@/engines/keys";
+import { getAwgWgQuick } from "@/engines/keys/wgQuick";
 import { LocalisedError } from "@/shared/errors";
 
 export type AwgFormat = "vpn" | "conf" | "json" | "unknown";
@@ -217,16 +218,8 @@ export function vpnToConf(
 
 /** Prefer awg.config; fall back to last_config.config; else throw. */
 function extractConf(awg: AwgContainer): string {
-  if (typeof awg.config === "string" && awg.config.includes("[Interface]"))
-    return awg.config;
-  if (typeof awg.last_config === "string") {
-    try {
-      const lc = JSON.parse(awg.last_config) as { config?: string };
-      if (lc.config && lc.config.includes("[Interface]")) return lc.config;
-    } catch {
-      /* ignore — fall through to error */
-    }
-  }
+  const conf = getAwgWgQuick(awg);
+  if (conf) return conf;
   throw new LocalisedError(
       "mk.err.noConfField",
       {},
