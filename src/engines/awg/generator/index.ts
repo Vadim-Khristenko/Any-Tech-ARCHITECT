@@ -258,6 +258,7 @@ export function genCfg(input: GeneratorInput): AWGConfig {
     routerMode: input.routerMode,
     extreme: useExtremeMax,
     junkLevel,
+    narrowH: input.version === "3.1" && !!input.useNarrowH,
   });
 
   const int = (field: string, fallback = 0): number => {

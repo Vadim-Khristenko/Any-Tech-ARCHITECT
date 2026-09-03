@@ -1379,7 +1379,25 @@ function toSimulator() {
                             <span class="switch-track"></span>
                             <span class="mono">DisableCookies</span>
                         </label>
+                        <!--
+                            Narrow H1-H4 for the 3.1 bug. Visible only on 3.1
+                            and only when the triggering feature is on — wide
+                            header intervals cost CPU in amneziawg-go 3.1 packet
+                            classification and can misclassify when header
+                            protection is active. Clamping each range to ~20k
+                            fixes the bug at the cost of slightly less header
+                            obfuscation. Detailed note lives in the help drawer
+                            and in i18n gen.narrowH.*
+                        -->
+                        <label v-if="config.useHeaderProtection" class="switch">
+                            <input v-model="config.useNarrowH" type="checkbox" @change="generate()" />
+                            <span class="switch-track"></span>
+                            <span>{{ t("gen.narrowH.label") }}</span>
+                        </label>
                     </template>
+                    <p v-if="version === '3.1' && config.useHeaderProtection" class="hint" style="margin-top:8px">
+                        {{ t("gen.narrowH.detail") }}
+                    </p>
                 </div>
 
                 <div class="disclose" :class="{ 'is-open': openHelp === 'awg3' }">
@@ -1392,6 +1410,13 @@ function toSimulator() {
                                     <span class="zone-help-meta" :data-tooltip="scopeHint(h.scope)">
                                         {{ scopeLabel(h.scope) }} · {{ t("gen.since", { v: h.since }) }}
                                     </span>
+                                </span>
+                            </div>
+                            <div v-if="version === '3.1'" class="zone-help-item">
+                                <span class="zone-help-key">H1–H4 narrow</span>
+                                <span>
+                                    {{ t("gen.narrowH.help") }}
+                                    <span class="zone-help-meta">local · since 3.1</span>
                                 </span>
                             </div>
                         </div>

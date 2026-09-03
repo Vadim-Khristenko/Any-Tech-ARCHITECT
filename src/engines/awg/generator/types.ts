@@ -102,6 +102,18 @@ export interface GeneratorInput {
 
   /** AWG 3.1 — never send cookie replies (DisableCookies). */
   useDisableCookies: boolean;
+
+  /**
+   * AWG 3.1 — narrow H1-H4 ranges to work around an AmneziaWG bug.
+   *
+   * Wide H1-H4 spreads (up to 100M) cause amneziawg-go 3.1 to spend
+   * noticeably more CPU classifying packets and, on some builds, to
+   * misclassify due to overlapping interval checks when header protection
+   * is on. Clamping each range to ~20k fixes the bug at the cost of
+   * slightly less header obfuscation. Only meaningful on 3.1; other
+   * versions ignore it. Optional for backwards compat with tests.
+   */
+  useNarrowH?: boolean;
 }
 
 /**

@@ -32,6 +32,8 @@ export interface DrawContext {
   extreme: boolean;
   /** How much junk the user asked for. */
   junkLevel: number;
+  /** Narrow H1-H4 ranges for the 3.1 bug workaround. */
+  narrowH?: boolean;
 }
 
 /** Produce one parameter's value. */
@@ -47,9 +49,18 @@ export type Draw = (ctx: DrawContext, param: ParamDescriptor) => string | number
  * caps H at 2^31-1 the whole layout scales down rather than being clamped —
  * clamping put every range's upper bound on the cap itself.
  */
-export function headerZones(client: AwgClientLimits, extreme: boolean) {
-  const wide = extreme ? 10_000_000 : 100_000_000;
-  const wideH4 = extreme ? 15_000_000 : 150_000_000;
+export function headerZones(
+  client: AwgClientLimits,
+  extreme: boolean,
+  narrowH = false,
+) {
+  // Narrow mode for the 3.1 bug: clamp to ~20k instead of 100M. The bug
+  // is header-interval scanning cost; a small window fixes it and still
+  // leaves enough entropy to avoid the "all headers on the cap" signature.
+  const narrowSpread = 20_000;
+  const narrowH4Spread = 30_000;
+  const wide = narrowH ? narrowSpread : extreme ? 10_000_000 : 100_000_000;
+  const wideH4 = narrowH ? narrowH4Spread : extreme ? 15_000_000 : 150_000_000;
   const max = client.maxHValue;
 
   if (max >= 4_294_967_295) {
@@ -94,7 +105,7 @@ const isHeaderKey = (key: string): key is HeaderKey =>
  */
 const drawHeaderRange: Draw = (ctx, param) => {
   if (!isHeaderKey(param.key)) return 0;
-  const zone = headerZones(ctx.client, ctx.extreme)[param.key];
+  const zone = headerZones(ctx.client, ctx.extreme, ctx.narrowH)[param.key];
 
   const headroom = zone.spread + RANGE_MAX_WIDTH;
   const top = Math.max(zone.min, zone.max - headroom);
@@ -111,7 +122,7 @@ const drawHeaderRange: Draw = (ctx, param) => {
  */
 const drawHeaderSingle: Draw = (ctx, param) => {
   if (!isHeaderKey(param.key)) return 0;
-  const zone = headerZones(ctx.client, ctx.extreme)[param.key];
+  const zone = headerZones(ctx.client, ctx.extreme, ctx.narrowH)[param.key];
   const spread =
     param.key === "H1"
       ? ctx.extreme

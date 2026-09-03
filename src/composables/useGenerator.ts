@@ -159,6 +159,11 @@ export function useGenerator() {
     // Полный отказ от cookie-ответов. Выключено по умолчанию: без cookie
     // ломается keepalive за NAT при нагрузке.
     useDisableCookies: false,
+    // Узкие H1-H4 для 3.1: уменьшает разброс с ~100M до ~20k, фиксит баг
+    // amneziawg-go 3.1 (высокий CPU на классификации заголовков и возможный
+    // misclassify при header protection). Выкл. по умолчанию — меньше
+    // обфускации, но старые клиенты и так принимают любой разброс.
+    useNarrowH: false,
   });
 
   // ── Состояние UI ──────────────────────────────────────────────────────────
@@ -208,6 +213,7 @@ export function useGenerator() {
       useRandomTimings: config.useRandomTimings,
       useRandomTrailers: config.useRandomTrailers,
       useDisableCookies: config.useDisableCookies,
+      useNarrowH: config.useNarrowH,
     };
   }
 
