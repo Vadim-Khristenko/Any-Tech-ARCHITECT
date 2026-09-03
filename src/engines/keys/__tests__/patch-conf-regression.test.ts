@@ -151,12 +151,35 @@ describe("pseudo-random but valid 3.0 / 3.1 generation (via genCfg)", () => {
   it("awgKey fixture 3.1 carries the 3.1 switches", () => {
     const cfg = vpnDecode(awgKey("3.1")) as VpnConfig;
     const awg = cfg.containers![0].awg as Record<string, unknown>;
-    expect(awg.RandomTrailers).toBe("true");
-    expect(awg.DisableCookies).toBe("true");
+    expect(awg.RandomTrailers).toBe("1");
+    expect(awg.DisableCookies).toBe("1");
     expect(awg.HeaderProtectionKey).toBeTruthy();
     const inner = JSON.parse(awg.last_config as string) as Record<string, unknown>;
-    expect(inner.config as string).toContain("RandomTrailers = true");
+    expect(inner.config as string).toContain("RandomTrailers = 1");
+    expect(inner.config as string).toContain("DisableCookies = 1");
     expect(validateVpnConfig(cfg).filter((f) => f.level === "error")).toEqual([]);
+  });
+
+  it("3.1 conf writes both switches with 1/0 when only one is on", () => {
+    // Fixture helper via randomAwgKey with mixed flags must emit both lines
+    const key = randomAwgKey("3.1", { useRandomTrailers: true, useDisableCookies: false });
+    const cfg = vpnDecode(key) as VpnConfig;
+    const inner = JSON.parse((cfg.containers![0].awg as Record<string, unknown>).last_config as string) as Record<string, unknown>;
+    const conf = inner.config as string;
+    expect(conf).toMatch(/^RandomTrailers = 1$/m);
+    expect(conf).toMatch(/^DisableCookies = 0$/m);
+    const key2 = randomAwgKey("3.1", { useRandomTrailers: false, useDisableCookies: true });
+    const cfg2 = vpnDecode(key2) as VpnConfig;
+    const inner2 = JSON.parse((cfg2.containers![0].awg as Record<string, unknown>).last_config as string) as Record<string, unknown>;
+    const conf2 = inner2.config as string;
+    expect(conf2).toMatch(/^RandomTrailers = 0$/m);
+    expect(conf2).toMatch(/^DisableCookies = 1$/m);
+    // Both off -> neither line
+    const keyOff = randomAwgKey("3.1", { useRandomTrailers: false, useDisableCookies: false });
+    const cfgOff = vpnDecode(keyOff) as VpnConfig;
+    const innerOff = JSON.parse((cfgOff.containers![0].awg as Record<string, unknown>).last_config as string) as Record<string, unknown>;
+    expect(innerOff.config as string).not.toMatch(/^RandomTrailers = /m);
+    expect(innerOff.config as string).not.toMatch(/^DisableCookies = /m);
   });
 
   it("randomAwgKey 3.0 is valid and patchable", () => {

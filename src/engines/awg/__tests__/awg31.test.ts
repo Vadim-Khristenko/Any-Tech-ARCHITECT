@@ -28,14 +28,23 @@ describe("the AWG 3.1 switches", () => {
     const text = confOf(
       inputFor({ useRandomTrailers: true, useDisableCookies: true }),
     );
-    expect(text).toMatch(/^RandomTrailers = true$/m);
-    expect(text).toMatch(/^DisableCookies = true$/m);
+    expect(text).toMatch(/^RandomTrailers = 1$/m);
+    expect(text).toMatch(/^DisableCookies = 1$/m);
   });
 
   it("writes neither key when both are off", () => {
     const text = confOf(inputFor({}));
     expect(text).not.toMatch(/^RandomTrailers = /m);
     expect(text).not.toMatch(/^DisableCookies = /m);
+  });
+
+  it("writes both with 1/0 when only one is on (tools requires the pair)", () => {
+    const a = confOf(inputFor({ useRandomTrailers: true, useDisableCookies: false }));
+    expect(a).toMatch(/^RandomTrailers = 1$/m);
+    expect(a).toMatch(/^DisableCookies = 0$/m);
+    const b = confOf(inputFor({ useRandomTrailers: false, useDisableCookies: true }));
+    expect(b).toMatch(/^RandomTrailers = 0$/m);
+    expect(b).toMatch(/^DisableCookies = 1$/m);
   });
 
   it("never writes them into a 3.0 config, even if asked", () => {
@@ -66,10 +75,18 @@ describe("the AWG 3.1 switches", () => {
   });
 
   it("accepts the truthy spellings parse_bool takes", () => {
-    const base = confOf(inputFor({ useRandomTrailers: true }))
-      .replace("RandomTrailers = true", "RandomTrailers = 1");
-    const result = awgEngine.parse(base);
-    expect(result.config?.awg3?.randomTrailers).toBe(true);
+    // Writer now emits 1/0, but parser must still accept true/on/yes/1 and 0/off
+    const base1 = confOf(inputFor({ useRandomTrailers: true }))
+      .replace("RandomTrailers = 1", "RandomTrailers = true");
+    expect(awgEngine.parse(base1).config?.awg3?.randomTrailers).toBe(true);
+
+    const baseOn = confOf(inputFor({ useRandomTrailers: true }))
+      .replace("RandomTrailers = 1", "RandomTrailers = on");
+    expect(awgEngine.parse(baseOn).config?.awg3?.randomTrailers).toBe(true);
+
+    const base0 = confOf(inputFor({ useRandomTrailers: true }))
+      .replace("RandomTrailers = 1", "RandomTrailers = 0");
+    expect(awgEngine.parse(base0).config?.awg3?.randomTrailers).toBe(false);
   });
 
   it("carries the switches into the mihomo export, and only there", () => {

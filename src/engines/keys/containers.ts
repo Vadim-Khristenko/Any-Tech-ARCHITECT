@@ -158,6 +158,8 @@ export const AWG3_LOCAL_FIELDS = [
   "RejectAfterTime",
   "KeepaliveTimeout",
   "MaxHandshakeAttempts",
+  "RandomTrailers",
+  "DisableCookies",
 ] as const;
 
 /** Every AmneziaWG field this tool understands, in the order a form shows them. */

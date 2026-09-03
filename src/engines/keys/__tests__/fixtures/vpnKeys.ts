@@ -225,8 +225,8 @@ export function awgKey(
 
   if (version === "3.1") {
     Object.assign(base, {
-      RandomTrailers: "true",
-      DisableCookies: "true",
+      RandomTrailers: "1",
+      DisableCookies: "1",
     });
   }
 
@@ -349,8 +349,10 @@ function awgConfigToObfuscation(cfg: AWGConfig): Record<string, string> {
     if (cfg.awg3.keepaliveTimeout) out.KeepaliveTimeout = cfg.awg3.keepaliveTimeout;
     if (cfg.awg3.maxHandshakeAttempts) out.MaxHandshakeAttempts = cfg.awg3.maxHandshakeAttempts;
     if (caps.featureFlags) {
-      if (cfg.awg3.randomTrailers) out.RandomTrailers = "true";
-      if (cfg.awg3.disableCookies) out.DisableCookies = "true";
+      if (cfg.awg3.randomTrailers || cfg.awg3.disableCookies) {
+        out.RandomTrailers = cfg.awg3.randomTrailers ? "1" : "0";
+        out.DisableCookies = cfg.awg3.disableCookies ? "1" : "0";
+      }
     }
   }
 

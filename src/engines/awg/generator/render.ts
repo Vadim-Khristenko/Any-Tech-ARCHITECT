@@ -224,11 +224,17 @@ export function renderConfLines(
       for (const [key, value] of active) lines.push(kv(key, value));
     }
 
-    // The 3.1 switches. Written only when on: a device that predates them
-    // refuses the keys outright, and an off switch says nothing worth a line.
+    // The 3.1 switches. Tools require both lines when either is on:
+    // enabled as "1", disabled as "0". When both are off nothing is written
+    // — a 3.0 device would reject the keys outright. Go/UAPI accepts
+    // true|yes|on|1, but 1/0 is the only form accepted by both stacks,
+    // and tools clients reject "true" at parse. Parser TRUTHY
+    // (parse.ts:106) handles 1 and true.
     if (caps.featureFlags) {
-      if (p.randomTrailers) lines.push(kv("RandomTrailers", "true"));
-      if (p.disableCookies) lines.push(kv("DisableCookies", "true"));
+      if (p.randomTrailers || p.disableCookies) {
+        lines.push(kv("RandomTrailers", p.randomTrailers ? "1" : "0"));
+        lines.push(kv("DisableCookies", p.disableCookies ? "1" : "0"));
+      }
     }
   }
 
