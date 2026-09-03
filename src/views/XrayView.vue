@@ -1125,6 +1125,7 @@ function setServerNames(event: Event) {
                             @change="build"
                         />
                     </label>
+                    <p class="hint">{{ t("xg.clients.emailNote") }}</p>
                 </div>
             </section>
         </div>
