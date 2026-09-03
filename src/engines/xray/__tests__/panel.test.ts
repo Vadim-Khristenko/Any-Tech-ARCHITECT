@@ -47,21 +47,52 @@ describe("the panel export", () => {
     }
   });
 
-  it("changes nothing but the two names", () => {
-    const cfg = xrayEngine.generate(input({ transport: "raw" }));
+  it("changes nothing but the two names and the panel-only email", () => {
+    const cfg = xrayEngine.generate(input({ transport: "raw", clientCount: 1 }));
     const panel = buildPanelInbound(cfg) as Record<string, unknown>;
     const core = buildServerInbound(cfg) as Record<string, unknown>;
 
-    // Everything outside streamSettings is byte-for-byte the same object.
-    const { streamSettings: _panelStream, ...panelRest } = panel;
-    const { streamSettings: _coreStream, ...coreRest } = core;
+    // Everything outside streamSettings and settings.clients is identical.
+    // Panel adds email per client (3x-ui requires min(1)), core never has it.
+    const { streamSettings: _panelStream, settings: panelSettings, ...panelRest } =
+      panel as Record<string, unknown>;
+    const { streamSettings: _coreStream, settings: coreSettings, ...coreRest } =
+      core as Record<string, unknown>;
     expect(panelRest).toEqual(coreRest);
+    expect((panelSettings as Record<string, unknown>).decryption).toEqual(
+      (coreSettings as Record<string, unknown>).decryption,
+    );
+    const panelClients = (panelSettings as { clients: Array<Record<string, unknown>> }).clients;
+    const coreClients = (coreSettings as { clients: Array<Record<string, unknown>> }).clients;
+    expect(panelClients.length).toBe(coreClients.length);
+    expect(panelClients[0]!.id).toBe(coreClients[0]!.id);
+    expect(typeof panelClients[0]!.email).toBe("string");
+    expect((panelClients[0]!.email as string).length).toBeGreaterThan(0);
+    expect(coreClients[0]!.email).toBeUndefined();
 
-    // Inside it, exactly three edits: the value raw→tcp and the key move.
+    // Inside streamSettings, exactly three edits: the value raw→tcp and the key move.
     const panelStream = panel.streamSettings as Record<string, unknown>;
     const coreStream = core.streamSettings as Record<string, unknown>;
     expect(panelStream.security).toEqual(coreStream.security);
     expect(panelStream.realitySettings).toEqual(coreStream.realitySettings);
     expect(panelStream.tcpSettings).toEqual(coreStream.rawSettings);
+  });
+
+  it("adds a unique email per client derived from the UUID", () => {
+    const cfg = xrayEngine.generate(input({ clientCount: 5 }));
+    const panel = buildPanelInbound(cfg) as Record<string, unknown>;
+    const settings = panel.settings as { clients: Array<Record<string, unknown>> };
+    const emails = settings.clients.map((c) => String(c.email));
+    expect(emails.every((e) => e.length > 0)).toBe(true);
+    expect(new Set(emails).size).toBe(emails.length);
+    // Default derivation is the UUID prefix.
+    expect(emails[0]).toBe(String(settings.clients[0]!.id).slice(0, 8));
+  });
+
+  it("leaves the server inbound untouched (no email on the wire)", () => {
+    const cfg = xrayEngine.generate(input({ clientCount: 3 }));
+    const core = buildServerInbound(cfg) as Record<string, unknown>;
+    const settings = core.settings as { clients: Array<Record<string, unknown>> };
+    expect(settings.clients.every((c) => c.email === undefined)).toBe(true);
   });
 });

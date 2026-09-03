@@ -343,7 +343,42 @@ export function buildPanelInbound(cfg: XrayConfig): Record<string, unknown> {
     delete stream.rawSettings;
   }
 
-  return { ...inbound, streamSettings: stream };
+  // Panels (3x-ui ≥3.6.0) validate VlessClientSchema.email as min(1) —
+  // core ignores it, it's a panel accounting key. Without it the import
+  // toasts "Client #0: email — Invalid input". Derive from the UUID so
+  // the server export stays untouched and the email is unique within the
+  // inbound (slice(0,8) + collision suffix for batch generation).
+  const settings = inbound.settings as {
+    clients: Array<Record<string, unknown>>;
+    decryption: string;
+  };
+  const seen = new Set<string>();
+  const panelClients = settings.clients.map((client, idx) => {
+    const existing = typeof (client as Record<string, unknown>).email === "string"
+      ? String((client as Record<string, unknown>).email).trim()
+      : "";
+    if (existing) {
+      // Preserve if already present but still ensure uniqueness.
+      let email = existing;
+      let n = 1;
+      while (seen.has(email)) email = `${existing}-${n++}`;
+      seen.add(email);
+      return { ...client, email };
+    }
+    const id = String((client as Record<string, unknown>).id ?? "");
+    const base = id.slice(0, 8) || `user${idx + 1}`;
+    let email = base;
+    let n = 1;
+    while (seen.has(email)) email = `${base}-${n++}`;
+    seen.add(email);
+    return { ...client, email };
+  });
+
+  return {
+    ...inbound,
+    settings: { ...settings, clients: panelClients },
+    streamSettings: stream,
+  };
 }
 
 /* ── Client side ──────────────────────────────────────────────────────────── */
