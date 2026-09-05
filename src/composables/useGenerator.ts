@@ -264,7 +264,7 @@ export function useGenerator() {
 
     try {
       batchResults.value =
-        count > 50
+        count > 20
           ? await generateInWorker(buildInput(), count)
           : generateBatch(buildInput(), count);
       addLog(translate("log.batchDone", { n: count }), "ok");

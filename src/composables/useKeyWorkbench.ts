@@ -16,7 +16,7 @@
  * only reason a page that handles private keys can be written at all.
  */
 
-import { computed, ref, type Ref } from "vue";
+import { computed, ref, watch, type Ref } from "vue";
 import {
   applyPatchToVpnConfig,
   AWG_CLIENT_FIELDS,
@@ -81,11 +81,58 @@ const CONF_FIELDS = [
   ...AWG3_LOCAL_FIELDS,
 ];
 
+/** Pre-compiled field regexes — `new RegExp` per call was the per-keystroke hotspot. */
+const FIELD_RE = new Map<string, RegExp>();
+function fieldRe(field: string): RegExp {
+  let re = FIELD_RE.get(field);
+  if (!re) {
+    const escaped = field.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    re = new RegExp(`^[ \\t]*${escaped}[ \\t]*=[ \\t]*(.+?)[ \\t]*$`, "im");
+    FIELD_RE.set(field, re);
+  }
+  return re;
+}
+
 /** One `Field = value` line, ignoring comments and case. */
 function readField(text: string, field: string): string | undefined {
-  const escaped = field.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const m = text.match(new RegExp(`^[ \\t]*${escaped}[ \\t]*=[ \\t]*(.+?)[ \\t]*$`, "im"));
+  const m = text.match(fieldRe(field));
   return m ? m[1] : undefined;
+}
+
+/** Debounce a ref so heavy computed (pako, JSON, validate) doesn't run per keystroke. */
+function debouncedRef<T>(source: Ref<T>, delay = 180): Ref<T> {
+  const debounced = ref(source.value) as Ref<T>;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  watch(
+    source,
+    (v) => {
+      if (timer !== null) clearTimeout(timer);
+      timer = setTimeout(() => {
+        // For arrays/objects, clone to trigger computed even if reference stable.
+        debounced.value = Array.isArray(v) ? (JSON.parse(JSON.stringify(v)) as T) : v;
+      }, delay);
+    },
+    { deep: true },
+  );
+  return debounced;
+}
+
+// Memoize readKey: pasting the same vpn:// repeatedly (history restore, tab switch)
+// shouldn't inflate + validate again. Bounded to 50 entries to avoid leak.
+const READ_CACHE = new Map<string, ReadKey>();
+const READ_CACHE_MAX = 50;
+function cachedReadKey(input: string): ReadKey {
+  const key = input.trim();
+  if (!key) return { ...EMPTY };
+  const hit = READ_CACHE.get(key);
+  if (hit) return hit;
+  const res = readKeyUncached(key);
+  if (READ_CACHE.size >= READ_CACHE_MAX) {
+    const first = READ_CACHE.keys().next().value as string | undefined;
+    if (first !== undefined) READ_CACHE.delete(first);
+  }
+  READ_CACHE.set(key, res);
+  return res;
 }
 
 /** A `.conf` with no endpoint is not broken — it just has nowhere to go. */
@@ -151,7 +198,7 @@ function fromWgQuick(text: string): VpnConfig | null {
  * different: a `vpn://` key, a `vless://` link, a `.json` export, a `.conf`
  * file. All of them come out as a key so everything downstream has one shape.
  */
-export function readKey(input: string): ReadKey {
+function readKeyUncached(input: string): ReadKey {
   const source = input.trim();
   if (!source) return { ...EMPTY };
 
@@ -226,13 +273,16 @@ export function readKey(input: string): ReadKey {
   }
 }
 
+export const readKey = cachedReadKey;
+
 export function useKeyWorkbench() {
   const mode: Ref<WorkbenchMode> = ref("inspect");
 
   /* ── Inspect ──────────────────────────────────────────────────────────── */
 
   const inspectInput = ref("");
-  const inspected = computed(() => readKey(inspectInput.value));
+  const inspectInputDebounced = debouncedRef(inspectInput, 180);
+  const inspected = computed(() => cachedReadKey(inspectInputDebounced.value));
 
   /* ── Merge ────────────────────────────────────────────────────────────── */
 
@@ -253,7 +303,9 @@ export function useKeyWorkbench() {
   }
 
   /** Each slot read on its own, so a bad one shows against its own box. */
-  const slotReads = computed(() => slots.value.map((s) => readKey(s.value)));
+  // Debounced per-slot: typing in one box shouldn't inflate all boxes.
+  const slotsDebounced = debouncedRef(slots as unknown as Ref<typeof slots.value>, 180) as Ref<typeof slots.value>;
+  const slotReads = computed(() => slotsDebounced.value.map((s) => cachedReadKey(s.value)));
 
   const mergeResult = ref<{
     config: VpnConfig;
@@ -287,7 +339,9 @@ export function useKeyWorkbench() {
   /** The parameters to write into it — a generated .conf, or pasted lines. */
   const refreshParams = ref("");
 
-  const refreshed = computed(() => readKey(refreshInput.value));
+  const refreshInputDebounced = debouncedRef(refreshInput, 180);
+  const refreshParamsDebounced = debouncedRef(refreshParams, 180);
+  const refreshed = computed(() => cachedReadKey(refreshInputDebounced.value));
 
   /**
    * The obfuscation fields carried by a pasted parameter set.
@@ -296,7 +350,7 @@ export function useKeyWorkbench() {
    * rewriting one of those on a single device is how a tunnel stops coming up.
    */
   const patchFields = computed<Record<string, string>>(() => {
-    const text = refreshParams.value;
+    const text = refreshParamsDebounced.value;
     if (!text.trim()) return {};
 
     const out: Record<string, string> = {};
@@ -343,6 +397,7 @@ export function useKeyWorkbench() {
 
   const parts = ref<ContainerEntry[]>([]);
   const buildInput = ref("");
+  const buildInputDebounced = debouncedRef(buildInput, 180);
   const buildError = ref<string | null>(null);
   const buildMeta = ref({ description: "", name: "", hostName: "" });
 

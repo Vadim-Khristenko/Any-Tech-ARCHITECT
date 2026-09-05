@@ -393,6 +393,9 @@ function createSpaFallbackPlugin(): Plugin {
       // Cloudflare Pages / Netlify _headers — hashed assets are content-addressed
       // and never mutate, so let clients cache them for a year. Recovers the
       // ~357 kB of re-downloaded bytes the perf trace flagged on repeat visits.
+      // Hashed assets (*.js/css) are immutable for a year. Fonts bumped to
+      // 7 days (604800) so weekly repeats don't re-download ~100 kB woff2.
+      // Favicon is bumped to a year — rarely updated, cache-busted via key.
       const headersRules = [
         "/assets/*",
         "  Cache-Control: public, max-age=31536000, immutable",
@@ -401,6 +404,10 @@ function createSpaFallbackPlugin(): Plugin {
         "/*.css",
         "  Cache-Control: public, max-age=31536000, immutable",
         "/*.woff2",
+        "  Cache-Control: public, max-age=604800, immutable",
+        "/favicon.ico",
+        "  Cache-Control: public, max-age=31536000, immutable",
+        "/favicon.svg",
         "  Cache-Control: public, max-age=31536000, immutable",
         // HTML must stay fresh so new deploys are picked up immediately.
         "/*.html",
@@ -551,4 +558,3 @@ export default defineConfig({
     strictPort: true,
   },
 });
-

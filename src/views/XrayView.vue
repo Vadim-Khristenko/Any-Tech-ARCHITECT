@@ -740,8 +740,15 @@ async function importHistory(file: File) {
  */
 const batchCount = ref(10);
 
-function downloadBatch() {
-    const batch = generateXrayBatch(input.value, batchCount.value);
+async function downloadBatch() {
+    const count = batchCount.value;
+    if (count < 2 || count > 500) return;
+    // Chunked so the tab stays responsive: 10 configs, then yield.
+    const batch: ReturnType<typeof generateXray>[] = [];
+    for (let i = 0; i < count; i++) {
+        batch.push(generateXray(input.value));
+        if (i % 10 === 9) await new Promise<void>((r) => setTimeout(r, 0));
+    }
     const parts = batch.map((cfg, i) => {
         const rule = "─".repeat(40);
         const inbound = JSON.stringify(buildServerInbound(cfg), null, 2);

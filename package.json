@@ -1,6 +1,6 @@
 {
   "name": "any-tech-architect",
-  "version": "4.1.0",
+  "version": "4.1.1",
   "description": "Any Tech Architect — obfuscation config generator for AmneziaWG and XRay/REALITY, with batch tooling, a packet simulator and a health checker.",
   "author": "Vadim Khristenko <vadim@vai-rice.space>",
   "private": true,

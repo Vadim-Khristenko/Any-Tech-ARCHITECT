@@ -31,7 +31,7 @@
  * is produced changed.
  */
 
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import {
     Sparkles,
@@ -109,6 +109,17 @@ const {
 } = useGenerator();
 
 const { copy, isCopied } = useCopyFeedback();
+
+// customHost fires on every keystroke (ya.ru = 5 heavy genCfg). Debounce
+// so fast typing does one generate instead of five, and still feels instant.
+let customHostTimer: ReturnType<typeof setTimeout> | null = null;
+function onCustomHostInput(): void {
+    if (customHostTimer !== null) clearTimeout(customHostTimer);
+    customHostTimer = setTimeout(() => void generate(), 300);
+}
+onUnmounted(() => {
+    if (customHostTimer !== null) clearTimeout(customHostTimer);
+});
 
 /* ── The lockup doubles as engine navigation ─────────────────────────────── */
 
@@ -1117,7 +1128,7 @@ function toSimulator() {
                                 class="input"
                                 type="text"
                                 :placeholder="placeholderMap[config.profile]"
-                                @input="generate()"
+                                @input="onCustomHostInput"
                             />
                             <button
                                 class="btn btn--secondary btn--sm"

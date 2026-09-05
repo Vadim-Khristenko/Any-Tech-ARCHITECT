@@ -91,11 +91,21 @@ jobs:
           aws s3 sync dist/assets "s3://$BUCKET/assets" \
             --cache-control "public,max-age=31536000,immutable"
 
+          # Favicon is rarely updated and cache-busted via query key if needed.
+          aws s3 cp dist/favicon.ico "s3://$BUCKET/favicon.ico" \
+            --cache-control "public,max-age=31536000,immutable" \
+            --metadata-directive REPLACE 2>/dev/null || true
+          aws s3 cp dist/favicon.svg "s3://$BUCKET/favicon.svg" \
+            --cache-control "public,max-age=31536000,immutable" \
+            --metadata-directive REPLACE 2>/dev/null || true
+
           # Then everything else, deletable: HTML must revalidate, and files
           # the new build dropped must leave the bucket. --delete does not
           # touch what the previous pass excluded.
           aws s3 sync dist/ "s3://$BUCKET/" \
             --exclude "assets/*" \
+            --exclude "favicon.ico" \
+            --exclude "favicon.svg" \
             --delete \
             --cache-control "public,max-age=0,must-revalidate"
 

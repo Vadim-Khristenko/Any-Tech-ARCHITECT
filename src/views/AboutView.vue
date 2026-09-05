@@ -85,8 +85,9 @@ const dayCount = computed(() =>
  * The test count is the one figure here that cannot be derived at runtime —
  * the suite does not exist in the bundle — so it is written as a floor rather
  * than an exact number, and a floor stays true as the suite grows.
+ * 4.1.1: 1015 tests — bump floor to 1000+.
  */
-const TEST_FLOOR = "900+";
+const TEST_FLOOR = "1000+";
 
 const chips = computed(() => [
     {
