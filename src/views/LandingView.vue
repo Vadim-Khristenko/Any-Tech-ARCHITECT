@@ -77,7 +77,8 @@ const CANT = ["landing.cant.1", "landing.cant.2", "landing.cant.3"] as const;
 const PROFILES = [
     { name: "QUIC Initial", spec: "RFC 9000", engine: "AmneziaWG" },
     { name: "TLS ClientHello", spec: "RFC 8446", engine: "AmneziaWG" },
-    { name: "DTLS ClientHello", spec: "RFC 6347", engine: "AmneziaWG" },
+    { name: "DTLS 1.2 ClientHello", spec: "RFC 6347", engine: "AmneziaWG" },
+    { name: "DTLS 1.3 ClientHello", spec: "RFC 9147", engine: "AmneziaWG" },
     { name: "DNS query", spec: "RFC 1035", engine: "AmneziaWG" },
     { name: "DNS-over-HTTPS", spec: "RFC 8484", engine: "AmneziaWG" },
     { name: "SIP INVITE", spec: "RFC 3261", engine: "AmneziaWG" },

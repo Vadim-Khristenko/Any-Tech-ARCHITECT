@@ -88,7 +88,7 @@ of writing.
 The `<d>`, `<ds>` and `<dz>` tags parse in v3.0.1 but are not wired into the
 send path — they are groundwork for AWG 4.0, so the generator does not emit them.
 
-Plus **11 mimicry profiles** (QUIC Initial, QUIC 0-RTT, TLS 1.3, DTLS 1.3,
+Plus **12 mimicry profiles** (QUIC Initial, QUIC 0-RTT, TLS 1.3, DTLS 1.2, DTLS 1.3,
 HTTP/3, SIP, DNS, Noise_IK and composites) and a **compatibility matrix covering
 13 clients** — each has its own ceilings, and the generator knows them. For
 those who picked mihomo as their client, the generator emits a proxy block in

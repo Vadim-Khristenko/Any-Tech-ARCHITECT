@@ -55,7 +55,7 @@ USAGE
 OPTIONS
     -v, --version VER    AWG version: 1.0 | 1.5 | 2.0 | 3.0   (default: 2.0)
     -p, --profile NAME   Mimicry profile for the CPS chain:
-                         quic | tls | dtls | sip | dns | noise  (default: quic)
+                         quic | tls | dtls | dtls13 | sip | dns | noise  (default: quic)
     -i, --intensity LVL  low | medium | high                   (default: medium)
     -n, --count N        Generate N independent configs        (default: 1)
     -o, --out FILE       Write to FILE instead of stdout
@@ -201,6 +201,14 @@ cps_chain() {
             rand_int 20 40; a=$REPLY
             CHAIN="<b 0x16fefd${RAND_HEX}><r ${a}><t>"
             ;;
+        dtls13)
+            # DTLS 1.3 handshake record (RFC 9147 5.3): same framing as 1.2,
+            # the version signal lives in supported_versions (0xfefc).
+            # Shell stubs are approximate by design; the TS generator is exact.
+            rand_hex 32
+            rand_int 20 40; a=$REPLY
+            CHAIN="<b 0x16fefd000000000000000000430100003700000000000000037fefd${RAND_HEX}0000000613011302130301000009002b000302fefc><r ${a}><t>"
+            ;;
         sip)
             # Printable preamble: "OPTIONS sip:" in ASCII.
             rand_int 10 18; a=$REPLY
@@ -267,8 +275,8 @@ case "$AWG_VERSION" in
 esac
 
 case "$PROFILE" in
-    quic|tls|dtls|sip|dns|noise) ;;
-    *) die "unknown profile: ${PROFILE}  (quic, tls, dtls, sip, dns, noise)" ;;
+    quic|tls|dtls|dtls13|sip|dns|noise) ;;
+    *) die "unknown profile: ${PROFILE}  (quic, tls, dtls, dtls13, sip, dns, noise)" ;;
 esac
 
 case "$INTENSITY" in

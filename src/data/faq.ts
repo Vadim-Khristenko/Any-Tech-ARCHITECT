@@ -657,14 +657,16 @@ export const FAQ_ENTRIES: FaqEntry[] = [
       en: "How do the mimicry profiles differ from each other?",
     },
     answer: {
-      ru: "Каждый профиль подделывает начало соединения под конкретный протокол. **QUIC Initial имитирует старт HTTP/3-сессии — самый универсальный вариант** там, где есть браузерный UDP-трафик. QUIC 0-RTT изображает возобновление сессии с ранними данными. TLS 1.3 Client Hello выглядит как начало HTTPS-соединения.\n\nDTLS 1.3 похож на рукопожатие WebRTC и уместен в сетях, где много видеозвонков. HTTP/3 использует расширенный набор QUIC-типов. SIP имитирует сигнализацию VoIP. DNS Query маскируется под обычный запрос к 53-му порту. Вариант Noise_IK не подделывает ничего — он оставляет структуру WireGuard, добавляя только паддинг.",
-      en: "Each profile disguises the start of a connection as a specific protocol. **QUIC Initial imitates the start of an HTTP/3 session — the most universal option** wherever browser UDP traffic exists. QUIC 0-RTT poses as a session resumption with early data.\n\nTLS 1.3 Client Hello looks like the opening of an HTTPS connection. DTLS 1.3 resembles a WebRTC handshake and suits networks full of video calls. HTTP/3 uses a wider set of QUIC types. SIP imitates VoIP signalling. DNS Query passes as an ordinary port 53 lookup. The Noise_IK option imitates nothing — it keeps WireGuard's own structure and only adds padding.",
+      ru: "Каждый профиль подделывает начало соединения под конкретный протокол. **QUIC Initial имитирует старт HTTP/3-сессии — самый универсальный вариант** там, где есть браузерный UDP-трафик. QUIC 0-RTT изображает возобновление сессии с ранними данными. TLS 1.3 Client Hello выглядит как начало HTTPS-соединения.\n\nDTLS 1.2 изображает рукопожатие WebRTC поверх UDP — вариант для сетей с видеозвонками. DTLS 1.3 — то же рукопожатие по RFC 9147: на проводе отличается только расширением supported_versions, поэтому уместен там же, а выбирается там, где стек уже обновился. HTTP/3 использует расширенный набор QUIC-типов. SIP имитирует сигнализацию VoIP. DNS Query маскируется под обычный запрос к 53-му порту. Вариант Noise_IK не подделывает ничего — он оставляет структуру WireGuard, добавляя только паддинг.",
+      en: "Each profile disguises the start of a connection as a specific protocol. **QUIC Initial imitates the start of an HTTP/3 session — the most universal option** wherever browser UDP traffic exists. QUIC 0-RTT poses as a session resumption with early data.\n\nTLS 1.3 Client Hello looks like the opening of an HTTPS connection. DTLS 1.2 poses as a WebRTC handshake over UDP and suits networks full of video calls. DTLS 1.3 is the same handshake per RFC 9147 — on the wire it differs only in the supported_versions extension, so it fits the same networks and is picked where the stack has moved on. HTTP/3 uses a wider set of QUIC types. SIP imitates VoIP signalling. DNS Query passes as an ordinary port 53 lookup. The Noise_IK option imitates nothing — it keeps WireGuard's own structure and only adds padding.",
     },
     keywords: [
       "профили",
       "profiles",
       "quic",
       "dtls",
+      "dtls_1_2",
+      "dtls_1_3",
       "sip",
       "http3",
       "noise_ik",

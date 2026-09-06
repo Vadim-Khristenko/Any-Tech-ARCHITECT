@@ -41,7 +41,7 @@ export const ROUTE_SEO: SeoTable = {
     ru: {
       title: "Any Tech ARCHITECT — генератор конфигов AmneziaWG и XRay REALITY",
       description:
-        "Any Tech ARCHITECT (ранее AmneziaWG Architect) — генератор параметров обфускации для AmneziaWG 1.0–3.1 и XRay/REALITY. Junk-поезда, диапазоны заголовков H1–H4, CPS-подписи I1–I5 и одиннадцать профилей мимикрии по RFC. Всё считается в браузере — ключи и параметры не покидают устройство.",
+        "Any Tech ARCHITECT (ранее AmneziaWG Architect) — генератор параметров обфускации для AmneziaWG 1.0–3.1 и XRay/REALITY. Junk-поезда, диапазоны заголовков H1–H4, CPS-подписи I1–I5 и двенадцать профилей мимикрии по RFC. Всё считается в браузере — ключи и параметры не покидают устройство.",
       ogTitle: "Any Tech ARCHITECT — генератор конфигов AmneziaWG и XRay",
       ogDescription:
         "Собирает параметры обфускации и объясняет каждое число. AmneziaWG 1.0–3.1 и XRay/REALITY. Ничего не уходит из браузера.",
@@ -52,7 +52,7 @@ export const ROUTE_SEO: SeoTable = {
     en: {
       title: "Any Tech ARCHITECT — AmneziaWG & XRay REALITY config generator",
       description:
-        "Any Tech ARCHITECT (formerly AmneziaWG Architect) — an obfuscation parameter generator for AmneziaWG 1.0–3.1 and XRay/REALITY. Junk trains, header ranges H1–H4, CPS signature chains I1–I5 and eleven mimicry profiles built from the RFCs. Everything is computed in your browser — keys and parameters never leave the device.",
+        "Any Tech ARCHITECT (formerly AmneziaWG Architect) — an obfuscation parameter generator for AmneziaWG 1.0–3.1 and XRay/REALITY. Junk trains, header ranges H1–H4, CPS signature chains I1–I5 and twelve mimicry profiles built from the RFCs. Everything is computed in your browser — keys and parameters never leave the device.",
       ogTitle: "Any Tech ARCHITECT — AmneziaWG & XRay generator",
       ogDescription:
         "Builds obfuscation parameters and explains every number in them. AmneziaWG 1.0–3.1 and XRay/REALITY. Nothing leaves the browser.",
