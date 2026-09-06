@@ -9,6 +9,7 @@
 #   ./awg-gen.sh -v 3.0                 # AWG 3.0 with header protection
 #   ./awg-gen.sh -v 3.0 -p tls -o wg0.conf
 #   ./awg-gen.sh -v 3.0 -n 5 -d out/    # five configs into a directory
+#   ./awg-gen.sh -v 3.1 --random-trailers  # AWG 3.1 with packet trailers
 #
 # Randomness comes from /dev/urandom. This matters: parameters drawn from a
 # predictable source are a fingerprint of their own.
@@ -32,6 +33,8 @@ ROUTER_MODE=0
 NO_HEADER_PROTECTION=0
 NO_CONTENT_PADDING=0
 NO_RANDOM_TIMERS=0
+RANDOM_TRAILERS=0
+DISABLE_COOKIES=0
 
 # ── Constants, taken from the protocol implementation ───────────────────────
 
@@ -53,7 +56,7 @@ USAGE
     awg-gen.sh [options]
 
 OPTIONS
-    -v, --version VER    AWG version: 1.0 | 1.5 | 2.0 | 3.0   (default: 2.0)
+    -v, --version VER    AWG version: 1.0 | 1.5 | 2.0 | 3.0 | 3.1   (default: 2.0)
     -p, --profile NAME   Mimicry profile for the CPS chain:
                          quic | tls | dtls | dtls13 | sip | dns | noise  (default: quic)
     -i, --intensity LVL  low | medium | high                   (default: medium)
@@ -64,6 +67,8 @@ OPTIONS
         --no-hpk         3.0: omit HeaderProtectionKey
         --no-padding     3.0: omit ContentPaddingAddition
         --no-timers      3.0: omit the randomised timers
+        --random-trailers  3.1: append a random tail to every packet (default off)
+        --disable-cookies  3.1: never send cookie replies (default off)
     -h, --help           This text
 
 NOTES
@@ -264,15 +269,23 @@ while [ $# -gt 0 ]; do
         --no-hpk)       NO_HEADER_PROTECTION=1; shift ;;
         --no-padding)   NO_CONTENT_PADDING=1; shift ;;
         --no-timers)    NO_RANDOM_TIMERS=1; shift ;;
+        --random-trailers) RANDOM_TRAILERS=1; shift ;;
+        --disable-cookies) DISABLE_COOKIES=1; shift ;;
         -h|--help)      usage; exit 0 ;;
         *)              die "unknown option: $1  (try --help)" ;;
     esac
 done
 
 case "$AWG_VERSION" in
-    1.0|1.5|2.0|3.0) ;;
-    *) die "unsupported version: ${AWG_VERSION}  (1.0, 1.5, 2.0, 3.0)" ;;
+    1.0|1.5|2.0|3.0|3.1) ;;
+    *) die "unsupported version: ${AWG_VERSION}  (1.0, 1.5, 2.0, 3.0, 3.1)" ;;
 esac
+
+# A 3.0 device refuses the 3.1 keys at parse, so fail loud rather than
+# writing a config its version cannot read.
+if [ "$AWG_VERSION" != "3.1" ] && { [ "$RANDOM_TRAILERS" -eq 1 ] || [ "$DISABLE_COOKIES" -eq 1 ]; }; then
+    die "--random-trailers/--disable-cookies need -v 3.1"
+fi
 
 case "$PROFILE" in
     quic|tls|dtls|dtls13|sip|dns|noise) ;;
@@ -349,7 +362,7 @@ generate_config() {
 
     # 3.0 header protection reads its cipher nonce from this padding, so it
     # has to be at least as long as the nonce.
-    if [ "$AWG_VERSION" = "3.0" ] && [ "$NO_HEADER_PROTECTION" -eq 0 ]; then
+    if { [ "$AWG_VERSION" = "3.0" ] || [ "$AWG_VERSION" = "3.1" ]; } && [ "$NO_HEADER_PROTECTION" -eq 0 ]; then
         floored=1
         if [ "$s1" -lt "$NONCE_SIZE" ]; then s1=$NONCE_SIZE; fi
         if [ "$s2" -lt "$NONCE_SIZE" ]; then s2=$NONCE_SIZE; fi
@@ -391,7 +404,7 @@ generate_config() {
     printf '# Address = 10.0.0.2/32\n'
     printf '\n'
 
-    if [ "$AWG_VERSION" = "2.0" ] || [ "$AWG_VERSION" = "3.0" ]; then
+    if [ "$AWG_VERSION" = "2.0" ] || [ "$AWG_VERSION" = "3.0" ] || [ "$AWG_VERSION" = "3.1" ]; then
         printf 'H1 = %s-%s\n' "$h1_lo" "$h1_hi"
         printf 'H2 = %s-%s\n' "$h2_lo" "$h2_hi"
         printf 'H3 = %s-%s\n' "$h3_lo" "$h3_hi"
@@ -423,7 +436,7 @@ generate_config() {
         fi
     fi
 
-    if [ "$AWG_VERSION" = "3.0" ]; then
+    if [ "$AWG_VERSION" = "3.0" ] || [ "$AWG_VERSION" = "3.1" ]; then
         local emitted=0
 
         if [ "$NO_HEADER_PROTECTION" -eq 0 ]; then
@@ -476,8 +489,25 @@ generate_config() {
             emitted=1
         fi
 
+        if [ "$AWG_VERSION" = "3.1" ]; then
+            if [ "$RANDOM_TRAILERS" -eq 1 ]; then
+                printf '\n# A random-length trailer on every packet the device sends\n'
+                printf 'RandomTrailers = true\n'
+                emitted=1
+            fi
+            if [ "$DISABLE_COOKIES" -eq 1 ]; then
+                printf '\n# Never send cookie replies (breaks NAT keepalive under load)\n'
+                printf 'DisableCookies = true\n'
+                emitted=1
+            fi
+        fi
+
         if [ "$emitted" -eq 1 ]; then
-            printf '\n# Requires amneziawg-go >= 3.0.1 and amneziawg-tools with 3.0 support.\n'
+            if [ "$AWG_VERSION" = "3.1" ] && { [ "$RANDOM_TRAILERS" -eq 1 ] || [ "$DISABLE_COOKIES" -eq 1 ]; }; then
+                printf '\n# Requires amneziawg-go >= 3.1 and amneziawg-tools with 3.1 support.\n'
+            else
+                printf '\n# Requires amneziawg-go >= 3.0.1 and amneziawg-tools with 3.0 support.\n'
+            fi
         fi
         if [ "$floored" -eq 1 ]; then
             printf '# S1-S4 are floored at %s: the cipher nonce comes from that padding.\n' "$NONCE_SIZE"
