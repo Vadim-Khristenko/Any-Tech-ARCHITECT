@@ -161,21 +161,35 @@ button.card:hover .card-go {
 }
 
 /*
- * A glow that breathes, for one element that is live. `box-shadow` on a
- * pseudo-element would be cheaper, but this is used on the accent surface
- * itself, and at this size the repaint is not the thing that matters.
+ * A glow that breathes, for one element that is live.
+ *
+ * It used to animate `box-shadow`, which is a paint: every frame of the loop
+ * asked the main thread to redraw the element and its surroundings, forever.
+ * The halo is on a pseudo-element now and only its `opacity` moves, which is
+ * the compositor's work — the same arrangement as `.badge-glow`, and the one
+ * this file already argued for two hundred lines up.
  */
 .glow-pulse {
+    position: relative;
+}
+
+.glow-pulse::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    box-shadow: 0 0 18px 2px var(--glow-halo);
+    pointer-events: none;
     animation: glow-pulse 2.8s var(--ease-out-quart) infinite;
 }
 
 @keyframes glow-pulse {
     0%,
     100% {
-        box-shadow: 0 0 0 0 var(--glow-ring);
+        opacity: 0;
     }
     50% {
-        box-shadow: 0 0 18px 2px var(--glow-halo);
+        opacity: 1;
     }
 }
 

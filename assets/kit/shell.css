@@ -91,12 +91,29 @@
         );
 }
 
-/* Grain, painted through the noise rather than laid over it. */
+/*
+ * Grain, painted through the noise rather than laid over it.
+ *
+ * THE SIZE IS THE POINT
+ *
+ * This was `inset: -50%; width: 200%; height: 200%` — a layer four times the
+ * viewport, masked with an SVG `feTurbulence`, animated forever. A masked
+ * layer is not one a compositor can simply move: where the mask cannot be
+ * kept with the layer, every tick of the animation repaints the whole thing
+ * on the main thread, and four viewports of turbulence is how a tab that is
+ * doing nothing at all ends up holding a core.
+ *
+ * The element is now the viewport plus the distance it travels, which is all
+ * the animation ever needed — it starts at zero and moves `SHIFT` down and
+ * right, so `SHIFT` of bleed is exactly what keeps the far edge covered.
+ * `will-change` asks for the layer once, so the transform is the
+ * compositor's job rather than the paint's.
+ */
 .sheet-grain {
+    --grain-shift: 64px;
+    --grain-bleed: 72px;
     position: absolute;
-    inset: -50%;
-    width: 200%;
-    height: 200%;
+    inset: calc(-1 * var(--grain-bleed));
     background-color: var(--fx-noise);
     --noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
     -webkit-mask-image: var(--noise);
@@ -104,14 +121,15 @@
     -webkit-mask-size: 256px 256px;
     mask-size: 256px 256px;
     animation: grain 8s steps(4) infinite;
+    will-change: transform;
 }
 
 @keyframes grain {
     0% {
-        transform: translate(0, 0);
+        transform: translate3d(0, 0, 0);
     }
     100% {
-        transform: translate(64px, 64px);
+        transform: translate3d(var(--grain-shift), var(--grain-shift), 0);
     }
 }
 

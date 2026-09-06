@@ -26,6 +26,16 @@ const MARGIN = 8;
 
 let layer: HTMLElement | null = null;
 let current: Element | null = null;
+/**
+ * Whether anything is on screen to dismiss.
+ *
+ * The scroll listener below is registered with `capture`, so it is handed
+ * every scroll from every scrolling element in the document — the history
+ * list, a config view, the page itself. Without this guard each one of those
+ * wrote two attributes into the DOM, and a page with a long scroll in it
+ * produced thousands of writes for a tooltip that was never shown.
+ */
+let shown = false;
 
 function ensureLayer(): HTMLElement {
   if (layer) return layer;
@@ -39,6 +49,8 @@ function ensureLayer(): HTMLElement {
 
 function hide(): void {
   current = null;
+  if (!shown) return;
+  shown = false;
   if (!layer) return;
   layer.classList.remove("visible");
   layer.setAttribute("aria-hidden", "true");
@@ -49,6 +61,7 @@ function show(target: Element): void {
   if (!text) return;
 
   current = target;
+  shown = true;
   const el = ensureLayer();
   el.textContent = text;
   el.classList.add("visible");

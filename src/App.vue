@@ -96,6 +96,17 @@ onMounted(() => {
 .app-wrapper.is-mirror {
     --mirror-h: 38px;
 }
+/*
+ * Below this width the strip is two rows — the badge and the ask on one, the
+ * address on the other — because the full sentence no longer fits beside
+ * them. The header is offset by the same variable, so it moves down with it
+ * rather than over it.
+ */
+@media (max-width: 1080px) {
+    .app-wrapper.is-mirror {
+        --mirror-h: 56px;
+    }
+}
 .app-wrapper.is-mirror .header {
     top: var(--mirror-h);
 }

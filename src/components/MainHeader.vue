@@ -34,6 +34,7 @@ import {
     type Locale,
     type MessageKey,
 } from "@/i18n";
+import { rafThrottle } from "@/utils/raf";
 
 interface NavLink {
     /** Catalog key, resolved at render so the label follows the locale. */
@@ -161,17 +162,30 @@ const toggleMenu = () => {
     }
 };
 
-const handleScroll = () => {
-    isScrolled.value = window.scrollY > 10;
-};
+/**
+ * Whether the bar has left the top of the page.
+ *
+ * Throttled to one read per frame and registered `passive`: a scroll listener
+ * that is neither has to be waited for before the browser can scroll, and on a
+ * trackpad it is asked to run several times for every frame the reader sees.
+ * Assigning the ref is guarded too, so a page that never crosses the
+ * threshold never invalidates anything.
+ */
+const handleScroll = rafThrottle(() => {
+    const next = window.scrollY > 10;
+    if (next !== isScrolled.value) isScrolled.value = next;
+});
 
 onMounted(() => {
-    window.addEventListener("scroll", handleScroll);
+    window.addEventListener("scroll", handleScroll, { passive: true });
     document.addEventListener("click", closeOnOutsideClick);
     document.addEventListener("keydown", closeOnEscape);
 });
 
 onUnmounted(() => {
+    // The frame a live throttle asked for still holds a reference to this
+    // component, so it has to be dropped, not just unlistened.
+    handleScroll.cancel();
     window.removeEventListener("scroll", handleScroll);
     document.removeEventListener("click", closeOnOutsideClick);
     document.removeEventListener("keydown", closeOnEscape);

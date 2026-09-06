@@ -280,20 +280,33 @@ export function useHistory<T extends HistoryRecord>(
 
   /* ── Finding things ───────────────────────────────────────────────────── */
 
+  /**
+   * What an entry is searched by, remembered per entry.
+   *
+   * The filter runs on every keystroke, and building the haystack joins two
+   * strings and lowercases the result — for every entry, every time. An entry
+   * is only rebuilt when the user edits its note or the engine re-derives its
+   * text, and both produce a new object, so the object itself is a safe key:
+   * a `WeakMap` holds nothing the list has already let go of.
+   */
+  const haystacks = new WeakMap<object, string>();
+
+  function haystackFor(entry: T): string {
+    const cached = haystacks.get(entry);
+    if (cached !== undefined) return cached;
+    const built = [entry.note ?? "", options.searchText?.(entry) ?? ""]
+      .join(" ")
+      .toLowerCase();
+    haystacks.set(entry, built);
+    return built;
+  }
+
   const visible = computed<T[]>(() => {
     const needle = query.value.trim().toLowerCase();
 
     const matching = !needle
       ? entries.value
-      : entries.value.filter((entry) => {
-          const haystack = [
-            entry.note ?? "",
-            options.searchText?.(entry) ?? "",
-          ]
-            .join(" ")
-            .toLowerCase();
-          return haystack.includes(needle);
-        });
+      : entries.value.filter((entry) => haystackFor(entry).includes(needle));
 
     // Pinned first, then newest. A stable sort keeps the storage order within
     // each group, which is already newest-first.

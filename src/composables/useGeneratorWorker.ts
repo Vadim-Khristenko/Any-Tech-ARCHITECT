@@ -33,10 +33,15 @@ export function useGeneratorWorker() {
       const id = crypto.randomUUID();
       const w = getWorker();
 
+      function detach(): void {
+        w.removeEventListener("message", onMessage);
+        w.removeEventListener("error", onError);
+        isRunning.value = false;
+      }
+
       function onMessage(event: MessageEvent<WorkerResponse>) {
         if (event.data.id !== id) return;
-        w.removeEventListener("message", onMessage);
-        isRunning.value = false;
+        detach();
         if (event.data.error) {
           error.value = event.data.error;
           reject(new Error(event.data.error));
@@ -45,7 +50,19 @@ export function useGeneratorWorker() {
         }
       }
 
+      /**
+       * A worker that dies before it answers used to leave `isRunning` true
+       * and the spinner on it spinning — an `infinite` CSS animation, running
+       * for the rest of the session, for work that stopped long ago.
+       */
+      function onError(): void {
+        detach();
+        error.value = "worker failed";
+        reject(new Error("worker failed"));
+      }
+
       w.addEventListener("message", onMessage);
+      w.addEventListener("error", onError, { once: true });
       w.postMessage({ id, input, count } satisfies WorkerRequest);
     });
   }

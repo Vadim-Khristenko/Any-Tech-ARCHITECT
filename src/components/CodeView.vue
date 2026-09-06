@@ -12,6 +12,7 @@
  */
 
 import { computed } from "vue";
+import { tokeniseLine, type Token } from "@/utils/codeTokens";
 
 const props = defineProps<{
     text: string;
@@ -23,157 +24,6 @@ const props = defineProps<{
     /** Indent JSON. Off gives the compact form, which some clients want. */
     indent?: boolean;
 }>();
-
-type Kind =
-    | "plain"
-    | "key"
-    | "string"
-    | "number"
-    | "range"
-    | "ip"
-    | "bool"
-    | "punct"
-    | "comment"
-    | "section"
-    | "cps"
-    | "var"
-    | "proto"
-    | "domain";
-
-interface Token {
-    k: Kind;
-    v: string;
-}
-
-/* ── What a bare value looks like ─────────────────────────────────────────── */
-
-const IPV4 = /^\d{1,3}(?:\.\d{1,3}){3}(?:\/\d{1,2})?$/;
-const IPV6 = /^[0-9a-f:]+:[0-9a-f:]*(?:\/\d{1,3})?$/i;
-const RANGE = /^\d+\s*-\s*\d+$/;
-const NUMBER = /^-?\d+(?:\.\d+)?$/;
-const HOSTPORT = /^[a-z0-9.-]+:\d{1,5}$/i;
-
-/**
- * A CPS chain: `<b 0x…>`, `<r 7>`, `<t>` and the rest, run together.
- *
- * It is the least readable thing in a config and the most distinctive, so it
- * gets its own colour rather than being lumped in with every other string.
- */
-const CPS = /^<[a-z]+[^>]*>(?:<[a-z]+[^>]*>)*$/i;
-
-/** A placeholder the client fills in, e.g. `$PRIMARY_DNS`. */
-const VARIABLE = /^\$[A-Z_][A-Z0-9_]*$/;
-
-/** A whole transport value, not the letters wherever they appear. */
-const PROTO = /^(?:tcp|udp)$/i;
-
-/**
- * A hostname. Checked after the address patterns, so `1.1.1.1` stays an
- * address rather than becoming a domain with numeric labels.
- */
-const DOMAIN = /^(?!-)[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,}$/i;
-
-/** Classify a value that arrived without quotes. */
-function classify(value: string): Kind {
-    const v = value.trim();
-    if (v === "") return "plain";
-    if (VARIABLE.test(v)) return "var";
-    if (CPS.test(v)) return "cps";
-    if (RANGE.test(v)) return "range";
-    if (NUMBER.test(v)) return "number";
-    if (IPV4.test(v) || HOSTPORT.test(v)) return "ip";
-    if (v.includes(":") && IPV6.test(v)) return "ip";
-    if (v === "true" || v === "false" || v === "null") return "bool";
-    if (PROTO.test(v)) return "proto";
-    if (DOMAIN.test(v)) return "domain";
-    return "string";
-}
-
-/* ── wg-quick ─────────────────────────────────────────────────────────────── */
-
-function tokeniseConf(line: string): Token[] {
-    const trimmed = line.trimStart();
-
-    if (trimmed.startsWith("#") || trimmed.startsWith(";")) {
-        return [{ k: "comment", v: line }];
-    }
-    if (/^\[.+\]\s*$/.test(trimmed)) {
-        return [{ k: "section", v: line }];
-    }
-
-    const eq = line.indexOf("=");
-    if (eq < 0) return [{ k: "plain", v: line }];
-
-    const name = line.slice(0, eq);
-    const value = line.slice(eq + 1);
-
-    /*
-     * A comma-separated value is several values, and colouring the whole run
-     * as one loses the point: `AllowedIPs = 0.0.0.0/0, ::/0` is two addresses.
-     */
-    const parts: Token[] = [];
-    const pieces = value.split(",");
-    pieces.forEach((piece, i) => {
-        if (i > 0) parts.push({ k: "punct", v: "," });
-        parts.push({ k: classify(piece), v: piece });
-    });
-
-    return [{ k: "key", v: name }, { k: "punct", v: "=" }, ...parts];
-}
-
-/* ── JSON ─────────────────────────────────────────────────────────────────── */
-
-/**
- * Walk the line rather than matching it whole.
- *
- * A regex over the whole string cannot tell a key from a value — both are
- * quoted — and the difference is the one a reader most wants coloured.
- */
-function tokeniseJson(line: string): Token[] {
-    const out: Token[] = [];
-    let i = 0;
-
-    while (i < line.length) {
-        const ch = line[i];
-
-        if (ch === '"') {
-            let j = i + 1;
-            while (j < line.length) {
-                if (line[j] === "\\") j += 2;
-                else if (line[j] === '"') break;
-                else j++;
-            }
-            const raw = line.slice(i, Math.min(j + 1, line.length));
-            const after = line.slice(j + 1).trimStart();
-            const inner = raw.slice(1, -1);
-
-            // A quoted run followed by a colon is a key; otherwise a value,
-            // and a value gets classified by what it holds.
-            out.push(
-                after.startsWith(":")
-                    ? { k: "key", v: raw }
-                    : { k: classify(inner) === "string" ? "string" : classify(inner), v: raw },
-            );
-            i = j + 1;
-            continue;
-        }
-
-        if (/[{}[\]:,]/.test(ch)) {
-            out.push({ k: "punct", v: ch });
-            i++;
-            continue;
-        }
-
-        // A bare run: number, true, false, null, or whitespace.
-        let j = i;
-        while (j < line.length && !/["{}[\]:,]/.test(line[j])) j++;
-        const run = line.slice(i, j);
-        out.push(run.trim() ? { k: classify(run), v: run } : { k: "plain", v: run });
-        i = j;
-    }
-
-    return out;
-}
 
 /**
  * JSON is re-indented on the way in.
@@ -212,6 +62,9 @@ function expandNested(value: unknown): unknown {
     return value;
 }
 
+/** Leading and trailing blank lines, which add a row and say nothing. */
+const TRIM_BLANKS = /^\n+|\n+$/g;
+
 const source = computed(() => {
     if (props.lang !== "json") return props.text;
     try {
@@ -223,11 +76,17 @@ const source = computed(() => {
     }
 });
 
-const lines = computed(() =>
+/*
+ * Deliberately not memoised by hand. `computed` holds the result until the
+ * text changes, and a hand-rolled cache would have to hold it after the view
+ * has gone too — pinning every token of a container export in memory for the
+ * sake of a recompute that costs a few milliseconds on remount.
+ */
+const lines = computed<Token[][]>(() =>
     source.value
-        .replace(/^\n+|\n+$/g, "")
+        .replace(TRIM_BLANKS, "")
         .split("\n")
-        .map((line) => (props.lang === "json" ? tokeniseJson(line) : tokeniseConf(line))),
+        .map((line) => tokeniseLine(line, props.lang)),
 );
 </script>
 

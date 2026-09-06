@@ -121,16 +121,41 @@
     background: var(--red);
 }
 
+/*
+ * A live dot, and the ring that leaves it.
+ *
+ * The ring used to be an animated `box-shadow` on the dot itself. A
+ * box-shadow is a paint, not a property the compositor can interpolate, so
+ * every frame of a 2.4 second loop asked the main thread to repaint the
+ * element — forever, on the two pages that show one. The same trick
+ * `.badge-glow` below uses: put the halo on a pseudo-element and animate
+ * `transform` and `opacity`, which cost nothing to composite.
+ */
 .dot--live {
+    position: relative;
     background: var(--accent);
-    box-shadow: 0 0 0 0 var(--glow-ring);
+}
+
+.dot--live::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: var(--glow-ring);
+    pointer-events: none;
     animation: pulse 2.4s var(--ease-out-quart) infinite;
 }
 
 @keyframes pulse {
+    from {
+        transform: scale(1);
+        opacity: 0.5;
+    }
     70%,
     100% {
-        box-shadow: 0 0 0 7px rgb(var(--accent-rgb) / 0);
+        /* Three times a 7px dot is the 7px ring the old shadow drew. */
+        transform: scale(3);
+        opacity: 0;
     }
 }
 
