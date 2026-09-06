@@ -243,7 +243,7 @@ describe("what the generator emits", () => {
         seeded({
           clientId: "openwrt",
           version: "3.0",
-          profile: "dtls",
+          profile: "dtls_1_3",
           useTagC: true,
         }),
       );

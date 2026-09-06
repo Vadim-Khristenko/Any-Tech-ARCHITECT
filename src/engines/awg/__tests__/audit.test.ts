@@ -136,7 +136,7 @@ describe("a hand-typed MTU", () => {
     // threw — killing the Generate button with no message at all.
     for (const mtu of [576, 300, 128, 83, 50, 20, 1]) {
       for (const profile of [
-        "dns_query", "quic_initial", "tls_client_hello", "sip", "dtls", "random",
+        "dns_query", "quic_initial", "tls_client_hello", "sip", "dtls_1_2", "dtls_1_3", "random",
       ] as const) {
         expect(
           () => genCfg(seeded({ profile, mtu })),

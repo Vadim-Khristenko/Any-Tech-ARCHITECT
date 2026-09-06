@@ -190,7 +190,8 @@ const PROFILES = [
     { id: "quic_0rtt", label: "QUIC 0-RTT", spec: "Early Data" },
     { id: "tls_client_hello", label: "TLS 1.3 Client Hello", spec: "RFC 8446" },
     { id: "wireguard_noise", label: "Noise_IK", spec: "standard" },
-    { id: "dtls", label: "DTLS 1.3 Handshake", spec: "RFC 6347" },
+    { id: "dtls_1_2", label: "DTLS 1.2 Handshake", spec: "RFC 6347" },
+    { id: "dtls_1_3", label: "DTLS 1.3 Handshake", spec: "RFC 9147" },
     { id: "http3", label: "HTTP/3 Host Mimicry", spec: "RFC 9114" },
     { id: "sip", label: "SIP", spec: "RFC 3261" },
     { id: "tls_to_quic", label: "TLS → QUIC", spec: "Alt-Svc" },
@@ -230,7 +231,8 @@ const PROFILE_SLOT: Record<string, string> = {
     http3: "h3",
     tls_client_hello: "tls",
     wireguard_noise: "nx",
-    dtls: "dtls",
+    dtls_1_2: "dtls",
+    dtls_1_3: "dtls",
 };
 
 /** Browsers grouped by the engine that shapes their traffic. */

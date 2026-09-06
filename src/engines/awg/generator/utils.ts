@@ -196,6 +196,9 @@ const PROFILE_ROLE: Record<string, DomainRole> = {
 
   // DTLS is TLS over datagrams: WebRTC and VPN endpoints, not web servers.
   dtls: "dtls",
+  // Versioned profile ids share the DTLS host pool: WebRTC/TURN endpoints.
+  dtls_1_2: "dtls",
+  dtls_1_3: "dtls",
 
   // SIP names a host that actually answers SIP, normally on 5060.
   sip: "sip",

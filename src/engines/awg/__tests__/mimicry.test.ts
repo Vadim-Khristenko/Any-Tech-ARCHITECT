@@ -208,10 +208,10 @@ describe("the DNS query the generator emits", () => {
 
 /* ── DTLS ─────────────────────────────────────────────────────────────────── */
 
-describe("the DTLS ClientHello the generator emits", () => {
+describe("the DTLS 1.2 ClientHello the generator emits", () => {
   it("uses epoch zero, as a first flight must", () => {
     for (let attempt = 0; attempt < 30; attempt++) {
-      const { bytes } = readChain(genCfg(seeded({ profile: "dtls" })).i1);
+      const { bytes } = readChain(genCfg(seeded({ profile: "dtls_1_2" })).i1);
 
       expect(bytes[0], "content type").toBe(0x16);
       expect(u16(bytes, 1), "DTLS 1.2").toBe(0xfefd);
@@ -224,7 +224,7 @@ describe("the DTLS ClientHello the generator emits", () => {
   it("writes the eleven-byte handshake header DTLS adds to TLS's four", () => {
     for (let attempt = 0; attempt < 30; attempt++) {
       const { bytes, padding, rc, counters, stamps } = readChain(
-        genCfg(seeded({ profile: "dtls", useTagRC: true })).i1,
+        genCfg(seeded({ profile: "dtls_1_2", useTagRC: true })).i1,
       );
 
       const recordLen = u16(bytes, 11);

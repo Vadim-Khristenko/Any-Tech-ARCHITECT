@@ -31,7 +31,8 @@ const profiles: MimicProfile[] = [
     "quic_0rtt",
     "tls_client_hello",
     "wireguard_noise",
-    "dtls",
+    "dtls_1_2",
+    "dtls_1_3",
     "http3",
     "sip",
 ];
