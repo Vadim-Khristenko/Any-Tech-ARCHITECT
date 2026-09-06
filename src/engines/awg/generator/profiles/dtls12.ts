@@ -49,8 +49,8 @@ const TAG_BYTES = 4;
  * length equals the handshake length, which is what an unfragmented DTLS
  * handshake message looks like.
  */
-export function mkDTLS(input: GeneratorInput, iv: number): string {
-  const host = getHost(input, "dtls");
+export function mkDTLS12(input: GeneratorInput, iv: number): string {
+  const host = getHost(input, "dtls_1_2");
   const sniRc = Math.min(host.length + rnd(2, 8), 60);
 
   const tagBytes =
@@ -89,7 +89,7 @@ export function mkDTLS(input: GeneratorInput, iv: number): string {
       hexPad(bodyLen, 3) +
       "fefd" +
       rh(32),
-    "mkDTLS",
+    "mkDTLS12",
   );
 
   return (
