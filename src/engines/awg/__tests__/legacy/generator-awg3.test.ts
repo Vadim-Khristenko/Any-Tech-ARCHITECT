@@ -31,7 +31,9 @@ const baseInput: GeneratorInput = {
   iterCount: 0,
   routerMode: false,
   useExtremeMax: false,
-  clientId: "amneziavpn",
+  // Amnezia VPN manages HeaderProtectionKey itself, so emission mechanics is
+  // pinned to a client that takes the emitted key.
+  clientId: "amneziawg-windows",
   useHeaderProtection: true,
   useContentPadding: true,
   useRandomTimings: true, useRandomTrailers: false, useDisableCookies: false,

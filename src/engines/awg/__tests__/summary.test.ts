@@ -20,6 +20,9 @@ import type { AWGVersion } from "../generator/types";
 function configFor(version: AWGVersion): AWGConfig {
   return awgEngine.generate({
     ...awgEngine.createDefaults(),
+    // Amnezia VPN takes no emitted key: the version-shape assertions need
+    // a client that does.
+    clientId: "amneziawg-windows",
     version,
     // The 3.0 block only exists when it was asked for, and a summary that
     // showed it regardless would claim the config carries what it does not.

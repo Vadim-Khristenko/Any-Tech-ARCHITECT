@@ -218,5 +218,10 @@ export interface ClientCapability {
   supportsI1I5: boolean;
   maxJc: number;
   maxS4: number;
+  /**
+   * The app manages HeaderProtectionKey itself (own toggle, own key):
+   * the generator must not emit one for it.
+   */
+  managesHeaderProtection: boolean;
   knownIssues: string[];
 }

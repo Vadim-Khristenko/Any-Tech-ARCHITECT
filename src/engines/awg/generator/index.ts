@@ -249,10 +249,17 @@ export function genCfg(input: GeneratorInput): AWGConfig {
 
   const client = clientCaps(input.clientId, input.clientRelease).limits;
 
+  // A client that manages HeaderProtectionKey itself (Amnezia VPN) gets none
+  // emitted, however its checkbox stands — and without the cipher there is no
+  // nonce to source, so the 3.1 narrow-H workaround goes with it.
+  const hpkManaged = client.managesHeaderProtection === true;
+
   // Enforce client capability limits without mutating the caller's input.
   const effectiveInput: GeneratorInput = {
     ...input,
     profile,
+    useHeaderProtection: input.useHeaderProtection && !hpkManaged,
+    useNarrowH: input.useNarrowH && !hpkManaged,
     useTagC: client.supportsCpsTagC && input.useTagC,
     useTagRC: client.supportsCpsTagRC && input.useTagRC,
     useTagRD: client.supportsCpsTagRD && input.useTagRD,
@@ -303,7 +310,7 @@ export function genCfg(input: GeneratorInput): AWGConfig {
     },
     {
       hasExtraSizes: caps.extraSizes,
-      needsFloor: caps.headerProtection && input.useHeaderProtection,
+      needsFloor: caps.headerProtection && effectiveInput.useHeaderProtection,
       routerMode: input.routerMode,
       extreme: useExtremeMax,
       maxS4: Math.min(32, client.maxS4),
@@ -410,7 +417,7 @@ export function genCfg(input: GeneratorInput): AWGConfig {
     i3,
     i4,
     i5,
-    ...(caps.headerProtection ? { awg3: genAwg3(input, caps) } : {}),
+    ...(caps.headerProtection ? { awg3: genAwg3(effectiveInput, caps) } : {}),
   };
 
   // Safety net: throw if we ever emit a config that fails our own validators.

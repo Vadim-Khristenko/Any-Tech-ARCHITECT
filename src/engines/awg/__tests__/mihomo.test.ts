@@ -15,6 +15,9 @@ import type { GeneratorInput } from "@/engines/awg/generator";
 const inputFor = (version: string): GeneratorInput => ({
   ...awgEngine.createDefaults(),
   version: version as GeneratorInput["version"],
+  // Amnezia VPN (the default client) manages HeaderProtectionKey itself;
+  // the YAML mapping needs a client that takes the emitted key.
+  clientId: "amneziawg-windows",
 });
 
 describe("the mihomo export", () => {

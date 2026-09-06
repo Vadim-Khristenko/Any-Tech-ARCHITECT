@@ -133,6 +133,12 @@ const ENGINES = [
 const versions = AWG_VERSIONS.map((v) => v.id as AWGVersion);
 const clients = AWG_CLIENT_PROFILES;
 const client = computed(() => clients.find((c) => c.id === config.clientId));
+/*
+ * Amnezia VPN carries its own header-protection toggle and generates the key
+ * itself, so the generator emits none for it — and the switch that would
+ * promise one is replaced with the reason.
+ */
+const hpkManaged = computed(() => !!client.value?.limits.managesHeaderProtection);
 const releases = computed(() => client.value?.releases ?? []);
 
 /**
@@ -999,7 +1005,7 @@ function toSimulator() {
                             <span class="bar-value">{{ s.value }} B</span>
                         </div>
                     </div>
-                    <span v-if="config.useHeaderProtection && version === '3.0'" class="hint">
+                    <span v-if="config.useHeaderProtection && !hpkManaged && version === '3.0'" class="hint">
                         {{ t("gen.sizes.floor") }}
                     </span>
                 </div>
@@ -1362,11 +1368,12 @@ function toSimulator() {
                 <p class="zone-note">{{ t("gen.zone.transport.note") }}</p>
 
                 <div class="zone-body gen-switchrow">
-                    <label class="switch">
+                    <label v-if="!hpkManaged" class="switch">
                         <input v-model="config.useHeaderProtection" type="checkbox" @change="generate()" />
                         <span class="switch-track"></span>
                         <span class="mono">HeaderProtectionKey</span>
                     </label>
+                    <p v-else class="hint">{{ t("client.note.amneziaVpnHpk") }}</p>
                     <label class="switch">
                         <input v-model="config.useContentPadding" type="checkbox" @change="generate()" />
                         <span class="switch-track"></span>
@@ -1402,13 +1409,13 @@ function toSimulator() {
                             obfuscation. Detailed note lives in the help drawer
                             and in i18n gen.narrowH.*
                         -->
-                        <label v-if="config.useHeaderProtection" class="switch">
+                        <label v-if="config.useHeaderProtection && !hpkManaged" class="switch">
                             <input v-model="config.useNarrowH" type="checkbox" @change="generate()" />
                             <span class="switch-track"></span>
                             <span>{{ t("gen.narrowH.label") }}</span>
                         </label>
                     </template>
-                    <p v-if="version === '3.1' && config.useHeaderProtection" class="hint" style="margin-top:8px">
+                    <p v-if="version === '3.1' && config.useHeaderProtection && !hpkManaged" class="hint" style="margin-top:8px">
                         {{ t("gen.narrowH.detail") }}
                     </p>
                 </div>

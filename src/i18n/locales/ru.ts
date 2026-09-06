@@ -86,6 +86,7 @@ export const ru = {
   "landing.fun.outside": "Снаружи это выглядит как",
   "landing.fun.spec": "собрано по",
   "landing.fun.count": "профилей на выбор",
+  "landing.fun.soon": "скоро — в 4.3.0",
 
   "landing.more.title": "Что ещё есть",
   "landing.more.mergekeys":
@@ -295,6 +296,8 @@ export const ru = {
     "Чувствителен к I1: лучше простой <r 64> или профиль мимикрии под DNS.",
   "client.note.goNoTagC":
     "Туннель здесь ведёт amneziawg-go, а тега <c> в нём нет вовсе: его словарь — <b>, <t>, <r>, <rc>, <rd>, <d>, <ds>, <dz>. Счётчик пакетов реализован только в модуле ядра Linux.",
+  "client.note.amneziaVpnHpk":
+    "HeaderProtectionKey в Amnezia VPN управляется самим приложением: включается переключателем в нём же, ключ оно генерирует само, поэтому в конфиги под него инструмент поле не пишет.",
   "client.engine.unverified": "неподтверждённый движок",
   "client.note.kmodTags":
     "Единственный движок, где работает <c>: счётчик пакетов реализован именно в нём. Зато он не знает <d>, <ds> и <dz> — они есть только в amneziawg-go. Незнакомый тег он отвергает вместе со всем джанк-пакетом.",
@@ -754,7 +757,9 @@ export const ru = {
 
   "mirror.badge": "Зеркало",
   "mirror.text": "Для лучшей доступности пользуйтесь основным сайтом, но и это зеркало работает.",
+  "mirror.short": "Основной сайт:",
   "mirror.donate": "Живёт на пожертвованиях YooMoney — поддержите проект",
+  "mirror.donateShort": "Поддержать",
   "footer.donate.title": "Поддержать проект",
   "footer.donate.methods": "YooMoney · Patreon · DaLink · крипта",
   "footer.col.resources": "Ресурсы",

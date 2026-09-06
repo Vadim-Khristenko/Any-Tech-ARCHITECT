@@ -74,7 +74,7 @@ const CANT = ["landing.cant.1", "landing.cant.2", "landing.cant.3"] as const;
  * guessing at one. AmneziaWG shapes its own packets; XRay borrows a real
  * TLS session, so its entries cite the protocol rather than an RFC number.
  */
-const PROFILES = [
+const PROFILES: { name: string; spec: string; engine: string; soon?: boolean }[] = [
     { name: "QUIC Initial", spec: "RFC 9000", engine: "AmneziaWG" },
     { name: "TLS ClientHello", spec: "RFC 8446", engine: "AmneziaWG" },
     { name: "DTLS 1.2 ClientHello", spec: "RFC 6347", engine: "AmneziaWG" },
@@ -82,7 +82,7 @@ const PROFILES = [
     { name: "DNS query", spec: "RFC 1035", engine: "AmneziaWG" },
     { name: "DNS-over-HTTPS", spec: "RFC 8484", engine: "AmneziaWG" },
     { name: "SIP INVITE", spec: "RFC 3261", engine: "AmneziaWG" },
-    { name: "STUN binding", spec: "RFC 5389", engine: "AmneziaWG" },
+    { name: "STUN binding", spec: "RFC 5389", engine: "AmneziaWG", soon: true },
     { name: "NTP client", spec: "RFC 5905", engine: "AmneziaWG" },
     { name: "REALITY", spec: "TLS 1.3", engine: "XRay" },
     { name: "XHTTP stream-up", spec: "HTTP/2", engine: "XRay" },
@@ -380,6 +380,9 @@ const MORE = [
                             >{{ profile.name }}</span>
                             <span :key="`e${dial}`" class="badge landing-dial-engine pop-in">
                                 {{ profile.engine }}
+                            </span>
+                            <span v-if="profile.soon" :key="`soon${dial}`" class="badge landing-dial-engine pop-in">
+                                {{ t("landing.fun.soon") }}
                             </span>
                         </span>
                         <span :key="`s${dial}`" class="landing-dial-spec fade-swap">

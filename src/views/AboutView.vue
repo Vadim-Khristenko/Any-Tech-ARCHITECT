@@ -87,7 +87,7 @@ const dayCount = computed(() =>
  * than an exact number, and a floor stays true as the suite grows.
  * 4.1.1: 1015 tests — bump floor to 1000+.
  * 4.1.2: 1154 tests — bump floor to 1100+.
- * 4.2.0: 1166 tests — floor holds.
+ * 4.2.0: 1169 tests — floor holds.
  */
 const TEST_FLOOR = "1100+";
 

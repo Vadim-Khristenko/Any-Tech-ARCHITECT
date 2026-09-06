@@ -47,6 +47,11 @@ export interface AwgClientLimits extends CpsTagSupport {
   supportsI1I5: boolean;
   maxJc: number;
   maxS4: number;
+  /**
+   * The app manages HeaderProtectionKey itself (own toggle, own key):
+   * the generator must not emit one for it.
+   */
+  managesHeaderProtection: boolean;
 }
 
 /** The protocol's own ceiling: H values are unsigned 32-bit. */
@@ -62,6 +67,7 @@ const BASE = {
   supportsI1I5: true,
   maxJc: 10,
   maxS4: 32,
+  managesHeaderProtection: false,
 } as const;
 
 /**
@@ -134,8 +140,10 @@ export const AWG_CLIENT_PROFILES: readonly ClientProfile<AwgClientLimits>[] = [
     id: "amneziavpn",
     name: "Amnezia VPN",
     platforms: ["Android", "iOS", "Windows", "macOS", "Linux"],
-    limits: on(ENGINE_GO),
-    notes: ["client.note.goNoTagC"],
+    // The app carries its own header-protection toggle and generates the key
+    // itself, so a key emitted here would be a second one nobody asked for.
+    limits: on(ENGINE_GO, { managesHeaderProtection: true }),
+    notes: ["client.note.goNoTagC", "client.note.amneziaVpnHpk"],
   },
   {
     id: "wg-tunnel",

@@ -236,6 +236,46 @@ describe("what the generator emits", () => {
     }
   });
 
+describe("Amnezia VPN manages its own header protection", () => {
+  it("emits no HeaderProtectionKey for amneziavpn, however the checkbox stands", () => {
+    const cfg = genCfg(
+      seeded({
+        clientId: "amneziavpn",
+        version: "3.0",
+        useHeaderProtection: true,
+      }),
+    );
+    expect(cfg.awg3?.headerProtectionKey).toBe("");
+  });
+
+  it("still emits one for clients that do not manage it", () => {
+    const cfg = genCfg(
+      seeded({
+        clientId: "amneziawg-windows",
+        version: "3.0",
+        useHeaderProtection: true,
+      }),
+    );
+    expect(cfg.awg3?.headerProtectionKey).toBeTruthy();
+  });
+
+  it("lifts the S-floor together with the key", () => {
+    let sawSmall = false;
+    for (let i = 0; i < 200; i++) {
+      const cfg = genCfg(
+        seeded({
+          clientId: "amneziavpn",
+          version: "3.0",
+          useHeaderProtection: true,
+          iterCount: i,
+        }),
+      );
+      if (Math.min(cfg.s1, cfg.s2, cfg.s3, cfg.s4) < 12) sawSmall = true;
+    }
+    expect(sawSmall).toBe(true);
+  });
+});
+
   it("lets a kernel-module client keep the counter it asked for", () => {
     let sawCounter = false;
     for (let attempt = 0; attempt < 20 && !sawCounter; attempt++) {

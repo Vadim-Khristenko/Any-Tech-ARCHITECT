@@ -17,7 +17,13 @@ const base = () => ({ ...awgEngine.createDefaults() });
 describe("AWG 3.0 padding floor", () => {
   it("never emits an S below the nonce size when header protection is on", () => {
     for (let i = 0; i < 400; i++) {
-      const cfg = genCfg({ ...base(), version: "3.0", useHeaderProtection: true });
+      // Amnezia VPN takes no emitted key: pin a client that does.
+      const cfg = genCfg({
+        ...base(),
+        version: "3.0",
+        clientId: "amneziawg-windows",
+        useHeaderProtection: true,
+      });
       for (const [name, v] of [["S1", cfg.s1], ["S2", cfg.s2], ["S3", cfg.s3], ["S4", cfg.s4]] as const) {
         expect(v, `${name} on draw ${i}`).toBeGreaterThanOrEqual(12);
       }
@@ -26,7 +32,12 @@ describe("AWG 3.0 padding floor", () => {
 
   it("agrees with its own validator", () => {
     for (let i = 0; i < 200; i++) {
-      const cfg = genCfg({ ...base(), version: "3.0", useHeaderProtection: true });
+      const cfg = genCfg({
+        ...base(),
+        version: "3.0",
+        clientId: "amneziawg-windows",
+        useHeaderProtection: true,
+      });
       const errors = awgEngine.validate(cfg).filter((f) => f.level === "error");
       expect(errors, `draw ${i}`).toEqual([]);
     }

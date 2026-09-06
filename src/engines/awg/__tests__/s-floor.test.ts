@@ -25,7 +25,11 @@ const SAMPLES = 400;
 function sample(over: Partial<GeneratorInput> = {}) {
   const rows: number[][] = [];
   for (let i = 0; i < SAMPLES; i++) {
-    const cfg = genCfg(seeded({ version: "3.0", ...over }));
+    // Amnezia VPN takes no emitted key, so the floor mechanics is pinned to
+    // a client that does.
+    const cfg = genCfg(
+      seeded({ version: "3.0", clientId: "amneziawg-windows", ...over }),
+    );
     rows.push([cfg.s1, cfg.s2, cfg.s3, cfg.s4]);
   }
   return rows;

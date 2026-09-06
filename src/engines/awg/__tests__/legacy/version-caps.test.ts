@@ -28,7 +28,9 @@ const inputFor = (version: GeneratorInput["version"]): GeneratorInput => ({
   iterCount: 0,
   routerMode: false,
   useExtremeMax: false,
-  clientId: "amneziavpn",
+  // Amnezia VPN takes no emitted key: version-block mechanics is pinned to
+  // a client that does.
+  clientId: "amneziawg-windows",
   useHeaderProtection: true,
   useContentPadding: true,
   useRandomTimings: true, useRandomTrailers: false, useDisableCookies: false,

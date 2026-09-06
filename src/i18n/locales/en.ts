@@ -86,6 +86,7 @@ export const en: Catalog = {
   "landing.fun.outside": "From outside it looks like",
   "landing.fun.spec": "built from",
   "landing.fun.count": "profiles to choose from",
+  "landing.fun.soon": "soon — in 4.3.0",
 
   "landing.more.title": "What else is here",
   "landing.more.mergekeys":
@@ -295,6 +296,8 @@ export const en: Catalog = {
     "Sensitive to I1: prefer a simple <r 64> or a DNS mimicry profile.",
   "client.note.goNoTagC":
     "The tunnel here is amneziawg-go, and it has no <c> at all: its vocabulary is <b>, <t>, <r>, <rc>, <rd>, <d>, <ds>, <dz>. The packet counter exists only in the Linux kernel module.",
+  "client.note.amneziaVpnHpk":
+    "Amnezia VPN manages HeaderProtectionKey itself: flip the toggle in the app and it generates the key, so this tool leaves the field out of configs built for it.",
   "client.engine.unverified": "an unconfirmed engine",
   "client.note.kmodTags":
     "The only engine where <c> works: the packet counter is implemented here and nowhere else. It does not know <d>, <ds> or <dz>, which exist only in amneziawg-go. An unfamiliar tag takes the whole junk packet down with it.",
@@ -747,7 +750,9 @@ export const en: Catalog = {
 
   "mirror.badge": "Mirror",
   "mirror.text": "For the best availability use the main site, but this mirror works too.",
+  "mirror.short": "Main site:",
   "mirror.donate": "Runs on YooMoney donations — support the project",
+  "mirror.donateShort": "Support",
   "footer.donate.title": "Support the project",
   "footer.donate.methods": "YooMoney · Patreon · DaLink · crypto",
   "footer.col.resources": "Resources",
