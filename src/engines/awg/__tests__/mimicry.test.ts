@@ -208,43 +208,52 @@ describe("the DNS query the generator emits", () => {
 
 /* ── DTLS ─────────────────────────────────────────────────────────────────── */
 
+/**
+ * First-flight framing both DTLS versions share: a handshake record with
+ * epoch zero, message sequence zero and fragment offset zero.
+ *
+ * A ClientHello precedes any cipher change, so nothing but 0 is possible in
+ * the epoch — a random one was variety that cannot exist.
+ */
+function expectFirstFlightFraming(bytes: Uint8Array) {
+  expect(bytes[0], "content type").toBe(0x16);
+  expect(u16(bytes, 1), "record version").toBe(0xfefd);
+  expect(u16(bytes, 3), "epoch").toBe(0);
+  expect(bytes[13], "handshake type").toBe(0x01);
+  expect(u16(bytes, 17), "message seq").toBe(0);
+  expect(u24(bytes, 19), "fragment offset").toBe(0);
+}
+
+/**
+ * Lengths that describe what follows: the record covers the 12-byte
+ * handshake header plus the body (type 1 + length 3 + message seq 2 +
+ * fragment offset 3 + fragment length 3, on top of the 13-byte record
+ * header), the fragment is the whole unfragmented message, and the body
+ * matches the blob plus every tag after it.
+ */
+function expectHonestDtlsLengths(chain: string) {
+  const { bytes, padding, rc, counters, stamps } = readChain(chain);
+  const recordLen = u16(bytes, 11);
+  const bodyLen = u24(bytes, 14);
+  expect(recordLen, "record covers header plus body").toBe(12 + bodyLen);
+  expect(u24(bytes, 22), "fragment length").toBe(bodyLen);
+  const carried = bytes.length - 13 - 12 + padding + rc + counters + stamps;
+  expect(bodyLen, "body matches what is sent").toBe(carried);
+}
+
 describe("the DTLS 1.2 ClientHello the generator emits", () => {
   it("uses epoch zero, as a first flight must", () => {
     for (let attempt = 0; attempt < 30; attempt++) {
       const { bytes } = readChain(genCfg(seeded({ profile: "dtls_1_2" })).i1);
-
-      expect(bytes[0], "content type").toBe(0x16);
-      expect(u16(bytes, 1), "DTLS 1.2").toBe(0xfefd);
-      // A ClientHello precedes any cipher change, so nothing but 0 is
-      // possible here — a random epoch was variety that cannot exist.
-      expect(u16(bytes, 3), "epoch").toBe(0);
+      expectFirstFlightFraming(bytes);
     }
   });
 
   it("writes the eleven-byte handshake header DTLS adds to TLS's four", () => {
     for (let attempt = 0; attempt < 30; attempt++) {
-      const { bytes, padding, rc, counters, stamps } = readChain(
+      expectHonestDtlsLengths(
         genCfg(seeded({ profile: "dtls_1_2", useTagRC: true })).i1,
       );
-
-      const recordLen = u16(bytes, 11);
-      expect(bytes[13], "handshake type").toBe(0x01);
-
-      const bodyLen = u24(bytes, 14);
-      const messageSeq = u16(bytes, 17);
-      const fragmentOffset = u24(bytes, 19);
-      const fragmentLen = u24(bytes, 22);
-
-      // type 1 + length 3 + message seq 2 + fragment offset 3 + fragment
-      // length 3 = 12 bytes, on top of the 13-byte record header.
-      expect(recordLen, "record covers header plus body").toBe(12 + bodyLen);
-      expect(messageSeq, "first message of the flight").toBe(0);
-      // Unfragmented: the fragment is the whole message.
-      expect(fragmentOffset, "fragment offset").toBe(0);
-      expect(fragmentLen, "fragment length").toBe(bodyLen);
-
-      const carried = bytes.length - 13 - 12 + padding + rc + counters + stamps;
-      expect(bodyLen, "body matches what is sent").toBe(carried);
     }
   });
 });
@@ -253,12 +262,7 @@ describe("the DTLS 1.3 ClientHello the generator emits", () => {
   it("frames like DTLS 1.2 on the wire (RFC 9147 DTLSPlaintext)", () => {
     for (let attempt = 0; attempt < 30; attempt++) {
       const { bytes } = readChain(genCfg(seeded({ profile: "dtls_1_3" })).i1);
-      expect(bytes[0], "content type").toBe(0x16);
-      expect(u16(bytes, 1), "legacy record version").toBe(0xfefd);
-      expect(u16(bytes, 3), "epoch").toBe(0);
-      expect(bytes[13], "handshake type").toBe(0x01);
-      expect(u16(bytes, 17), "message seq").toBe(0);
-      expect(u24(bytes, 19), "fragment offset").toBe(0);
+      expectFirstFlightFraming(bytes);
     }
   });
 
@@ -285,15 +289,9 @@ describe("the DTLS 1.3 ClientHello the generator emits", () => {
 
   it("keeps record and handshake lengths honest with tags on", () => {
     for (let attempt = 0; attempt < 30; attempt++) {
-      const { bytes, padding, rc, counters, stamps } = readChain(
+      expectHonestDtlsLengths(
         genCfg(seeded({ profile: "dtls_1_3", useTagRC: true })).i1,
       );
-      const recordLen = u16(bytes, 11);
-      const bodyLen = u24(bytes, 14);
-      expect(recordLen, "record covers header plus body").toBe(12 + bodyLen);
-      expect(u24(bytes, 22), "fragment length").toBe(bodyLen);
-      const carried = bytes.length - 13 - 12 + padding + rc + counters + stamps;
-      expect(bodyLen, "body matches what is sent").toBe(carried);
     }
   });
 });
