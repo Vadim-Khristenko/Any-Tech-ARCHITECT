@@ -249,6 +249,55 @@ describe("the DTLS 1.2 ClientHello the generator emits", () => {
   });
 });
 
+describe("the DTLS 1.3 ClientHello the generator emits", () => {
+  it("frames like DTLS 1.2 on the wire (RFC 9147 DTLSPlaintext)", () => {
+    for (let attempt = 0; attempt < 30; attempt++) {
+      const { bytes } = readChain(genCfg(seeded({ profile: "dtls_1_3" })).i1);
+      expect(bytes[0], "content type").toBe(0x16);
+      expect(u16(bytes, 1), "legacy record version").toBe(0xfefd);
+      expect(u16(bytes, 3), "epoch").toBe(0);
+      expect(bytes[13], "handshake type").toBe(0x01);
+      expect(u16(bytes, 17), "message seq").toBe(0);
+      expect(u24(bytes, 19), "fragment offset").toBe(0);
+    }
+  });
+
+  it("announces 1.3 in supported_versions, not in the version fields (RFC 9147 5.3)", () => {
+    const { bytes } = readChain(
+      genCfg(seeded({ profile: "dtls_1_3", useTagR: false })).i1,
+    );
+    expect(bytes.length, "framing plus a 55-byte body").toBe(80);
+    expect(u16(bytes, 25), "legacy_version stays 1.2").toBe(0xfefd);
+    expect(bytes[59], "empty session id").toBe(0);
+    expect(bytes[60], "empty cookie").toBe(0);
+    expect(u16(bytes, 61), "suites length").toBe(6);
+    expect(u16(bytes, 63), "suite 1").toBe(0x1301);
+    expect(u16(bytes, 65), "suite 2").toBe(0x1302);
+    expect(u16(bytes, 67), "suite 3").toBe(0x1303);
+    expect(bytes[69], "compression length").toBe(1);
+    expect(bytes[70], "null compression").toBe(0);
+    expect(u16(bytes, 71), "extensions length").toBe(9);
+    expect(u16(bytes, 73), "supported_versions").toBe(0x002b);
+    expect(u16(bytes, 75), "extension length").toBe(3);
+    expect(bytes[77], "versions length").toBe(2);
+    expect(u16(bytes, 78), "DTLS 1.3").toBe(0xfefc);
+  });
+
+  it("keeps record and handshake lengths honest with tags on", () => {
+    for (let attempt = 0; attempt < 30; attempt++) {
+      const { bytes, padding, rc, counters, stamps } = readChain(
+        genCfg(seeded({ profile: "dtls_1_3", useTagRC: true })).i1,
+      );
+      const recordLen = u16(bytes, 11);
+      const bodyLen = u24(bytes, 14);
+      expect(recordLen, "record covers header plus body").toBe(12 + bodyLen);
+      expect(u24(bytes, 22), "fragment length").toBe(bodyLen);
+      const carried = bytes.length - 13 - 12 + padding + rc + counters + stamps;
+      expect(bodyLen, "body matches what is sent").toBe(carried);
+    }
+  });
+});
+
 describe("profile ids", () => {
   it("normalizes the pre-4.2.0 dtls id to dtls_1_2", () => {
     expect(normalizeProfile("dtls")).toBe("dtls_1_2");

@@ -30,6 +30,7 @@ import {
   mkTLS,
   mkNoise,
   mkDTLS12,
+  mkDTLS13,
   mkSIP,
   mkDNS,
   mkEntropy,
@@ -52,7 +53,7 @@ export * from "./awg3";
 export * from "./render";
 export * from "./summary";
 
-export { mkQUICi, mkQUIC0, mkHTTP3, mkTLS, mkNoise, mkDTLS12, mkSIP, mkDNS, mkEntropy };
+export { mkQUICi, mkQUIC0, mkHTTP3, mkTLS, mkNoise, mkDTLS12, mkDTLS13, mkSIP, mkDNS, mkEntropy };
 /** @deprecated pre-4.2.0 name for mkDTLS12. */
 export { mkDTLS12 as mkDTLS };
 
@@ -84,7 +85,7 @@ export function genI1(
     tls_client_hello: mkTLS,
     wireguard_noise: mkNoise,
     dtls_1_2: mkDTLS12,
-    dtls_1_3: mkDTLS12,
+    dtls_1_3: mkDTLS13,
     http3: mkHTTP3,
     sip: mkSIP,
     dns_query: mkDNS,
