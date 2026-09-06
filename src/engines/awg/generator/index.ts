@@ -55,6 +55,18 @@ export * from "./summary";
 export { mkQUICi, mkQUIC0, mkHTTP3, mkTLS, mkNoise, mkDTLS, mkSIP, mkDNS, mkEntropy };
 
 /**
+ * Pre-4.2.0 id for the DTLS 1.2 profile. Old links, history entries and
+ * stored inputs still carry it — normalize, don't break them.
+ */
+export const LEGACY_DTLS_PROFILE = "dtls" as const;
+
+/** Map a stored or incoming profile id to a current one. Unknown ids pass through. */
+export function normalizeProfile(profile: string): MimicProfile {
+  if (profile === LEGACY_DTLS_PROFILE) return "dtls_1_2";
+  return profile as MimicProfile;
+}
+
+/**
  * genI1 — выбирает и вызывает нужный генератор по профилю мимикрии.
  * При profile="random" — случайный выбор из всех профилей кроме random.
  */
@@ -63,12 +75,14 @@ export function genI1(
   profile: MimicProfile,
   iv: number,
 ): string {
+  const id = normalizeProfile(profile);
   const dispatch: Record<string, (i: GeneratorInput, iv: number) => string> = {
     quic_initial: mkQUICi,
     quic_0rtt: mkQUIC0,
     tls_client_hello: mkTLS,
     wireguard_noise: mkNoise,
-    dtls: mkDTLS,
+    dtls_1_2: mkDTLS,
+    dtls_1_3: mkDTLS,
     http3: mkHTTP3,
     sip: mkSIP,
     dns_query: mkDNS,
@@ -76,12 +90,12 @@ export function genI1(
     quic_burst: mkQUICi,
   };
 
-  if (profile === "random") {
+  if (id === "random") {
     const keys = Object.keys(dispatch) as MimicProfile[];
     return genI1(input, keys[rnd(0, keys.length - 1)], iv);
   }
 
-  const fn = dispatch[profile] ?? dispatch.quic_initial;
+  const fn = dispatch[id] ?? dispatch.quic_initial;
   return fn(input, iv);
 }
 
@@ -224,8 +238,8 @@ function resolveJmax(jmin: number, drawn: number, version: AWGVersion): number {
  * Generate a complete AmneziaWG obfuscation configuration.
  */
 export function genCfg(input: GeneratorInput): AWGConfig {
-  const { version, intensity, profile, iterCount, junkLevel, useExtremeMax } =
-    input;
+  const { version, intensity, iterCount, junkLevel, useExtremeMax } = input;
+  const profile = normalizeProfile(input.profile);
 
   /** What this protocol version supports — see ./versions.ts. */
   const caps = capsFor(version);
@@ -235,6 +249,7 @@ export function genCfg(input: GeneratorInput): AWGConfig {
   // Enforce client capability limits without mutating the caller's input.
   const effectiveInput: GeneratorInput = {
     ...input,
+    profile,
     useTagC: client.supportsCpsTagC && input.useTagC,
     useTagRC: client.supportsCpsTagRC && input.useTagRC,
     useTagRD: client.supportsCpsTagRD && input.useTagRD,

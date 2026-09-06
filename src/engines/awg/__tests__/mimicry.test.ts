@@ -1,7 +1,13 @@
 import { describe, it, expect } from "vitest";
 
 import { awgEngine } from "../index";
-import { genCfg, type GeneratorInput } from "@/engines/awg/generator";
+import {
+  genCfg,
+  normalizeProfile,
+  PROFILE_LABELS,
+  type GeneratorInput,
+  type MimicProfile,
+} from "@/engines/awg/generator";
 
 /**
  * A junk packet is meant to *be* the protocol it imitates. The cheapest way
@@ -243,7 +249,27 @@ describe("the DTLS ClientHello the generator emits", () => {
   });
 });
 
-/* ── SIP ──────────────────────────────────────────────────────────────────── */
+describe("profile ids", () => {
+  it("normalizes the pre-4.2.0 dtls id to dtls_1_2", () => {
+    expect(normalizeProfile("dtls")).toBe("dtls_1_2");
+    expect(normalizeProfile("dtls_1_2")).toBe("dtls_1_2");
+    expect(normalizeProfile("dtls_1_3")).toBe("dtls_1_3");
+  });
+
+  it("labels both DTLS versions with their RFCs behind the names", () => {
+    expect(PROFILE_LABELS.dtls_1_2).toBe("DTLS 1.2");
+    expect(PROFILE_LABELS.dtls_1_3).toBe("DTLS 1.3");
+  });
+
+  it("still generates from a stored dtls input and stores the new id", () => {
+    const a = genCfg(seeded({ profile: "dtls" as unknown as MimicProfile }));
+    const b = genCfg(seeded({ profile: "dtls_1_2" }));
+    expect(a.profile).toBe("dtls_1_2");
+    expect(b.profile).toBe("dtls_1_2");
+  });
+});
+
+/* ── SIP ─────────────────────────────────────────────────────────────────── */
 
 /** The blob back as text: SIP is a text protocol. */
 const asText = (bytes: Uint8Array) =>
