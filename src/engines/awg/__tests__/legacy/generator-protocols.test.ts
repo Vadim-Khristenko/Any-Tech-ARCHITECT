@@ -77,6 +77,14 @@ describe.each(profiles)("genI1 — profile %s", (profile) => {
     });
 });
 
+describe("genI1 — pre-4.2.0 dtls id", () => {
+    it("still emits a chain via the 1.2 generator", () => {
+        const input: GeneratorInput = { ...baseInput, profile: "quic_initial" };
+        const result = genI1(input, "dtls" as unknown as MimicProfile, 0);
+        expect(result).toMatch(/<b 0x/);
+    });
+});
+
 describe("genI1 — profile random", () => {
     it("returns a non-empty string", () => {
         const input: GeneratorInput = { ...baseInput, profile: "random" };
