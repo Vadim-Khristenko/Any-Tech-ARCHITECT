@@ -1,4 +1,8 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach } from "bun:test";
+import {
+  stubGlobal,
+  unstubAllGlobals,
+} from "@/shared/__tests__/stub-global";
 
 import { copyText } from "../clipboard";
 
@@ -30,7 +34,7 @@ function stubDocument(execCopy: () => boolean) {
     execCalls: 0,
   };
 
-  vi.stubGlobal("document", {
+  stubGlobal("document", {
     createElement: (): FakeField => {
       const field: FakeField = {
         value: "",
@@ -60,13 +64,13 @@ function stubDocument(execCopy: () => boolean) {
 }
 
 afterEach(() => {
-  vi.unstubAllGlobals();
+  unstubAllGlobals();
 });
 
 describe("copyText", () => {
   it("uses the Clipboard API when it works", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
-    vi.stubGlobal("navigator", { clipboard: { writeText } });
+    stubGlobal("navigator", { clipboard: { writeText } });
     const doc = stubDocument(() => true);
 
     expect(await copyText("Jc = 4")).toBe(true);
@@ -78,7 +82,7 @@ describe("copyText", () => {
   it("falls back to the selection route when the API rejects", async () => {
     // Permissions-Policy denial and non-secure contexts both look like this.
     const writeText = vi.fn().mockRejectedValue(new Error("denied"));
-    vi.stubGlobal("navigator", { clipboard: { writeText } });
+    stubGlobal("navigator", { clipboard: { writeText } });
     const doc = stubDocument(() => true);
 
     expect(await copyText("H1 = 1")).toBe(true);
@@ -87,7 +91,7 @@ describe("copyText", () => {
   });
 
   it("falls back when the API is missing entirely", async () => {
-    vi.stubGlobal("navigator", {});
+    stubGlobal("navigator", {});
     const doc = stubDocument(() => true);
 
     expect(await copyText("S1 = 12")).toBe(true);
@@ -95,14 +99,14 @@ describe("copyText", () => {
   });
 
   it("reports failure rather than claiming a copy that did not happen", async () => {
-    vi.stubGlobal("navigator", {});
+    stubGlobal("navigator", {});
     stubDocument(() => false);
 
     expect(await copyText("nope")).toBe(false);
   });
 
   it("removes the field even when the copy throws", async () => {
-    vi.stubGlobal("navigator", {});
+    stubGlobal("navigator", {});
     const doc = stubDocument(() => {
       throw new Error("execCommand is gone");
     });
@@ -113,8 +117,8 @@ describe("copyText", () => {
   });
 
   it("returns false without a document instead of throwing", async () => {
-    vi.stubGlobal("navigator", {});
-    vi.stubGlobal("document", undefined);
+    stubGlobal("navigator", {});
+    stubGlobal("document", undefined);
 
     expect(await copyText("ssr")).toBe(false);
   });
@@ -144,7 +148,7 @@ describe("copyText, called faster than it settles", () => {
       );
     });
 
-    vi.stubGlobal("navigator", { clipboard: { writeText } });
+    stubGlobal("navigator", { clipboard: { writeText } });
     return { started, landed };
   }
 
@@ -183,7 +187,7 @@ describe("copyText, called faster than it settles", () => {
       .fn()
       .mockRejectedValueOnce(new Error("denied"))
       .mockResolvedValue(undefined);
-    vi.stubGlobal("navigator", { clipboard: { writeText } });
+    stubGlobal("navigator", { clipboard: { writeText } });
     stubDocument(() => false);
 
     const [first, second] = await Promise.all([

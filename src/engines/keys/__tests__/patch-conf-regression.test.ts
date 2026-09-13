@@ -11,7 +11,7 @@
  * pseudo-random 3.0/3.1 generator stays valid.
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "bun:test";
 import { makeAwgContainer, buildKey, extractWgQuick, exportAll } from "@/engines/keys/build";
 import { applyPatchToVpnConfig } from "@/engines/keys/patch";
 import { validateVpnConfig } from "@/engines/keys/validate";

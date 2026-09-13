@@ -1,6 +1,4 @@
-// `vitest/config` re-exports Vite's defineConfig with the `test` key typed, so
-// the Vitest options below actually reach the runner instead of being dropped.
-import { defineConfig } from "vitest/config";
+import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
 import { ROUTE_SEO } from "./src/i18n/seo";
 import { DEFAULT_LOCALE } from "./src/i18n/types";
@@ -442,48 +440,16 @@ function createMultiHostBuildPlugin(): Plugin {
 const base = inferBase();
 
 /**
- * Vitest options.
+ * Test runner settings live in `package.json`, not here.
  *
- * Declared up here and passed into `defineConfig` below — when this lived as a
- * standalone `export const test` after the config object, Vitest never saw it
- * and silently ran on its defaults (wrong `include`, no coverage scoping).
- * It stays exported because the config unit tests assert on it.
+ * The suite runs on `bun test` (`test`/`test:coverage` scripts): `--isolate`
+ * gives every file the fresh global Vitest used to give it, `--timeout`
+ * covers the property-style suites that draw hundreds of configs, and
+ * `--path-ignore-patterns` keeps worktrees nested inside the repo from being
+ * globbed twice. This file is build-only now.
  */
-export const test = {
-  globals: true,
-  environment: "node",
-  include: ["src/**/__tests__/**/*.test.ts"],
-  /**
-   * Several suites are property-style: they generate a couple of hundred
-   * configs and assert an invariant holds across all of them. Each generation
-   * draws from crypto.getRandomValues many times over, so on a loaded machine
-   * the 5s default is close enough to the line to produce flakes that look
-   * like real failures.
-   */
-  testTimeout: 20_000,
-  /**
-   * Git worktrees are often created *inside* the repo (e.g. `.claude/worktrees`
-   * by tooling). Without this, their `src/` trees are globbed too and every
-   * suite runs twice against two different checkouts — which silently doubles
-   * the reported test count and can hide a failure behind a stale copy.
-   */
-  exclude: [
-    "**/node_modules/**",
-    "**/dist/**",
-    "**/.git/**",
-    "**/.claude/**",
-    "**/.worktrees/**",
-  ],
-  coverage: {
-    provider: "v8" as const,
-    reporter: ["text", "json-summary", "html"],
-    include: ["src/utils/**/*.ts"],
-    exclude: ["src/utils/__tests__/**"],
-  },
-};
 
 export default defineConfig({
-  test,
   plugins: [vue(), createSpaFallbackPlugin(), createMultiHostBuildPlugin()],
   base,
   resolve: {

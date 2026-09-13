@@ -1,4 +1,5 @@
-import { describe, it, expect, afterEach, vi } from "vitest";
+import { describe, it, expect, afterEach } from "bun:test";
+import { stubGlobal, unstubAllGlobals } from "./stub-global";
 
 import {
   handOffToSimulator,
@@ -25,12 +26,12 @@ function mapStorage() {
 }
 
 afterEach(() => {
-  vi.unstubAllGlobals();
+  unstubAllGlobals();
 });
 
 describe("the simulator hand-off", () => {
   it("round-trips a payload", () => {
-    vi.stubGlobal("sessionStorage", mapStorage());
+    stubGlobal("sessionStorage", mapStorage());
     const payload = {
       engine: "awg",
       caption: "AmneziaWG · 3.0 · QUIC Initial",
@@ -42,33 +43,33 @@ describe("the simulator hand-off", () => {
   });
 
   it("reads as absent when nothing was parked", () => {
-    vi.stubGlobal("sessionStorage", mapStorage());
+    stubGlobal("sessionStorage", mapStorage());
     expect(pendingSimulation()).toBeNull();
   });
 
   it("reads malformed content as absent", () => {
     const storage = mapStorage();
     storage.store.set(KEY, "{not json at all");
-    vi.stubGlobal("sessionStorage", storage);
+    stubGlobal("sessionStorage", storage);
     expect(pendingSimulation()).toBeNull();
   });
 
   it("refuses an entry without an engine name", () => {
     const storage = mapStorage();
     storage.store.set(KEY, JSON.stringify({ config: {} }));
-    vi.stubGlobal("sessionStorage", storage);
+    stubGlobal("sessionStorage", storage);
     expect(pendingSimulation()).toBeNull();
   });
 
   it("refuses an entry without a config", () => {
     const storage = mapStorage();
     storage.store.set(KEY, JSON.stringify({ engine: "awg" }));
-    vi.stubGlobal("sessionStorage", storage);
+    stubGlobal("sessionStorage", storage);
     expect(pendingSimulation()).toBeNull();
   });
 
   it("survives blocked storage on write, and says nothing on read", () => {
-    vi.stubGlobal("sessionStorage", {
+    stubGlobal("sessionStorage", {
       getItem: () => null,
       setItem: () => {
         throw new Error("quota");

@@ -19,7 +19,7 @@
  * bash installer they maintain.
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "bun:test";
 import { validateSizes } from "@/engines/awg/generator/validators";
 import { checkAwgParams } from "@/engines/awg/rules";
 import type { AWGConfig } from "@/engines/awg/generator";

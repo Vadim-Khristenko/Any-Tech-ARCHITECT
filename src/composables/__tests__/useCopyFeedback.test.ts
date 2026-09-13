@@ -1,4 +1,8 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, jest, beforeEach, afterEach } from "bun:test";
+import {
+  stubGlobal,
+  unstubAllGlobals,
+} from "@/shared/__tests__/stub-global";
 
 import { useCopyFeedback } from "../useCopyFeedback";
 
@@ -15,29 +19,29 @@ import { useCopyFeedback } from "../useCopyFeedback";
 let warn: ReturnType<typeof vi.spyOn>;
 
 beforeEach(() => {
-  vi.useFakeTimers();
+  jest.useFakeTimers();
   warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 });
 
 afterEach(() => {
-  vi.useRealTimers();
-  vi.unstubAllGlobals();
+  jest.useRealTimers();
+  unstubAllGlobals();
   warn.mockRestore();
 });
 
 /** Clipboard that accepts everything. */
 function acceptingClipboard() {
   const writeText = vi.fn().mockResolvedValue(undefined);
-  vi.stubGlobal("navigator", { clipboard: { writeText } });
+  stubGlobal("navigator", { clipboard: { writeText } });
   return writeText;
 }
 
 /** Clipboard that refuses, with no selection fallback available either. */
 function refusingClipboard() {
-  vi.stubGlobal("navigator", {
+  stubGlobal("navigator", {
     clipboard: { writeText: vi.fn().mockRejectedValue(new Error("denied")) },
   });
-  vi.stubGlobal("document", undefined);
+  stubGlobal("document", undefined);
 }
 
 describe("useCopyFeedback", () => {
@@ -49,9 +53,9 @@ describe("useCopyFeedback", () => {
     expect(isCopied("wallet")).toBe(true);
     expect(copied.value).toBe("wallet");
 
-    vi.advanceTimersByTime(999);
+    jest.advanceTimersByTime(999);
     expect(isCopied("wallet")).toBe(true);
-    vi.advanceTimersByTime(1);
+    jest.advanceTimersByTime(1);
     expect(copied.value).toBeNull();
   });
 
@@ -70,16 +74,16 @@ describe("useCopyFeedback", () => {
     const { copy, isCopied } = useCopyFeedback(1000);
 
     await copy("first", "a");
-    vi.advanceTimersByTime(600);
+    jest.advanceTimersByTime(600);
     await copy("second", "b");
 
     expect(isCopied("first")).toBe(false);
     expect(isCopied("second")).toBe(true);
 
     // The second copy's window is a full one, not the 400ms left of the first.
-    vi.advanceTimersByTime(600);
+    jest.advanceTimersByTime(600);
     expect(isCopied("second")).toBe(true);
-    vi.advanceTimersByTime(400);
+    jest.advanceTimersByTime(400);
     expect(isCopied("second")).toBe(false);
   });
 
@@ -99,7 +103,7 @@ describe("useCopyFeedback", () => {
     expect(isCopied("restore:7")).toBe(true);
     expect(writeText).not.toHaveBeenCalled();
 
-    vi.advanceTimersByTime(1000);
+    jest.advanceTimersByTime(1000);
     expect(isCopied("restore:7")).toBe(false);
   });
 

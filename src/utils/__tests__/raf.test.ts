@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, jest } from "bun:test";
 
 import { rafThrottle, type FrameScheduler } from "../raf";
 
@@ -85,7 +85,8 @@ describe("rafThrottle", () => {
         // A scroll handler reads position at call time, so it needs no
         // arguments; one that is given them needs the last state, not the
         // first, or it reacts to where the page was ten events ago.
-        expect(fn).toHaveBeenCalledExactlyOnceWith(3);
+        expect(fn).toHaveBeenCalledTimes(1);
+        expect(fn).toHaveBeenCalledWith(3);
     });
 
     it("drops the pending call on cancel, and stays dropped", () => {
@@ -132,7 +133,7 @@ describe("rafThrottle", () => {
     });
 
     it("falls back to a timeout where there is no frame to ask for", () => {
-        vi.useFakeTimers();
+        jest.useFakeTimers();
         try {
             // No `requestAnimationFrame` on `globalThis`: a worker, or SSR.
             const fn = vi.fn();
@@ -144,11 +145,11 @@ describe("rafThrottle", () => {
 
             throttled();
             throttled();
-            vi.advanceTimersByTime(20);
+            jest.advanceTimersByTime(20);
 
             expect(fn).toHaveBeenCalledTimes(1);
         } finally {
-            vi.useRealTimers();
+            jest.useRealTimers();
         }
     });
 });

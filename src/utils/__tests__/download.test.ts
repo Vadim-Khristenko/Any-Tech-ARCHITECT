@@ -1,4 +1,8 @@
-import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
+import { describe, it, expect, jest, afterEach, beforeEach } from "bun:test";
+import {
+  stubGlobal,
+  unstubAllGlobals,
+} from "@/shared/__tests__/stub-global";
 
 import { downloadText, timestampedName } from "../download";
 
@@ -25,7 +29,7 @@ function stubDom() {
     created: [] as unknown[],
   };
 
-  vi.stubGlobal("URL", {
+  stubGlobal("URL", {
     createObjectURL: (blob: unknown) => {
       state.created.push(blob);
       return `blob:${state.created.length}`;
@@ -33,7 +37,7 @@ function stubDom() {
     revokeObjectURL: (url: string) => state.revoked.push(url),
   });
 
-  vi.stubGlobal("Blob", class {
+  stubGlobal("Blob", class {
     parts: unknown[];
     type: string;
     constructor(parts: unknown[], opts?: { type?: string }) {
@@ -42,7 +46,7 @@ function stubDom() {
     }
   });
 
-  vi.stubGlobal("document", {
+  stubGlobal("document", {
     createElement: (): FakeAnchor => {
       const anchor: FakeAnchor = {
         href: "",
@@ -63,12 +67,12 @@ function stubDom() {
 }
 
 beforeEach(() => {
-  vi.useFakeTimers();
+  jest.useFakeTimers();
 });
 
 afterEach(() => {
-  vi.useRealTimers();
-  vi.unstubAllGlobals();
+  jest.useRealTimers();
+  unstubAllGlobals();
 });
 
 describe("downloadText", () => {
@@ -89,7 +93,7 @@ describe("downloadText", () => {
     // Revoking inline cancels the save before the browser has read the blob.
     expect(dom.revoked).toEqual([]);
 
-    vi.advanceTimersByTime(60_000);
+    jest.advanceTimersByTime(60_000);
     expect(dom.revoked).toEqual(["blob:1"]);
   });
 
@@ -115,7 +119,7 @@ describe("downloadText", () => {
   });
 
   it("reports failure where there is nothing to download into", () => {
-    vi.stubGlobal("document", undefined);
+    stubGlobal("document", undefined);
     // A caller that logs "saved" must not do so when nothing was saved.
     expect(downloadText("x", "y.txt")).toBe(false);
   });
@@ -123,7 +127,7 @@ describe("downloadText", () => {
 
 describe("timestampedName", () => {
   it("joins prefix, timestamp and extension", () => {
-    vi.setSystemTime(new Date("2026-07-31T00:00:00Z"));
+    jest.setSystemTime(new Date("2026-07-31T00:00:00Z"));
     expect(timestampedName("amnezia-merged", "json")).toBe(
       `amnezia-merged-${Date.now()}.json`,
     );

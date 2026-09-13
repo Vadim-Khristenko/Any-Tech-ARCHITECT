@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "bun:test";
 import { generateBatch, genCfg } from "@/engines/awg/generator";
 import type { GeneratorInput } from "@/engines/awg/generator";
 

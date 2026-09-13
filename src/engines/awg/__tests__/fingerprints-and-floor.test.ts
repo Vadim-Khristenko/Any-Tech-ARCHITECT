@@ -6,7 +6,7 @@
  * over the message body. And a browser in the registry has to actually reach
  * the generator, or completing the registry changed nothing.
  */
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "bun:test";
 import { genCfg } from "@/engines/awg/generator";
 import { awgEngine } from "@/engines/awg";
 import { getFpRange } from "@/engines/awg/generator/utils";

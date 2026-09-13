@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "bun:test";
 
 import {
   LOCALES,
@@ -61,7 +61,7 @@ describe("locale tables", () => {
     // LOCALES is derived from the descriptors rather than written out
     // separately, which is what keeps "add a language" to one entry. If the
     // two ever come apart, the menu and the routes disagree about what ships.
-    expect(LOCALES).toEqual(Object.keys(LOCALE_META));
+    expect(Object.keys(LOCALE_META)).toEqual([...LOCALES]);
   });
 
   it("only ever declare a direction Intl and the DOM accept", () => {

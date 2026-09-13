@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "bun:test";
 
 import { generateXray, createDefaults, resolveXhttpMode } from "../generate";
 import { buildServerInbound } from "../render";
@@ -109,7 +109,10 @@ describe("XHTTP modes", () => {
       const cfg = generateXray(
         input({ version: version.id, transport: "xhttp", security: "reality" }),
       );
-      expect(caps.xhttpModes, version.id).toContain(cfg.xhttp?.resolvedMode);
+      // The `!` is types-only: generateXray with xhttp always resolves a
+      // mode, and if it ever did not, `toContain(undefined)` below is what
+      // should fail the test rather than the access itself.
+      expect(caps.xhttpModes).toContain(cfg.xhttp?.resolvedMode!);
     }
   });
 

@@ -7,7 +7,7 @@
  * A parser that only rejected malformed strings would catch none of them.
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "bun:test";
 import {
   buildVless,
   fromContainer,

@@ -10,7 +10,7 @@
  * those the same and filled the SIP pool with web servers.
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "bun:test";
 
 import {
   ALL_ROLES,

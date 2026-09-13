@@ -10,7 +10,7 @@
  * Constant-by-design is fine and expected: `protocol: vless` is not a tell.
  * What matters is anything that *could* vary and does not.
  */
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "bun:test";
 import { createDefaults, generateXray } from "@/engines/xray/generate";
 import { buildServerInbound, buildClientUris } from "@/engines/xray/render";
 

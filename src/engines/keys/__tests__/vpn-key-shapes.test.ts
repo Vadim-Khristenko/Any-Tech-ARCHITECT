@@ -15,7 +15,7 @@
  * constructed on purpose instead of relied on as an accident.
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "bun:test";
 import { vpnDecode, vpnEncode, type VpnConfig } from "@/engines/keys";
 import {
   apiKeyV1,

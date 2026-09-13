@@ -10,7 +10,7 @@
  * They read the catalogue now. These are the tests that were impossible then.
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "bun:test";
 
 import { awgParamBlocks, awgParamRecord, awgParamValues } from "../generator/summary";
 import { awgEngine } from "../index";

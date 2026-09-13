@@ -6,7 +6,7 @@
  * floor, and a container name nothing recognises.
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "bun:test";
 import {
   identifyKey,
   validateVpnConfig,

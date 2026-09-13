@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "bun:test";
 import { genI1, type GeneratorInput, type MimicProfile } from "@/engines/awg/generator";
 
 const baseInput: GeneratorInput = {

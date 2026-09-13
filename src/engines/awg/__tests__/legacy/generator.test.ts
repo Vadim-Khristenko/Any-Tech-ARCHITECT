@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi } from "bun:test";
 import {
     rnd,
     rh,
@@ -101,7 +101,7 @@ describe("assertEvenHex", () => {
     it("warns on odd-length hex", () => {
         const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
         assertEvenHex("abc", "test-label");
-        expect(warnSpy).toHaveBeenCalledOnce();
+        expect(warnSpy).toHaveBeenCalledTimes(1);
         expect(warnSpy.mock.calls[0][0]).toContain("test-label");
         warnSpy.mockRestore();
     });

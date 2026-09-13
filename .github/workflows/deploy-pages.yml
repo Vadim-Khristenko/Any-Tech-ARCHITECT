@@ -207,13 +207,13 @@ jobs:
         run: |
           echo "### 🧪 Test Results" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          if [ -f coverage/coverage-summary.json ]; then
-            # Read with bun rather than an inline python heredoc: the old one
-            # needed its own indentation inside the YAML block, which made it
-            # easy to break by reformatting the surrounding step.
-            LINES=$(bun --print \
-              "require('./coverage/coverage-summary.json').total.lines.pct + '%'" \
-              2>/dev/null || echo "N/A")
+          if [ -f coverage/lcov.info ]; then
+            # `bun test` reports text and lcov only, so the line total comes
+            # from the LF/LH records rather than a json summary. awk keeps it
+            # a one-liner: the earlier python heredoc needed its own
+            # indentation inside this YAML block, which made it easy to break
+            # by reformatting the surrounding step.
+            LINES=$(awk -F: '/^LF:/{lf+=$2} /^LH:/{lh+=$2} END{if (lf) printf "%.1f%%", 100*lh/lf; else print "N/A"}' coverage/lcov.info)
             echo "| Metric | Value |" >> "$GITHUB_STEP_SUMMARY"
             echo "|--------|-------|" >> "$GITHUB_STEP_SUMMARY"
             echo "| Line coverage | ${LINES} |" >> "$GITHUB_STEP_SUMMARY"

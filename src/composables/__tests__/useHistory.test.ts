@@ -1,4 +1,8 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, jest, beforeEach, afterEach } from "bun:test";
+import {
+  stubGlobal,
+  unstubAllGlobals,
+} from "@/shared/__tests__/stub-global";
 
 import {
   allHistories,
@@ -30,18 +34,18 @@ function stubStorage(initial: Record<string, string> = {}) {
     }),
     store,
   };
-  vi.stubGlobal("localStorage", api);
+  stubGlobal("localStorage", api);
   return api;
 }
 
 beforeEach(() => {
-  vi.useFakeTimers();
-  vi.setSystemTime(new Date("2026-07-31T12:00:00Z"));
+  jest.useFakeTimers();
+  jest.setSystemTime(new Date("2026-07-31T12:00:00Z"));
 });
 
 afterEach(() => {
-  vi.useRealTimers();
-  vi.unstubAllGlobals();
+  jest.useRealTimers();
+  unstubAllGlobals();
 });
 
 describe("storage keys", () => {
@@ -244,7 +248,7 @@ describe("keeping what matters", () => {
     history.setNote(first.id, "the one that worked");
     history.setPinned(first.id, true);
 
-    vi.setSystemTime(new Date("2026-07-31T12:05:00Z"));
+    jest.setSystemTime(new Date("2026-07-31T12:05:00Z"));
     const again = history.add({ text: "same" });
 
     // One entry, not two — and the parts the user supplied survive, while the
@@ -319,7 +323,7 @@ describe("moving a history between browsers", () => {
     source.add({ text: "from the laptop" });
     const exported = source.toJson();
 
-    vi.unstubAllGlobals();
+    unstubAllGlobals();
     stubStorage();
     const target = useHistory<Entry>({
       engineId: "awg",
@@ -374,7 +378,7 @@ describe("every engine at once", () => {
     storage.store.set("something-else", "not ours");
     // localStorage.key() is what the sweep walks; the stub needs it.
     const keys = [...storage.store.keys()];
-    vi.stubGlobal("localStorage", {
+    stubGlobal("localStorage", {
       ...storage,
       length: keys.length,
       key: (i: number) => keys[i] ?? null,

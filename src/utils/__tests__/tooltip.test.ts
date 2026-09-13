@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 
 /**
  * The tooltip that answers every scroll in the document.
@@ -158,14 +158,21 @@ function registered(
 beforeEach(() => {
     // The module holds its layer, its current target and whether anything is
     // shown, so each case needs the module as well as the DOM to be new.
-    vi.resetModules();
+    // Bun has no resetModules; a query string makes the specifier a new
+    // module, so each import below evaluates the source fresh.
     stubDom();
 });
+
+let freshSeq = 0;
+function freshTooltip(): Promise<{ installTooltips: () => void }> {
+    freshSeq += 1;
+    return import(`../tooltip?fresh=${freshSeq}`);
+}
 afterEach(clearDom);
 
 describe("installTooltips", () => {
     it("listens to scroll without blocking it, and sees every scroller", async () => {
-        const { installTooltips } = await import("../tooltip");
+        const { installTooltips } = await freshTooltip();
         installTooltips();
 
         const scroll = registered("window", "scroll");
@@ -177,7 +184,7 @@ describe("installTooltips", () => {
     });
 
     it("does not touch the DOM for a scroll that has nothing to dismiss", async () => {
-        const { installTooltips } = await import("../tooltip");
+        const { installTooltips } = await freshTooltip();
         installTooltips();
 
         // Force the layer into existence the way a real hover would, then put
@@ -196,7 +203,7 @@ describe("installTooltips", () => {
     });
 
     it("does dismiss on scroll once something is on screen", async () => {
-        const { installTooltips } = await import("../tooltip");
+        const { installTooltips } = await freshTooltip();
         installTooltips();
 
         const hint = new FakeElement("button");
@@ -213,7 +220,7 @@ describe("installTooltips", () => {
     });
 
     it("ignores a pointer over something that has no tooltip", async () => {
-        const { installTooltips } = await import("../tooltip");
+        const { installTooltips } = await freshTooltip();
         installTooltips();
 
         registered("document", "pointerover")!.listener({
@@ -225,7 +232,7 @@ describe("installTooltips", () => {
     });
 
     it("is idempotent, so a hot reload does not stack listeners", async () => {
-        const { installTooltips } = await import("../tooltip");
+        const { installTooltips } = await freshTooltip();
         installTooltips();
         installTooltips();
         installTooltips();

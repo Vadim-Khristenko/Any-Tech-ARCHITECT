@@ -6,7 +6,7 @@
  * exists to prevent, and one no type check catches, because the paths are
  * strings.
  */
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "bun:test";
 import { createDefaults } from "../generate";
 import { XRAY_PARAMETERS } from "../params";
 import {

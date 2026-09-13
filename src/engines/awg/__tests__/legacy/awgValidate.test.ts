@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "bun:test";
 import { validateAwgParams } from "@/engines/awg/awgValidate";
 
 const findings = (p: Record<string, string | number>, mtu?: number) =>

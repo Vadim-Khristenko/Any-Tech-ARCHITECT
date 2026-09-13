@@ -7,7 +7,7 @@
  * the same answer.
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "bun:test";
 
 import { awgEngine } from "../index";
 import { genCfg, type GeneratorInput } from "../generator";
@@ -24,11 +24,10 @@ const draws = (n: number, over: Partial<GeneratorInput>) =>
 /**
  * Room for the thousands-of-draws cases.
  *
- * A one-in-forty-thousand bug needs thousands of configs to show itself, and
- * generating those takes about twenty seconds — right on vitest's default,
- * so the whole suite failed or passed depending on what else the machine was
- * doing. Lowering the draw count would have made the test quieter by making
- * it worse at its job.
+ * A one-in-forty-thousand bug needs thousands of configs to show itself,
+ * and generating those takes most of the 20s per-test timeout the `test`
+ * script allows. Lowering the draw count would make the test quieter by
+ * making it worse at its job, so the timeout bends instead.
  */
 const SLOW = 90_000;
 

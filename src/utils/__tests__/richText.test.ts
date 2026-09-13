@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "bun:test";
 import { parseRich, stripRich } from "../richText";
 import { pick } from "@/i18n";
 import { FAQ_ENTRIES } from "@/data/faq";

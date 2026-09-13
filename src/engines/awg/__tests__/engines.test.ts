@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "bun:test";
 
 import { awgEngine } from "../index";
 import {
@@ -43,16 +43,16 @@ function tagsIn(chain: string): string[] {
 describe("the two engines, as their parsers define them", () => {
   it("gives amneziawg-go everything but the packet counter", () => {
     // device/obf.go, map `obfBuilders`.
-    expect([...ENGINE_GO.tags].sort()).toEqual(
-      ["b", "d", "ds", "dz", "r", "rc", "rd", "t"].sort(),
+    expect(["b", "d", "ds", "dz", "r", "rc", "rd", "t"].sort()).toEqual(
+      [...ENGINE_GO.tags].sort(),
     );
     expect(ENGINE_GO.tags).not.toContain("c");
   });
 
   it("gives the kernel module the counter and none of the data tags", () => {
     // src/junk.c, `jp_parse_tags`, a strcmp chain ending in `return -EINVAL`.
-    expect([...ENGINE_KMOD.tags].sort()).toEqual(
-      ["b", "c", "r", "rc", "rd", "t"].sort(),
+    expect(["b", "c", "r", "rc", "rd", "t"].sort()).toEqual(
+      [...ENGINE_KMOD.tags].sort(),
     );
     for (const absent of ["d", "ds", "dz"] as const) {
       expect(ENGINE_KMOD.tags, absent).not.toContain(absent);

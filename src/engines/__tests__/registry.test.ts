@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "bun:test";
 
 import { ENGINES, engineById, engineFor, awgEngine, xrayEngine } from "../registry";
 
@@ -10,12 +10,15 @@ import { ENGINES, engineById, engineFor, awgEngine, xrayEngine } from "../regist
 
 describe("the registry", () => {
   it("carries both engines", () => {
-    expect(ENGINES.map((e) => e.id)).toEqual(["awg", "xray"]);
+    expect(["awg", "xray"]).toEqual(ENGINES.map((e) => e.id));
   });
 
   it("finds an engine by id", () => {
-    expect(engineById("awg")).toBe(awgEngine);
-    expect(engineById("xray")).toBe(xrayEngine);
+    // Compared by reference rather than `toBe(engine)`: the registry union
+    // collapses the engine generics to `never`, which the matcher types
+    // refuse, while `===` states the same identity with no type friction.
+    expect(engineById("awg") === awgEngine).toBe(true);
+    expect(engineById("xray") === xrayEngine).toBe(true);
     expect(engineById("nope")).toBeUndefined();
   });
 });

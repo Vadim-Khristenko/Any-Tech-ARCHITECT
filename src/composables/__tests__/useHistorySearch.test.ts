@@ -1,4 +1,8 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, jest, beforeEach, afterEach } from "bun:test";
+import {
+  stubGlobal,
+  unstubAllGlobals,
+} from "@/shared/__tests__/stub-global";
 
 import { useHistory, type HistoryRecord } from "../useHistory";
 
@@ -22,7 +26,7 @@ interface Entry extends HistoryRecord {
 
 function stubStorage(): void {
     const store = new Map<string, string>();
-    vi.stubGlobal("localStorage", {
+    stubGlobal("localStorage", {
         getItem: (k: string) => store.get(k) ?? null,
         setItem: (k: string, v: string) => void store.set(k, v),
         removeItem: (k: string) => void store.delete(k),
@@ -30,14 +34,14 @@ function stubStorage(): void {
 }
 
 beforeEach(() => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-09-05T12:00:00Z"));
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date("2026-09-05T12:00:00Z"));
     stubStorage();
 });
 
 afterEach(() => {
-    vi.useRealTimers();
-    vi.unstubAllGlobals();
+    jest.useRealTimers();
+    unstubAllGlobals();
 });
 
 function workbench() {

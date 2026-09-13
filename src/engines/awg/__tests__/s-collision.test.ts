@@ -12,7 +12,7 @@
  * flaky. They are pinned directly here instead.
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "bun:test";
 import { avoidCollision } from "@/engines/awg/generator";
 
 const INIT_TO_RESPONSE = 56;

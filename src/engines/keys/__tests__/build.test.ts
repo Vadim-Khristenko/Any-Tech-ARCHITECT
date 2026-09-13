@@ -8,7 +8,7 @@
  * supposed to know better.
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "bun:test";
 import {
   buildKey,
   exportAll,
