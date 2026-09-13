@@ -90,7 +90,10 @@ permissions:
   id-token: write
 
 env:
-  BUN_VERSION: latest
+  # Pinned, not floating: the suite leans on the current runner (fake timers,
+  # mock.module, coverage shape), and a silent major underneath it is how a
+  # green main turns red with no commit of its own. Bump deliberately.
+  BUN_VERSION: 1.4.0
   NODE_ENV: production
 
 # ═══════════════════════════════════════════════════════════════════════════════

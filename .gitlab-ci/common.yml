@@ -4,7 +4,9 @@
 variables:
   # Runtime / environment
   NODE_ENV: "production"
-  BUN_VERSION: "latest"
+  # Pinned, not floating: same reason as BUN_VERSION in the GitHub workflow.
+  # The per-job `image:` lines below pin the same version for the runner.
+  BUN_VERSION: "1.4.0"
 
   # Build tuning
   VITE_DEPLOY_PLATFORM: "gitlab"
@@ -26,7 +28,7 @@ variables:
   SKIP_DEPLOY: "false"
 
 default:
-  image: oven/bun:1
+  image: oven/bun:1.4.0
   interruptible: true
   before_script:
     - bun --version
