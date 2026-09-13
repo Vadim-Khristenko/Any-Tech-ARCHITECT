@@ -184,3 +184,72 @@ describe("validateAwgParams S-padding floor with HeaderProtectionKey", () => {
     expect(findings({ S1: 5, S2: 70, S3: 3, S4: 30 })).toEqual([]);
   });
 });
+
+describe("validateAwgParams for a client that manages the key itself", () => {
+  const managed = {
+    name: "Amnezia VPN",
+    maxS4: 32,
+    maxJc: 10,
+    maxHValue: 4_294_967_295,
+    supportsCpsTagC: false,
+    supportsCpsTagRC: true,
+    supportsCpsTagRD: true,
+    managesHeaderProtection: true,
+  };
+  const check = (p: Record<string, string | number>) =>
+    validateAwgParams(p, { client: managed });
+
+  it("warns, not errors, on the reported sizes without a key line", () => {
+    const f = check({ S1: 121, S2: 98, S3: 3, S4: 30 });
+    const hit = f.filter((x) => x.code === "awg.s_small_managed");
+    expect(hit.map((x) => x.field)).toEqual(["S3"]);
+    expect(hit[0]!.level).toBe("warn");
+    // And the keyed error stays silent: there is no key to gate on.
+    expect(f.some((x) => x.code === "awg3.s_below_nonce")).toBe(false);
+  });
+
+  it("warns on each of S1-S4 below 12", () => {
+    for (const key of ["S1", "S2", "S3", "S4"] as const) {
+      const f = check({ [key]: 5 });
+      expect(
+        f.some(
+          (x) =>
+            x.field === key &&
+            x.level === "warn" &&
+            x.code === "awg.s_small_managed",
+        ),
+      ).toBe(true);
+    }
+  });
+
+  it("prefers the keyed error once a key line is present", () => {
+    const f = check({
+      S3: 3,
+      HeaderProtectionKey: "c2VjcmV0c2VjcmV0c2VjcmV0c2VjcmV0c2VjcmV0c2U=",
+    });
+    expect(
+      f.some(
+        (x) => x.field === "S3" && x.code === "awg3.s_below_nonce",
+      ),
+    ).toBe(true);
+    expect(f.some((x) => x.code === "awg.s_small_managed")).toBe(false);
+  });
+
+  it("reads 12+ as clean: the in-app toggle has room", () => {
+    expect(
+      check({ S1: 121, S2: 98, S3: 12, S4: 30 }).some((x) =>
+        /nonce|managed/.test(x.code),
+      ),
+    ).toBe(false);
+  });
+
+  it("reads a managed S4 = 0 as the nonce warning, not the zero one", () => {
+    const f = check({ S4: 0 });
+    expect(
+      f.some(
+        (x) => x.field === "S4" && x.code === "awg.s_small_managed",
+      ),
+    ).toBe(true);
+    expect(f.some((x) => x.code === "awg.s4_zero")).toBe(false);
+  });
+});

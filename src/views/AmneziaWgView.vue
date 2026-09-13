@@ -135,10 +135,22 @@ const clients = AWG_CLIENT_PROFILES;
 const client = computed(() => clients.find((c) => c.id === config.clientId));
 /*
  * Amnezia VPN carries its own header-protection toggle and generates the key
- * itself, so the generator emits none for it — and the switch that would
- * promise one is replaced with the reason.
+ * itself, so the generator emits none for it — but the switch stays: with
+ * protection on, the cipher runs from the in-app key and the S floor holds.
  */
 const hpkManaged = computed(() => !!client.value?.limits.managesHeaderProtection);
+/*
+ * Identical S1–S4, the docs-compat mode: header protection and random
+ * trailers both on. Equal sizes are a shared fingerprint on their own;
+ * the random tail is what smears it, so without trailers there is nothing
+ * to show. Trailers exist only on 3.1, which scopes this there.
+ */
+const showSameS = computed(
+  (): boolean =>
+    version.value === "3.1" &&
+    config.useHeaderProtection &&
+    config.useRandomTrailers,
+);
 const releases = computed(() => client.value?.releases ?? []);
 
 /**
@@ -1005,9 +1017,24 @@ function toSimulator() {
                             <span class="bar-value">{{ s.value }} B</span>
                         </div>
                     </div>
-                    <span v-if="config.useHeaderProtection && !hpkManaged && version === '3.0'" class="hint">
+                    <span v-if="config.useHeaderProtection && (version === '3.0' || version === '3.1')" class="hint">
                         {{ t("gen.sizes.floor") }}
                     </span>
+                    <!--
+                        Identical S1–S4, the docs-compat mode. Shown only with
+                        header protection and random trailers on: equal sizes
+                        for everyone who followed the advice are a shared
+                        fingerprint, and the per-packet random tail is what
+                        smears it. Without trailers the switch stays hidden —
+                        and a hidden switch must not act, so buildInput gates
+                        the flag on the same condition.
+                    -->
+                    <label v-if="showSameS" class="switch" style="margin-top:8px">
+                        <input v-model="config.useSameS" type="checkbox" @change="generate()" />
+                        <span class="switch-track"></span>
+                        <span>{{ t("gen.sameS.label") }}</span>
+                    </label>
+                    <p v-if="showSameS" class="hint">{{ t("gen.sameS.hint") }}</p>
                 </div>
 
                 <div class="disclose" :class="{ 'is-open': openHelp === 'sizes' }">
@@ -1368,12 +1395,19 @@ function toSimulator() {
                 <p class="zone-note">{{ t("gen.zone.transport.note") }}</p>
 
                 <div class="zone-body gen-switchrow">
-                    <label v-if="!hpkManaged" class="switch">
+                    <!--
+                        The switch stays visible for clients that manage the key
+                        themselves too: protection on means the cipher runs from
+                        the in-app key, and the S floor below follows the switch
+                        rather than the emitted line. The note says where the
+                        key itself lives.
+                    -->
+                    <label class="switch">
                         <input v-model="config.useHeaderProtection" type="checkbox" @change="generate()" />
                         <span class="switch-track"></span>
                         <span class="mono">HeaderProtectionKey</span>
                     </label>
-                    <p v-else class="hint">{{ t("client.note.amneziaVpnHpk") }}</p>
+                    <p v-if="hpkManaged" class="hint">{{ t("client.note.amneziaVpnHpk") }}</p>
                     <label class="switch">
                         <input v-model="config.useContentPadding" type="checkbox" @change="generate()" />
                         <span class="switch-track"></span>
@@ -1409,13 +1443,13 @@ function toSimulator() {
                             obfuscation. Detailed note lives in the help drawer
                             and in i18n gen.narrowH.*
                         -->
-                        <label v-if="config.useHeaderProtection && !hpkManaged" class="switch">
+                        <label v-if="config.useHeaderProtection" class="switch">
                             <input v-model="config.useNarrowH" type="checkbox" @change="generate()" />
                             <span class="switch-track"></span>
                             <span>{{ t("gen.narrowH.label") }}</span>
                         </label>
                     </template>
-                    <p v-if="version === '3.1' && config.useHeaderProtection && !hpkManaged" class="hint" style="margin-top:8px">
+                    <p v-if="version === '3.1' && config.useHeaderProtection" class="hint" style="margin-top:8px">
                         {{ t("gen.narrowH.detail") }}
                     </p>
                 </div>

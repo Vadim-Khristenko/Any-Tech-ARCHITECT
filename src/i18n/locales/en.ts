@@ -158,6 +158,9 @@ export const en: Catalog = {
   "gen.headers.clash": "Overlapping",
   "gen.headers.ok": "No overlap",
   "gen.sizes.floor": "12-byte floor with header protection on",
+  "gen.sameS.label": "Identical S1–S4",
+  "gen.sameS.hint":
+    "The docs-compat mode: one value for all four S. We do not recommend it: identical S on everyone who followed the advice is a shared fingerprint. The random tail smears packet lengths and absorbs the damage; without tails keep them distinct.",
 
   "gen.help.open": "What these parameters are",
   "gen.act.generate": "Generate",
@@ -367,6 +370,8 @@ export const en: Catalog = {
     "The chosen client does not send I1-I5, so there is no chain here. The tunnel works without it: what it adds is the mimicry, and fields the client will not send would only give the appearance of it",
   "conf.awg3Hpk":
     "AWG 3.0 — shared header protection key (identical on both ends)",
+  "conf.awg3HpkManaged":
+    "No HeaderProtectionKey line: the app manages the key itself, enabled by its toggle and picked up on config import, so S1-S4 above stay at 12+ for the cipher nonce",
   "conf.awg3Cpa": "AWG 3.0 — random transport packet padding",
   "conf.blockHeaders": "Packet type markers. Must match the server and must not overlap",
   "conf.blockSizes": "Random padding in front of each kind of packet",
@@ -785,6 +790,8 @@ export const en: Catalog = {
     "HeaderProtectionKey must be {bytes} bytes in base64 ({chars} characters).",
   "find.awg3.s_below_nonce":
     "{name}={value} < {min}: with HeaderProtectionKey the first 12 padding bytes are the cipher nonce, and the device rejects such a config with Invalid argument, so the interface never comes up.",
+  "find.awg.s_small_managed":
+    "{name}={value} < {min}. The app manages the key: with its protection on, the device rejects the config with Invalid argument. Raise {name} to {min} or switch header protection off in the app.",
   "find.awg3.cpa_format":
     "ContentPaddingAddition must be a number or a min-max range.",
   "find.awg3.cpa_zero":

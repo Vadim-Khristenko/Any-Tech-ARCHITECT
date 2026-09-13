@@ -87,8 +87,11 @@ export interface GeneratorInput {
   clientRelease?: string | null;
 
   /**
-   * AWG 3.0 — emit a HeaderProtectionKey (ChaCha20 header/message encryption).
-   * Forces S1–S4 ≥ 12, because the cipher nonce is read from the S-padding.
+   * AWG 3.0 — ask for header protection (ChaCha20 header/message encryption).
+   *
+   * The key is emitted unless the client manages it itself (Amnezia VPN
+   * carries its own toggle and key); either way S1–S4 stay ≥ 12, because
+   * the cipher nonce is read from the S-padding wherever the key lives.
    */
   useHeaderProtection: boolean;
 
@@ -115,6 +118,20 @@ export interface GeneratorInput {
    * versions ignore it. Optional for backwards compat with tests.
    */
   useNarrowH?: boolean;
+
+  /**
+   * Draw one S value for every padding size instead of one each.
+   *
+   * The docs recommend identical S1–S4, so the switch exists for whoever
+   * wants exactly that — but the tool itself does not: one value shared by
+   * everyone who followed the advice is a fingerprint naming the advice,
+   * and distinct random sizes cost nothing. The single draw still honours
+   * every bound the separate draws do (the 12 floor with header
+   * protection, the S4 and client ceilings, the router cap), and equal
+   * sizes cannot collide since the message bases differ. Optional for
+   * backwards compat with stored inputs.
+   */
+  useSameS?: boolean;
 }
 
 /**

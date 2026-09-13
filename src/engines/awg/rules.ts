@@ -52,6 +52,13 @@ export interface AwgRuleOptions {
     supportsCpsTagC: boolean;
     supportsCpsTagRC: boolean;
     supportsCpsTagRD: boolean;
+    /**
+     * The app manages HeaderProtectionKey itself (Amnezia VPN): a pasted
+     * config carries no key line, so the keyed floor above cannot see it —
+     * but the in-app toggle can still switch the cipher on underneath
+     * these sizes. Read where `healthCheck` spreads the client limits.
+     */
+    managesHeaderProtection?: boolean;
   };
 }
 
@@ -194,24 +201,40 @@ function checkSizes(p: AwgParamInput, options: AwgRuleOptions): Finding[] {
       ? true
       : typeof rawHpk === "string" && rawHpk.trim() !== "";
   // S4 = 0 with the key set is the nonce error below, not the zero warning.
+  // Same when the warning below fired: the size is one toggle away from
+  // refused, which subsumes "transport obfuscation off".
   let s4NonceError = false;
-  if (hasHpk) {
-    const sizes: [string, number | null][] = [
+  let s4NonceWarn = false;
+  /*
+   * No key line, but the client holds the key itself (Amnezia VPN): with
+   * its in-app toggle on, the device refuses these sizes exactly like
+   * above — yet the toggle state is not in the file, so that reads as a
+   * warning rather than an error. With the toggle off the sizes are
+   * perfectly valid, which is why a managed client without the key must
+   * not read as broken, only as one toggle away from it.
+   */
+  const managedOnly =
+    !hasHpk && options.client?.managesHeaderProtection === true;
+  if (hasHpk || managedOnly) {
+    const nonceSizes: [string, number | null][] = [
       ["S1", s1],
       ["S2", s2],
       ["S3", s3],
       ["S4", s4],
     ];
-    for (const [key, value] of sizes) {
-      if (value !== null && value < MIN_S_WITH_HEADER_PROTECTION) {
-        found.push(
-          error(key, "awg3.s_below_nonce", {
-            name: key,
-            value,
-            min: MIN_S_WITH_HEADER_PROTECTION,
-          }),
-        );
+    for (const [key, value] of nonceSizes) {
+      if (value === null || value >= MIN_S_WITH_HEADER_PROTECTION) continue;
+      const values = {
+        name: key,
+        value,
+        min: MIN_S_WITH_HEADER_PROTECTION,
+      };
+      if (hasHpk) {
+        found.push(error(key, "awg3.s_below_nonce", values));
         if (key === "S4") s4NonceError = true;
+      } else {
+        found.push(warn(key, "awg.s_small_managed", values));
+        if (key === "S4") s4NonceWarn = true;
       }
     }
   }
@@ -231,7 +254,7 @@ function checkSizes(p: AwgParamInput, options: AwgRuleOptions): Finding[] {
     if (s4 > S4_MAX) {
       found.push(error("S4", "awg.s4_max", { s4, max: S4_MAX }));
     }
-    if (s4 === 0 && !s4NonceError) {
+    if (s4 === 0 && !s4NonceError && !s4NonceWarn) {
       found.push(warn("S4", "awg.s4_zero"));
     }
     const client = options.client;

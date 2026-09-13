@@ -164,6 +164,11 @@ export function useGenerator() {
     // misclassify при header protection). Выкл. по умолчанию — меньше
     // обфускации, но старые клиенты и так принимают любой разброс.
     useNarrowH: false,
+    // Одинаковые S1–S4 (режим из рекомендаций). Выкл. по умолчанию и
+    // не рекомендуется: одно значение у всех, кто последовал совету, это
+    // общий отпечаток. Показывается только при защите заголовков и
+    // случайных хвостах, которые размывают длины пакетов и гасят урон.
+    useSameS: false,
   });
 
   // ── Состояние UI ──────────────────────────────────────────────────────────
@@ -214,6 +219,15 @@ export function useGenerator() {
       useRandomTrailers: config.useRandomTrailers,
       useDisableCookies: config.useDisableCookies,
       useNarrowH: config.useNarrowH,
+      // Спрятанный переключатель действовать не должен: одинаковые S
+      // работают только на 3.1 в связке с защитой и хвостами, которая их
+      // и показывает. Иначе старый сохранённый флажок или смена версии
+      // с включённым флажком тихо меняли бы размеры.
+      useSameS:
+        config.useSameS &&
+        version.value === "3.1" &&
+        config.useHeaderProtection &&
+        config.useRandomTrailers,
     };
   }
 
@@ -367,6 +381,7 @@ export function useGenerator() {
       noCps: translate("conf.noCps"),
       noCpsClient: translate("conf.noCpsClient"),
       awg3Hpk: translate("conf.awg3Hpk"),
+      awg3HpkManaged: translate("conf.awg3HpkManaged"),
       awg3Cpa: translate("conf.awg3Cpa"),
       awg3Timers: translate("conf.awg3Timers"),
       blockHeaders: translate("conf.blockHeaders"),
@@ -379,10 +394,25 @@ export function useGenerator() {
     }),
   );
 
+  /**
+   * The key the file does not carry: Amnezia VPN manages it in-app, so the
+   * note goes out only while its switch is on — managed with protection off
+   * means no cipher and reads exactly like unmanaged with it off.
+   */
+  const hpkManagedNote = computed(
+    (): boolean =>
+      CLIENTS[config.clientId]?.managesHeaderProtection === true &&
+      config.useHeaderProtection,
+  );
+
   const plainText = computed((): string => {
     const p = currentAwg.value;
     if (!p) return "";
-    return renderConf(p, { labels: confLabels.value, endpoint: config.endpoint });
+    return renderConf(p, {
+      labels: confLabels.value,
+      endpoint: config.endpoint,
+      hpkManagedNote: hpkManagedNote.value,
+    });
   });
 
   /**
@@ -392,7 +422,12 @@ export function useGenerator() {
   const previewLines = computed(() => {
     const p = currentAwg.value;
     if (!p) return [];
-    return renderConfLines(p, { preview: true, labels: confLabels.value, endpoint: config.endpoint });
+    return renderConfLines(p, {
+      preview: true,
+      labels: confLabels.value,
+      endpoint: config.endpoint,
+      hpkManagedNote: hpkManagedNote.value,
+    });
   });
 
   /**

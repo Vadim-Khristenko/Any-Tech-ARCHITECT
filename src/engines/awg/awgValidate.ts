@@ -11,7 +11,7 @@
  * the editor has whatever the user has typed so far, not a config object.
  */
 
-import { checkAwgParams, type AwgParamInput } from "./rules";
+import { checkAwgParams, type AwgParamInput, type AwgRuleOptions } from "./rules";
 import type { Finding } from "@/types/findings";
 
 export type { AwgParamInput } from "./rules";
@@ -22,10 +22,12 @@ export type { Finding, FindingLevel } from "@/types/findings";
  *
  * @param p    field map; missing fields are skipped rather than reported
  * @param opts.mtu  interface MTU for the Jmax fragmentation check
+ * @param opts.client  target client, when the editor knows it — carries the
+ *   managed-key flag the S floor warning reads
  */
 export function validateAwgParams(
   p: AwgParamInput,
-  opts: { mtu?: number } = {},
+  opts: { mtu?: number; client?: AwgRuleOptions["client"] } = {},
 ): Finding[] {
-  return checkAwgParams(p, { mtu: opts.mtu });
+  return checkAwgParams(p, { mtu: opts.mtu, client: opts.client });
 }

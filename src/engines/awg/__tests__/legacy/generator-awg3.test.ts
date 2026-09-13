@@ -121,6 +121,155 @@ describe("S-padding floor under header protection", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Managed key (Amnezia VPN): no key line, same cipher
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("S-padding floor with a managed key", () => {
+  const managed: GeneratorInput = { ...baseInput, clientId: "amneziavpn" };
+
+  it("withholds the key but holds the floor while the switch is on", () => {
+    // This was the hole: the floor read the emitted key, and a managed
+    // client emits none — so most default Amnezia VPN configs carried an
+    // S under 12 into a cipher that refuses them.
+    for (let i = 0; i < ITER; i++) {
+      const cfg = genCfg({ ...managed, iterCount: i });
+      expect(cfg.awg3?.headerProtectionKey).toBe("");
+      for (const s of [cfg.s1, cfg.s2, cfg.s3, cfg.s4]) {
+        expect(s).toBeGreaterThanOrEqual(MIN_S_WITH_HEADER_PROTECTION);
+      }
+    }
+  });
+
+  it("holds the managed floor on 3.1 too", () => {
+    for (let i = 0; i < ITER; i++) {
+      const cfg = genCfg({ ...managed, version: "3.1", iterCount: i });
+      expect(cfg.awg3?.headerProtectionKey).toBe("");
+      for (const s of [cfg.s1, cfg.s2, cfg.s3, cfg.s4]) {
+        expect(s).toBeGreaterThanOrEqual(MIN_S_WITH_HEADER_PROTECTION);
+      }
+    }
+  });
+
+  it("lets small S through with the switch off: no cipher, no floor", () => {
+    let sawSmall = false;
+    for (let i = 0; i < 200; i++) {
+      const cfg = genCfg({
+        ...managed,
+        useHeaderProtection: false,
+        iterCount: i,
+      });
+      expect(cfg.awg3?.headerProtectionKey).toBe("");
+      if (Math.min(cfg.s1, cfg.s2, cfg.s3, cfg.s4) < 12) sawSmall = true;
+    }
+    expect(sawSmall).toBe(true);
+  });
+
+  it("renders the managed note instead of a key line while on", () => {
+    const cfg = genCfg({ ...managed, iterCount: 7 });
+    // The flag rides in options: the UI sets it from the switch, the
+    // renderer only prints what it is told to.
+    const text = renderConf(cfg, { hpkManagedNote: true });
+    expect(text).toContain("No HeaderProtectionKey line");
+    expect(text.split("\n").some((l) => l.startsWith("HeaderProtectionKey ="))).toBe(
+      false,
+    );
+  });
+
+  it("renders neither note nor key with the switch off", () => {
+    const cfg = genCfg({
+      ...managed,
+      useHeaderProtection: false,
+      iterCount: 7,
+    });
+    const text = renderConf(cfg, { hpkManagedNote: false });
+    expect(text).not.toContain("No HeaderProtectionKey line");
+    expect(text.split("\n").some((l) => l.startsWith("HeaderProtectionKey"))).toBe(
+      false,
+    );
+  });
+
+  it("renders the note only when asked: the renderer reads the config, not the client", () => {
+    // The flag rides in options because render is handed a config and
+    // nothing else — a managed client with protection off reads exactly
+    // like unmanaged with it off, which is no note at all.
+    const cfg = genCfg({ ...managed, iterCount: 7 });
+    const noted = renderConf(cfg, { hpkManagedNote: true });
+    const plain = renderConf(cfg, {});
+    expect(noted).toContain("No HeaderProtectionKey line");
+    expect(plain).not.toContain("No HeaderProtectionKey line");
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Identical S1–S4 (the docs-compat mode)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("identical S1–S4", () => {
+  const same: GeneratorInput = {
+    ...baseInput,
+    version: "3.1",
+    useRandomTrailers: true,
+    useSameS: true,
+  };
+
+  it("draws one value for all four sizes within 12–32", () => {
+    for (let i = 0; i < ITER; i++) {
+      const cfg = genCfg({ ...same, iterCount: i });
+      expect(new Set([cfg.s1, cfg.s2, cfg.s3, cfg.s4]).size).toBe(1);
+      expect(cfg.s1).toBeGreaterThanOrEqual(MIN_S_WITH_HEADER_PROTECTION);
+      expect(cfg.s1).toBeLessThanOrEqual(32);
+    }
+  });
+
+  it("spreads the single value instead of magnetising one number", () => {
+    const values = new Set<number>();
+    for (let i = 0; i < ITER; i++) {
+      values.add(genCfg({ ...same, iterCount: i }).s1);
+    }
+    // 21 possible values in 12–32; far fewer distinct draws would mean the
+    // draw collapsed onto a constant, which is the fingerprint this mode
+    // is already closest to.
+    expect(values.size).toBeGreaterThan(5);
+  });
+
+  it("keeps the padded lengths distinct: equal S cannot collide", () => {
+    for (let i = 0; i < ITER; i++) {
+      const cfg = genCfg({ ...same, iterCount: i });
+      expect(148 + cfg.s1).not.toBe(92 + cfg.s2);
+      expect(148 + cfg.s1).not.toBe(64 + cfg.s3);
+      expect(92 + cfg.s2).not.toBe(64 + cfg.s3);
+    }
+  });
+
+  it("draws 1–32 without the cipher", () => {
+    let sawSmall = false;
+    for (let i = 0; i < ITER; i++) {
+      const cfg = genCfg({ ...same, useHeaderProtection: false, iterCount: i });
+      expect(new Set([cfg.s1, cfg.s2, cfg.s3, cfg.s4]).size).toBe(1);
+      expect(cfg.s1).toBeLessThanOrEqual(32);
+      if (cfg.s1 < MIN_S_WITH_HEADER_PROTECTION) sawSmall = true;
+    }
+    expect(sawSmall).toBe(true);
+  });
+
+  it("honours the router ceiling", () => {
+    for (let i = 0; i < ITER; i++) {
+      const cfg = genCfg({ ...same, routerMode: true, iterCount: i });
+      expect(new Set([cfg.s1, cfg.s2, cfg.s3, cfg.s4]).size).toBe(1);
+      expect(cfg.s1).toBeGreaterThanOrEqual(MIN_S_WITH_HEADER_PROTECTION);
+      expect(cfg.s1).toBeLessThanOrEqual(20);
+    }
+  });
+
+  it("applies to S1/S2 where there is no S3/S4", () => {
+    const cfg = genCfg({ ...same, version: "1.0", iterCount: 3 });
+    expect(cfg.s1).toBe(cfg.s2);
+    expect(cfg.s3).toBe(0);
+    expect(cfg.s4).toBe(0);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Timer invariants (device/timers.go)
 // ─────────────────────────────────────────────────────────────────────────────
 

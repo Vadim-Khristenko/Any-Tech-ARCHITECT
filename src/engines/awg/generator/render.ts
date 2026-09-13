@@ -40,6 +40,12 @@ export interface RenderLabels {
   /** The version has a chain and the chosen client does not read one. */
   noCpsClient: string;
   awg3Hpk: string;
+  /**
+   * Said instead of the key when the client manages it itself: the switch
+   * is on, the cipher will run, but the key lives in the app — enabled by
+   * its toggle or picked up on config import — and never in this file.
+   */
+  awg3HpkManaged: string;
   awg3Cpa: string;
   awg3Timers: string;
 
@@ -69,6 +75,8 @@ export const DEFAULT_LABELS: RenderLabels = {
   noCpsClient:
     "The chosen client does not send I1-I5, so this config carries none. The tunnel works without them; what they add is the mimicry, and writing fields the client will not send would only look like it",
   awg3Hpk: "Header encryption. The key is shared, and the padding above feeds its nonce",
+  awg3HpkManaged:
+    "No HeaderProtectionKey line: the app manages the key itself, enabled by its toggle and picked up on config import, so S1-S4 above stay at 12+ for the cipher nonce",
   awg3Cpa: "Extra random padding on every transport packet",
   awg3Timers: "Randomised protocol timers instead of the fixed constants",
 
@@ -101,6 +109,16 @@ export interface RenderOptions {
   caption?: string;
   /** Localised comment text; falls back to English. */
   labels?: Partial<RenderLabels>;
+  /**
+   * The client manages HeaderProtectionKey itself and protection was
+   * requested: print the managed-key note instead of a key line.
+   *
+   * Passed only while the switch is on — managed with the switch off means
+   * no cipher at all and reads exactly like unmanaged with it off. The
+   * renderer is told rather than told the client, because it reads a config
+   * and nothing else (see the chain comment in the body).
+   */
+  hpkManagedNote?: boolean;
 }
 
 const cm = (value: string): ConfLine => ({ key: "", value, type: "comment" });
@@ -205,6 +223,8 @@ export function renderConfLines(
     if (p.headerProtectionKey) {
       lines.push(cm(`# ${L.awg3Hpk}`));
       lines.push(kv("HeaderProtectionKey", p.headerProtectionKey));
+    } else if (opts.hpkManagedNote) {
+      lines.push(cm(`# ${L.awg3HpkManaged}`));
     }
     if (p.contentPaddingAddition) {
       lines.push(cm(`# ${L.awg3Cpa}`));

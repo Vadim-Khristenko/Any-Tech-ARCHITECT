@@ -159,11 +159,19 @@ interface Sizes {
 
 interface SizeRules {
   hasExtraSizes: boolean;
-  /** AWG 3.0 header protection reads its nonce from the S-padding. */
+  /**
+   * AWG 3.0 header protection reads its nonce from the S-padding.
+   *
+   * Driven by the requested switch, not by whether a key was emitted: a
+   * client that manages the key itself (Amnezia VPN) still runs the cipher
+   * once its in-app toggle is on, so its paddings need the nonce too.
+   */
   needsFloor: boolean;
   routerMode: boolean;
   extreme: boolean;
   maxS4: number;
+  /** Draw one value for every size (the docs-compat mode). */
+  sameS: boolean;
 }
 
 /**
@@ -189,6 +197,30 @@ function resolveSizes(drawn: Sizes, rules: SizeRules): Sizes {
   if (!rules.hasExtraSizes) {
     s3 = 0;
     s4 = 0;
+  }
+
+  /*
+   * One value for every size. Equal paddings cannot collide — the message
+   * bases (148/92/64) differ, so no two padded lengths coincide — which is
+   * why this returns before the collision repairs rather than through
+   * them. The single draw honours the same bounds the separate draws do:
+   * identical sizes still have to fit S4 and the client ceiling, and the
+   * floor when the cipher reads its nonce from the padding.
+   */
+  if (rules.sameS) {
+    const ceiling = Math.min(
+      rules.hasExtraSizes ? rules.maxS4 : sMax,
+      rules.routerMode ? ROUTER_S_MAX : S_MAX,
+    );
+    const lo = rules.needsFloor ? MIN_S_WITH_HEADER_PROTECTION : 1;
+    const v = lo > ceiling ? ceiling : rnd(lo, ceiling);
+    s1 = v;
+    s2 = v;
+    if (rules.hasExtraSizes) {
+      s3 = v;
+      s4 = v;
+    }
+    return { s1, s2, s3, s4 };
   }
 
   // A collision is cheap to break: step by one and the lengths differ again.
@@ -250,16 +282,21 @@ export function genCfg(input: GeneratorInput): AWGConfig {
   const client = clientCaps(input.clientId, input.clientRelease).limits;
 
   // A client that manages HeaderProtectionKey itself (Amnezia VPN) gets none
-  // emitted, however its checkbox stands — and without the cipher there is no
-  // nonce to source, so the 3.1 narrow-H workaround goes with it.
+  // emitted: the app carries its own toggle and key, so a key here would be
+  // a second one nobody asked for. Everything else follows the requested
+  // switch — the cipher runs wherever the key lives, so the S floor and the
+  // narrow-H workaround stay meaningful while the switch is on.
   const hpkManaged = client.managesHeaderProtection === true;
 
   // Enforce client capability limits without mutating the caller's input.
+  // The emission strip is the only thing the managed key changes: the floor
+  // below reads the requested switch, because the cipher runs wherever the
+  // key lives — including inside the app once its own toggle is on.
   const effectiveInput: GeneratorInput = {
     ...input,
     profile,
     useHeaderProtection: input.useHeaderProtection && !hpkManaged,
-    useNarrowH: input.useNarrowH && !hpkManaged,
+    useNarrowH: input.useNarrowH && (!hpkManaged || input.useHeaderProtection),
     useTagC: client.supportsCpsTagC && input.useTagC,
     useTagRC: client.supportsCpsTagRC && input.useTagRC,
     useTagRD: client.supportsCpsTagRD && input.useTagRD,
@@ -310,10 +347,15 @@ export function genCfg(input: GeneratorInput): AWGConfig {
     },
     {
       hasExtraSizes: caps.extraSizes,
-      needsFloor: caps.headerProtection && effectiveInput.useHeaderProtection,
+      // The requested switch, not the emitted key: a managed client with
+      // the switch on runs the cipher from its own key and needs the nonce
+      // just the same. Gating on emission was the hole Amnezia VPN configs
+      // fell through — S under 12 with the in-app toggle on.
+      needsFloor: caps.headerProtection && input.useHeaderProtection,
       routerMode: input.routerMode,
       extreme: useExtremeMax,
       maxS4: Math.min(32, client.maxS4),
+      sameS: input.useSameS === true,
     },
   );
   const { s1, s2, s3, s4 } = sizes;

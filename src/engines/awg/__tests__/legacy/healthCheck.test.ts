@@ -82,8 +82,34 @@ describe("healthCheckConf", () => {
     ).toBe(true);
   });
 
-  it("reads the same S3 = 3 as clean without the key", () => {
-    const f = healthCheckConf(makeConf("S1 = 121\nS2 = 98\nS3 = 3\nS4 = 30"));
+  it("reads the same S3 = 3 as clean without the key on a client that takes one", () => {
+    // Pinned to a client that does NOT manage the key: without any cipher
+    // there is no minimum on any version, so nothing may fire. The default
+    // client manages the key itself (see below), where this reads as a
+    // warning instead.
+    const f = healthCheckConf(
+      makeConf("S1 = 121\nS2 = 98\nS3 = 3\nS4 = 30"),
+      "amneziawg-windows",
+    );
     expect(f.some((x) => x.code === "awg3.s_below_nonce")).toBe(false);
+    expect(f.some((x) => x.code === "awg.s_small_managed")).toBe(false);
+  });
+
+  it("warns about S3 = 3 for Amnezia VPN: the key lives in the app, not the file", () => {
+    const f = healthCheckConf(
+      makeConf("S1 = 121\nS2 = 98\nS3 = 3\nS4 = 30"),
+      "amneziavpn",
+    );
+    const hit = f.filter((x) => x.code === "awg.s_small_managed");
+    expect(hit.map((x) => x.field)).toEqual(["S3"]);
+    expect(hit[0]!.level).toBe("warn");
+  });
+
+  it("reads Amnezia VPN sizes at 12+ as clean: the toggle has room", () => {
+    const f = healthCheckConf(
+      makeConf("S1 = 121\nS2 = 98\nS3 = 12\nS4 = 30"),
+      "amneziavpn",
+    );
+    expect(f.some((x) => x.code === "awg.s_small_managed")).toBe(false);
   });
 });

@@ -6,6 +6,7 @@ import {
   clientCaps,
   clientReleases,
   genCfg,
+  MIN_S_WITH_HEADER_PROTECTION,
   type GeneratorInput,
 } from "@/engines/awg/generator";
 import {
@@ -259,8 +260,10 @@ describe("Amnezia VPN manages its own header protection", () => {
     expect(cfg.awg3?.headerProtectionKey).toBeTruthy();
   });
 
-  it("lifts the S-floor together with the key", () => {
-    let sawSmall = false;
+  it("holds the S-floor without the key: the cipher runs from the in-app one", () => {
+    // This pinned the old hole: the floor read the emitted key, so a
+    // managed client got small S into a cipher that refuses them. The
+    // floor follows the requested switch now, not the emitted line.
     for (let i = 0; i < 200; i++) {
       const cfg = genCfg(
         seeded({
@@ -270,9 +273,11 @@ describe("Amnezia VPN manages its own header protection", () => {
           iterCount: i,
         }),
       );
-      if (Math.min(cfg.s1, cfg.s2, cfg.s3, cfg.s4) < 12) sawSmall = true;
+      expect(cfg.awg3?.headerProtectionKey).toBe("");
+      for (const s of [cfg.s1, cfg.s2, cfg.s3, cfg.s4]) {
+        expect(s).toBeGreaterThanOrEqual(MIN_S_WITH_HEADER_PROTECTION);
+      }
     }
-    expect(sawSmall).toBe(true);
   });
 });
 

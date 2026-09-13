@@ -77,6 +77,7 @@ function createDefaults(): GeneratorInput {
     useRandomTrailers: false,
     useDisableCookies: false,
     useNarrowH: false,
+    useSameS: false,
   };
 }
 
