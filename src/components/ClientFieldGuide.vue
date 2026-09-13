@@ -23,6 +23,14 @@ import { capsFor } from "@/engines/awg/generator/versions";
 const { t } = useI18n();
 
 const cfg = ref<AWGConfig | null>(null);
+/**
+ * Whether protection was requested when the parked config was made.
+ *
+ * The emitted config cannot say it (a managed client leaves no key line),
+ * so the sender packs the switch state into the envelope. Null on older
+ * envelopes and with no config: readers fall back to key presence there.
+ */
+const hpkOn = ref<boolean | null>(null);
 const { copied, copy } = useCopyFeedback();
 
 /**
@@ -41,6 +49,9 @@ onMounted(() => {
             // envelope that kept it in a sibling field.
             if (c && typeof c === "object" && c.version) {
                 cfg.value = c as AWGConfig;
+            }
+            if (typeof pending.headerProtection === "boolean") {
+                hpkOn.value = pending.headerProtection;
             }
         }
     } catch {
@@ -68,7 +79,18 @@ interface Field {
     label: string;
     /** Secondary gloss under the label — never the field name itself. */
     hint: string;
+    /**
+     * Free value, rendered as a ready-to-copy card. Absent on checkbox
+     * rows: there the box is the value, exactly like in the app, and
+     * there is nothing to put on a clipboard.
+     */
     value: () => string;
+    /**
+     * Checkbox state, for the fields the app shows as tick boxes. Null
+     * means no box: the field does not exist on this config's version, so
+     * a box either way would claim a choice where there is none.
+     */
+    check?: () => boolean | null;
 }
 
 const ph = (name: string) => `—< ${name} >—`;
@@ -80,6 +102,17 @@ const v = (get: (k: AWGConfig) => unknown, name: string) => () => {
     const out = get(k);
     return out === undefined || out === null || out === "" ? ph(name) : String(out);
 };
+/** Checkbox behind a 3.1 flag: same gating, state instead of words. */
+const flagCheck = (get: (k: AWGConfig) => boolean | undefined) => () => {
+    const k = c();
+    if (!k || !capsFor(k.version).featureFlags) return null;
+    return get(k) === true;
+};
+
+/** Null-safe read of a field's checkbox state for the template. */
+function checkedOf(f: Field): boolean | null {
+    return f.check ? f.check() : null;
+}
 
 /**
  * Whether headers are ranges. With no config yet, assume the newest shape —
@@ -91,8 +124,13 @@ const ranged = () => {
     return !k || capsFor(k.version).rangedHeaders;
 };
 
-const groups = computed<{ key: string; title: string; fields: Field[] }[]>(
-    () => [
+const groups = computed<{ key: string; title: string; fields: Field[] }[]>(() => {
+    const k = c();
+    // No config yet: show the richest shape with placeholders, like the
+    // header ranges already do — the form is a map of the app screen first,
+    // a transcription aid second.
+    const caps = k ? capsFor(k.version) : null;
+    const all: { key: string; title: string; fields: Field[] }[] = [
         {
             key: "junk",
             title: t("clientFields.group.junk"),
@@ -190,16 +228,108 @@ const groups = computed<{ key: string; title: string; fields: Field[] }[]>(
                 value: v((k) => k[`i${n}` as keyof AWGConfig], `I${n}`),
             })),
         },
-    ],
-);
+        {
+            // The 3.x block, in the app's own order: key toggle, padding,
+            // timers, then the 3.1 switches. Labels are verbatim from the
+            // app screen, including bare checkbox names.
+            key: "awg3",
+            title: t("clientFields.group.awg3"),
+            fields: [
+                {
+                    key: "HeaderProtectionKey",
+                    label: "HeaderProtectionKey",
+                    hint: t("clientFields.hint.hpk"),
+                    // A present key means on. An absent one means off —
+                    // unless the parked switch says otherwise, which is the
+                    // managed client with the cipher running from its own
+                    // key. Below 3.0, and with no config at all, there is
+                    // no box: nothing known and nothing to choose.
+                    // The placeholder below only ever renders in those
+                    // unknown states; anywhere decided has the box instead.
+                    value: () => ph("HPK"),
+                    check: () => {
+                        const k = c();
+                        if (!k || !capsFor(k.version).headerProtection) return null;
+                        if (k.awg3?.headerProtectionKey) return true;
+                        return hpkOn.value;
+                    },
+                },
+                {
+                    key: "ContentPaddingAddition",
+                    label: "ContentPaddingAddition – Content padding addition",
+                    hint: t("clientFields.hint.cpa"),
+                    value: v((k) => k.awg3?.contentPaddingAddition, "CPA"),
+                },
+                ...(
+                    [
+                        ["RekeyAfterTime", "rekeyAfterTime", "Rekey after time"],
+                        ["RekeyTimeout", "rekeyTimeout", "Rekey timeout"],
+                        ["RejectAfterTime", "rejectAfterTime", "Reject after time"],
+                        ["KeepaliveTimeout", "keepaliveTimeout", "Keepalive timeout"],
+                        ["MaxHandshakeAttempts", "maxHandshakeAttempts", "Max handshake attempts"],
+                    ] as const
+                ).map(([key, field, desc]) => ({
+                    key,
+                    label: `${key} – ${desc}`,
+                    hint: t("clientFields.hint.timer"),
+                    value: v((k) => k.awg3?.[field], key),
+                })),
+                {
+                    key: "RandomTrailers",
+                    label: "RandomTrailers",
+                    hint: t("clientFields.hint.trailers"),
+                    value: () => ph("TRAILERS"),
+                    check: flagCheck((k) => k.awg3?.randomTrailers),
+                },
+                {
+                    key: "DisableCookies",
+                    label: "DisableCookies",
+                    hint: t("clientFields.hint.cookies"),
+                    value: () => ph("COOKIES"),
+                    check: flagCheck((k) => k.awg3?.disableCookies),
+                },
+            ],
+        },
+    ];
+
+    if (!caps) return all;
+    // A config on screen shows only what its version understands: S3/S4
+    // start in 2.0, the chain in 1.5, the 3.x block in 3.0 and the two
+    // switches in 3.1. Anything else would be a field to mistype into the
+    // app for no effect.
+    const out: { key: string; title: string; fields: Field[] }[] = [];
+    for (const g of all) {
+        if (g.key === "cps" && !caps.cps) continue;
+        if (g.key === "awg3" && !caps.headerProtection) continue;
+        if (g.key === "sizes" && !caps.extraSizes) {
+            out.push({
+                ...g,
+                fields: g.fields.filter((f) => f.key === "S1" || f.key === "S2"),
+            });
+            continue;
+        }
+        if (g.key === "awg3" && !caps.featureFlags) {
+            out.push({
+                ...g,
+                fields: g.fields.filter(
+                    (f) => f.key !== "RandomTrailers" && f.key !== "DisableCookies",
+                ),
+            });
+            continue;
+        }
+        out.push(g);
+    }
+    return out;
+});
 
 const hasConfig = computed(() => cfg.value !== null);
 
-function copyValue(key: string, value: string) {
+function copyValue(f: Field) {
+    const value = f.value();
     // Placeholders are not values; copying "—< S1 >—" would be worse than
     // doing nothing.
-    if (value.startsWith("—<")) return;
-    void copy(key, value);
+    if (!value || value.startsWith("—<")) return;
+    void copy(f.key, value);
 }
 </script>
 
@@ -243,28 +373,46 @@ function copyValue(key: string, value: string) {
                 <h3 class="guide-group-title">{{ g.title }}</h3>
 
                 <div class="guide-fields">
-                    <!-- One card per client field, mirroring the app's layout -->
-                    <button
-                        v-for="f in g.fields"
-                        :key="f.key"
-                        class="guide-field"
-                        :class="{
-                            filled: hasConfig && !f.value().startsWith('—<'),
-                            copied: copied === f.key,
-                        }"
-                        type="button"
-                        @click="copyValue(f.key, f.value())"
-                    >
-                        <span class="guide-field-label">
-                            {{ f.label }}
-                            <em v-if="f.hint">— {{ f.hint }}</em>
-                        </span>
-                        <span class="guide-field-value">{{ f.value() }}</span>
-                        <span class="guide-field-copy" aria-hidden="true">
-                            <Check v-if="copied === f.key" :size="15" />
-                            <Copy v-else :size="15" />
-                        </span>
-                    </button>
+                    <!-- Checkbox rows picture the app's tick boxes: label
+                         above, state below, nothing to copy. Free values
+                         stay copy cards. -->
+                    <template v-for="f in g.fields" :key="f.key">
+                        <div v-if="checkedOf(f) !== null" class="guide-checkrow">
+                            <span class="guide-field-label"
+                                >{{ f.label }} <em v-if="f.hint">— {{ f.hint }}</em></span
+                            >
+                            <span class="guide-checkline">
+                                <input
+                                    class="guide-check"
+                                    type="checkbox"
+                                    :checked="checkedOf(f) ?? false"
+                                    tabindex="-1"
+                                    aria-hidden="true"
+                                />
+                                <span class="guide-checkname">{{ f.key }}</span>
+                            </span>
+                        </div>
+                        <button
+                            v-else
+                            class="guide-field"
+                            :class="{
+                                filled: hasConfig && !f.value().startsWith('—<'),
+                                copied: copied === f.key,
+                            }"
+                            type="button"
+                            @click="copyValue(f)"
+                        >
+                            <span class="guide-field-label">
+                                {{ f.label }}
+                                <em v-if="f.hint">— {{ f.hint }}</em>
+                            </span>
+                            <span class="guide-field-value">{{ f.value() }}</span>
+                            <span class="guide-field-copy" aria-hidden="true">
+                                <Check v-if="copied === f.key" :size="15" />
+                                <Copy v-else :size="15" />
+                            </span>
+                        </button>
+                    </template>
                 </div>
             </div>
         </div>
@@ -443,6 +591,35 @@ function copyValue(key: string, value: string) {
     font-family: var(--fw);
     font-size: 0.78rem;
     color: var(--text2);
+}
+
+/* The tick box for the fields the app shows as tick boxes.
+   A real kit checkbox, display-only without `disabled`: disabled silvers
+   the box out, while no tab stop plus no pointer events already forbid
+   any change. */
+.guide-check {
+    margin: 0;
+    pointer-events: none;
+}
+/* Checkbox rows picture the app's tick boxes: the label above names the
+   field like the app does, the kit box with the big parameter name below
+   carries its state. No card, no copy affordance — there is nothing here
+   to put on a clipboard. */
+.guide-checkrow {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55em;
+    padding: 0.7rem 0.2rem;
+}
+.guide-checkline {
+    display: flex;
+    align-items: center;
+    gap: 0.6em;
+}
+.guide-checkname {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--text);
 }
 
 /* The gloss sits behind the English name, never in place of it. */

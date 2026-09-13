@@ -141,7 +141,7 @@ export const en: Catalog = {
   "gen.zone.transport": "Transport protection",
   "gen.zone.transport.note": "Everything else on this page hides the handshake. This hides the established tunnel: headers are encrypted, transport packets are padded, and the timers stop being constants.",
   "gen.narrowH.label": "Reduce H1–H4 spread",
-  "gen.narrowH.detail": "In AmneziaWG 3.1 wide H1–H4 ranges (up to 100M) make amneziawg-go 3.1 spend noticeably more CPU classifying packets and can misclassify when HeaderProtection is on due to interval overlap. Enabling clamps each H range to ~20k (H4 ~30k) — fixes the bug at the cost of slightly less header obfuscation. Shown only for 3.1 when HeaderProtection is on (the bug trigger). Off by default.",
+  "gen.narrowH.detail": "Matters for 3.1: wide H1-H4 (up to 100M) make amneziawg-go spend visibly more CPU classifying packets, and with HeaderProtection on they misclassify on overlapping intervals. The switch narrows every range to ~20k (H4 ~30k) and fixes the bug at the cost of slightly weaker header obfuscation. Off by default.",
   "gen.narrowH.help": "Wide H1–H4 in 3.1 is a bug: the Go client scans large header intervals, causing CPU spikes and rare handshake failures with HeaderProtection. Narrow ranges (~20k) remove the issue but make headers slightly less diverse.",
   "gen.junk.size": "Packet size",
   "gen.junk.sizeNote": "Jmin and Jmax come from here. On 3.0 the same choice sets the padding and timer spread.",
@@ -181,6 +181,7 @@ export const en: Catalog = {
   "gen.forge.send": "Open in the key workbench",
   "gen.links.title": "If something does not add up",
   "gen.links.faq": "What each parameter does",
+  "gen.links.clientFields": "Don't know where to enter the parameters in the Amnezia app? Click here!",
   "gen.links.about": "How this differs from the button in your client",
 
   /* ── XRay generator ───────────────────────────────────────────────────── */
@@ -277,9 +278,13 @@ export const en: Catalog = {
   /* ── AWG 3.0 panel ────────────────────────────────────────────────────── */
   "awg3.panel.title": "AmneziaWG 3.0 parameters",
   "awg3.hpk.title": "HeaderProtectionKey",
+  "awg3.hpk.switch": "Header protection",
   "awg3.hpk.desc":
     "ChaCha20 over packet headers. Handshake and cookie messages are encrypted whole; transport packets only in the header. The nonce is taken from the padding, so S1–S4 cannot go below 12 bytes: anything drawn under the floor is redrawn from the rest of its range rather than pinned to 12.",
   "awg3.cpa.title": "ContentPaddingAddition",
+  "awg3.cpa.switch": "Content padding",
+  "awg3.trailers.switch": "Random trailers",
+  "awg3.cookies.switch": "Disable cookies",
   "awg3.cpa.desc":
     "Random extra padding on every transport packet instead of aligning to 16 bytes — it blurs the packet-size histogram.",
   "awg3.timings.title": "Randomised timers",
@@ -1039,6 +1044,7 @@ export const en: Catalog = {
   "clientFields.group.sizes": "Junk sizes",
   "clientFields.group.headers": "Magic headers",
   "clientFields.group.cps": "Special junk",
+  "clientFields.group.awg3": "3.x parameters",
   "clientFields.hint.jc": "how many junk packets",
   "clientFields.hint.jmin": "smallest junk packet",
   "clientFields.hint.jmax": "largest junk packet",
@@ -1053,6 +1059,11 @@ export const en: Catalog = {
   "clientFields.hint.h3": "cookie reply header",
   "clientFields.hint.h4": "header of the transport packet",
   "clientFields.hint.cps": "CPS chain {n}",
+  "clientFields.hint.hpk": "shared header-encryption key; Amnezia VPN generates its own",
+  "clientFields.hint.cpa": "random padding on every transport packet",
+  "clientFields.hint.timer": "protocol time range",
+  "clientFields.hint.trailers": "random tail on every packet, 3.1 only",
+  "clientFields.hint.cookies": "no cookie replies, 3.1 only",
 
   /* ── MergeKeys: what the engine reports ───────────────────────────────── */
   "mk.err.decode": "The key could not be decoded: {error}",

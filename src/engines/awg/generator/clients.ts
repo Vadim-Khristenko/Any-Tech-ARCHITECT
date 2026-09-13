@@ -29,7 +29,7 @@ import {
   type AwgEngine,
   type CpsTagSupport,
 } from "./engines";
-import type { ClientCapability } from "./types";
+import type { AWGVersion, ClientCapability } from "./types";
 
 /** What an AmneziaWG client will and will not accept. */
 export interface AwgClientLimits extends CpsTagSupport {
@@ -311,3 +311,21 @@ export const CLIENTS: Record<string, ClientCapability> = Object.fromEntries(
     ];
   }),
 );
+
+/** The managed-key note: about a 3.x-only concept, noise anywhere below. */
+const MANAGED_HPK_NOTE = "client.note.amneziaVpnHpk";
+
+/**
+ * Client notes worth showing for a protocol version.
+ *
+ * Exactly one note is version-sensitive (the managed-key one, which names a
+ * key that does not exist below 3.0); everything else passes through
+ * untouched, so this cannot silence a warning it was not built for.
+ */
+export function notesForVersion(
+  notes: readonly string[],
+  version: AWGVersion,
+): string[] {
+  if (version === "3.0" || version === "3.1") return [...notes];
+  return notes.filter((key) => key !== MANAGED_HPK_NOTE);
+}

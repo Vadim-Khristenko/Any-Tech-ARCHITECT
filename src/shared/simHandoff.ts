@@ -24,6 +24,16 @@ export interface PendingSimulation {
    * particular client's traffic looks the way it does.
    */
   notes?: readonly string[];
+  /**
+   * Whether header protection was requested when the config was made.
+   *
+   * The emitted config cannot say it: a client that manages the key itself
+   * leaves no key line, so "no key" reads as "off" even with the cipher
+   * running from the in-app key. The FAQ client-fields form reads this to
+   * render the protection checkbox state. Absent on older envelopes, where
+   * readers fall back to key presence.
+   */
+  headerProtection?: boolean;
   config: unknown;
 }
 

@@ -32,6 +32,7 @@ import { translate } from "@/i18n";
 import { hostsFor } from "@/shared/domains";
 import type { DomainRegion, DomainRole } from "@/types/domain";
 import { copyText } from "@/utils/clipboard";
+import { handOffToSimulator } from "@/shared/simHandoff";
 import { downloadText } from "@/utils/download";
 import { confToVpn, buildVpnConfig } from "@/engines/awg/awgFormat";
 import type { VpnConfig } from "@/engines/awg/awgFormat";
@@ -260,6 +261,18 @@ export function useGenerator() {
 
     const label = PROFILE_LABELS[config.profile] ?? config.profile;
     addLog(translate("log.generated", { profile: label }), "info");
+    // Park the fresh config where the FAQ client-fields form reads it.
+    // Without this the form only ever saw simulator hand-offs, and a config
+    // generated on the main page transcribed into the app by hand from the
+    // preview. The simulator button overwrites this envelope with its own
+    // caption and notes before navigating, so nothing goes stale.
+    // The switch state rides along because the emitted config cannot say
+    // it: a managed client leaves no key line with the cipher still on.
+    handOffToSimulator({
+      engine: "awg",
+      headerProtection: config.useHeaderProtection,
+      config: currentAwg.value,
+    });
     if (config.routerMode) {
       addLog(translate("log.routerMode"), "warn");
     }

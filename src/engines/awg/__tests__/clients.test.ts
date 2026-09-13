@@ -8,6 +8,7 @@ import {
   clientCaps,
   clientReleases,
   genCfg,
+  notesForVersion,
   parseRange,
   type GeneratorInput,
 } from "@/engines/awg/generator";
@@ -179,5 +180,31 @@ describe("generating for a chosen build", () => {
         expect(errors, `${profile.id} ${release.label}`).toEqual([]);
       }
     }
+  });
+});
+
+describe("notesForVersion", () => {
+  const notes = [
+    "client.note.goNoTagC",
+    "client.note.amneziaVpnHpk",
+    "client.note.wgTunnelBattery",
+  ];
+
+  it.each(["3.0", "3.1"] as const)("passes everything through on %s", (v) => {
+    expect(notesForVersion(notes, v)).toEqual(notes);
+  });
+
+  it.each(["1.0", "1.5", "2.0"] as const)(
+    "drops only the managed-key note below 3.0 (%s)",
+    (v) => {
+      expect(notesForVersion(notes, v)).toEqual([
+        "client.note.goNoTagC",
+        "client.note.wgTunnelBattery",
+      ]);
+    },
+  );
+
+  it("leaves an empty list empty", () => {
+    expect(notesForVersion([], "2.0")).toEqual([]);
   });
 });

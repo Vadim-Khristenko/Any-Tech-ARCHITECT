@@ -1,36 +1,4 @@
 <script setup lang="ts">
-/**
- * The AmneziaWG generator, drawn rather than listed.
- *
- * THE IDEA
- *
- * A form drawn as a form is a column of labelled boxes that tells you nothing
- * about what you are setting. Each group of parameters is drawn as the thing
- * it controls: the junk train as a train, the packet sizes as bars to scale,
- * the header ranges as spans on one axis, the CPS chain as the packets.
- *
- * The headers justify the approach on their own. The one rule H1–H4 have to
- * obey is that their ranges must not overlap, and four pairs of ten-digit
- * numbers in a list make that impossible to check by eye. On a shared axis it
- * is the only thing you can see.
- *
- * WHAT THE FIRST DRAFT GOT WRONG
- *
- * It drew four groups beautifully and quietly dropped most of the controls:
- * the mimicry profile, the host, the browser fingerprint, the CPS tags, the
- * MTU, the entropy, the extreme ceilings. A page that cannot set them is not a
- * redesign of the generator, it is a picture of one. Everything is here now,
- * and the layout is denser to make room — the zones share a twelve-column grid
- * so a group takes the width its drawing needs rather than an equal share.
- *
- * It also drew a history button that opened nothing, which is worse than
- * leaving it out: a control that looks live and answers nothing reads as a
- * broken page rather than an unfinished one.
- *
- * All of the logic is the existing `useGenerator`. Nothing about how a config
- * is produced changed.
- */
-
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import {
@@ -48,6 +16,7 @@ import {
     ChevronRight,
     TriangleAlert,
     Search,
+    LayoutGrid,
 } from "lucide-vue-next";
 
 import { useGenerator } from "@/composables/useGenerator";
@@ -58,7 +27,7 @@ import SendToForge from "@/components/SendToForge.vue";
 import HistoryPanel from "@/components/HistoryPanel.vue";
 import type { AwgHistoryEntry } from "@/engines/awg/history";
 import type { GeneratorHistoryEntry } from "@/types/generatorHistory";
-import { awgParamRecord } from "@/engines/awg/generator";
+import { awgParamRecord, notesForVersion } from "@/engines/awg/generator";
 import { AWG_VERSIONS } from "@/engines/awg/generator/versions";
 import {
     AWG_CLIENT_PROFILES,
@@ -164,7 +133,10 @@ const clientNotes = computed(() => {
     const notes = [...(client.value?.notes ?? [])];
     const rel = releases.value.find((r) => r.id === config.clientRelease);
     if (rel?.notes) notes.push(...rel.notes);
-    return notes.map((k) => t(k as never));
+    // Version-sensitive notes are filtered in one tested place
+    // (notesForVersion): the managed-key note names a key that does not
+    // exist below 3.0, everything else passes through untouched.
+    return notesForVersion(notes, version.value).map((k) => t(k as never));
 });
 
 /*
@@ -644,6 +616,7 @@ function toSimulator() {
         PROFILES.find((p) => p.id === cfg.profile)?.label ?? cfg.profile;
     handOffToSimulator({
         engine: "awg",
+        headerProtection: config.useHeaderProtection,
         caption: ["AmneziaWG", cfg.version, profile]
             .filter(Boolean)
             .join(" · "),
@@ -1405,13 +1378,12 @@ function toSimulator() {
                     <label class="switch">
                         <input v-model="config.useHeaderProtection" type="checkbox" @change="generate()" />
                         <span class="switch-track"></span>
-                        <span class="mono">HeaderProtectionKey</span>
+                        <span>{{ t("awg3.hpk.switch") }} <span class="mono">(HeaderProtectionKey)</span></span>
                     </label>
-                    <p v-if="hpkManaged" class="hint">{{ t("client.note.amneziaVpnHpk") }}</p>
                     <label class="switch">
                         <input v-model="config.useContentPadding" type="checkbox" @change="generate()" />
                         <span class="switch-track"></span>
-                        <span class="mono">ContentPaddingAddition</span>
+                        <span>{{ t("awg3.cpa.switch") }} <span class="mono">(ContentPaddingAddition)</span></span>
                     </label>
                     <label class="switch">
                         <input v-model="config.useRandomTimings" type="checkbox" @change="generate()" />
@@ -1426,12 +1398,12 @@ function toSimulator() {
                         <label class="switch">
                             <input v-model="config.useRandomTrailers" type="checkbox" @change="generate()" />
                             <span class="switch-track"></span>
-                            <span class="mono">RandomTrailers</span>
+                            <span>{{ t("awg3.trailers.switch") }} <span class="mono">(RandomTrailers)</span></span>
                         </label>
                         <label class="switch">
                             <input v-model="config.useDisableCookies" type="checkbox" @change="generate()" />
                             <span class="switch-track"></span>
-                            <span class="mono">DisableCookies</span>
+                            <span>{{ t("awg3.cookies.switch") }} <span class="mono">(DisableCookies)</span></span>
                         </label>
                         <!--
                             Narrow H1-H4 for the 3.1 bug. Visible only on 3.1
@@ -1466,8 +1438,17 @@ function toSimulator() {
                                     </span>
                                 </span>
                             </div>
+                            <div v-if="hpkManaged" class="zone-help-item">
+                                <span class="zone-help-key">HeaderProtectionKey</span>
+                                <span>
+                                    {{ t("client.note.amneziaVpnHpk") }}
+                                    <span class="zone-help-meta" :data-tooltip="scopeHint('shared')">
+                                        {{ scopeLabel("shared") }} · {{ t("gen.since", { v: "3.0" }) }}
+                                    </span>
+                                </span>
+                            </div>
                             <div v-if="version === '3.1'" class="zone-help-item">
-                                <span class="zone-help-key">H1–H4 narrow</span>
+                                <span class="zone-help-key">{{ t("gen.narrowH.label") }}</span>
                                 <span>
                                     {{ t("gen.narrowH.help") }}
                                     <span class="zone-help-meta">local · since 3.1</span>
@@ -1655,6 +1636,18 @@ function toSimulator() {
                         <ChevronRight :size="15" class="gen-link-go" />
                     </router-link>
                 </li>
+                <!--
+                    Straight to the app form with the fresh values: the link
+                    works because generate() parks the config where the form
+                    reads it, so this needs no payload of its own.
+                -->
+                <li class="list-item">
+                    <router-link :to="at('/faq') + '#client-fields'" class="gen-link">
+                        <LayoutGrid :size="16" />
+                        <span>{{ t("gen.links.clientFields") }}</span>
+                        <ChevronRight :size="15" class="gen-link-go" />
+                    </router-link>
+                </li>
             </ul>
         </section>
     </div>
@@ -1668,6 +1661,15 @@ function toSimulator() {
     display: flex;
     flex-direction: column;
     gap: var(--sp-5);
+}
+
+/*
+ * The protocol key after a Russian switch title. A margin, not a text
+ * space: template whitespace between the interpolation and the span
+ * collapses and glues the two words together.
+ */
+label.switch > span > .mono {
+    margin-left: 0.45em;
 }
 
 /* ── The lockup ───────────────────────────────────────────────────────── */

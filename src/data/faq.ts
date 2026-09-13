@@ -19,6 +19,7 @@ export type FaqCategoryId =
   | "params"
   | "awg2"
   | "awg3"
+  | "awg31"
   | "clients"
   | "tuning"
   | "warnings"
@@ -50,6 +51,7 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
   { id: "params", label: { ru: "Параметры AWG", en: "AWG parameters" } },
   { id: "awg2", label: { ru: "AmneziaWG 2.0", en: "AmneziaWG 2.0" } },
   { id: "awg3", label: { ru: "AmneziaWG 3.0", en: "AmneziaWG 3.0" } },
+  { id: "awg31", label: { ru: "AmneziaWG 3.1", en: "AmneziaWG 3.1" } },
   { id: "clients", label: { ru: "Клиенты", en: "Clients" } },
   { id: "tuning", label: { ru: "Настройка", en: "Tuning" } },
   { id: "warnings", label: { ru: "Предупреждения", en: "Warnings" } },
@@ -79,14 +81,14 @@ export const FAQ_ENTRIES: FaqEntry[] = [
     id: "version-differences",
     category: "basics",
     question: {
-      ru: "Чем отличаются версии 1.0, 1.5, 2.0 и 3.0?",
-      en: "How do versions 1.0, 1.5, 2.0 and 3.0 differ?",
+      ru: "Чем отличаются версии 1.0, 1.5, 2.0, 3.0 и 3.1?",
+      en: "How do versions 1.0, 1.5, 2.0, 3.0 and 3.1 differ?",
     },
     answer: {
-      ru: "## AWG 1.0\n\n1.0 — базовая обфускация: junk-пакеты (`Jc`, `Jmin`, `Jmax`), паддинг `S1` и `S2`, фиксированные магические заголовки `H1–H4`.\n\n## AWG 1.5\n\n1.5 добавляет CPS-цепочки `I1–I5`, *но работают они только на стороне клиента*.\n\n## AWG 2.0\n\n2.0 расширяет набор: появляются `S3` и `S4` (паддинг cookie- и транспортных пакетов), а `H1–H4` задаются диапазонами, а не одним числом — **заголовок каждого пакета выбирается из диапазона случайно**.\n\n## AWG 3.0\n\n3.0 добавляет три вещи поверх 2.0: `HeaderProtectionKey` (шифрование заголовков ChaCha20), `ContentPaddingAddition` (случайный паддинг транспорта) и рандомизацию таймеров протокола.",
-      en: "## AWG 1.0\n\n1.0 is the baseline: junk packets (`Jc`, `Jmin`, `Jmax`), `S1` and `S2` padding, and fixed magic headers `H1–H4`.\n\n## AWG 1.5\n\n1.5 adds the `I1–I5` CPS chains, *but they apply on the client side only*.\n\n## AWG 2.0\n\n2.0 widens the set: `S3` and `S4` arrive (padding for cookie and transport packets) and `H1–H4` become ranges rather than single values, so **each packet's header is drawn at random from its range**.\n\n## AWG 3.0\n\n3.0 adds three things on top of 2.0: `HeaderProtectionKey` (ChaCha20 header encryption), `ContentPaddingAddition` (random transport padding) and randomisation of the protocol timers.",
+      ru: "## AWG 1.0\n\n1.0 — базовая обфускация: junk-пакеты (`Jc`, `Jmin`, `Jmax`), паддинг `S1` и `S2`, фиксированные магические заголовки `H1–H4`.\n\n## AWG 1.5\n\n1.5 добавляет CPS-цепочки `I1–I5`, *но работают они только на стороне клиента*.\n\n## AWG 2.0\n\n2.0 расширяет набор: появляются `S3` и `S4` (паддинг cookie- и транспортных пакетов), а `H1–H4` задаются диапазонами, а не одним числом — **заголовок каждого пакета выбирается из диапазона случайно**.\n\n## AWG 3.0\n\n3.0 добавляет три вещи поверх 2.0: `HeaderProtectionKey` (шифрование заголовков ChaCha20), `ContentPaddingAddition` (случайный паддинг транспорта) и рандомизацию таймеров протокола.\n\n## AWG 3.1\n\n3.1 добавляет поверх 3.0 два переключателя: `RandomTrailers` дописывает случайный хвост к каждому пакету, `DisableCookies` отключает cookie-ответы целиком. Оба прячут поведение соединения, а не отдельные поля: задача версии — усложнить статистический анализ.",
+      en: "## AWG 1.0\n\n1.0 is the baseline: junk packets (`Jc`, `Jmin`, `Jmax`), `S1` and `S2` padding, and fixed magic headers `H1–H4`.\n\n## AWG 1.5\n\n1.5 adds the `I1–I5` CPS chains, *but they apply on the client side only*.\n\n## AWG 2.0\n\n2.0 widens the set: `S3` and `S4` arrive (padding for cookie and transport packets) and `H1–H4` become ranges rather than single values, so **each packet's header is drawn at random from its range**.\n\n## AWG 3.0\n\n3.0 adds three things on top of 2.0: `HeaderProtectionKey` (ChaCha20 header encryption), `ContentPaddingAddition` (random transport padding) and randomisation of the protocol timers.\n\n## AWG 3.1\n\n3.1 adds two switches on top of 3.0: `RandomTrailers` appends a random tail to every packet, `DisableCookies` turns cookie replies off entirely. Both hide connection behaviour rather than single fields: the version makes statistical analysis harder.",
     },
-    keywords: ["версии", "versions", "1.0", "1.5", "2.0", "3.0"],
+    keywords: ["версии", "versions", "1.0", "1.5", "2.0", "3.0", "3.1"],
   },
   {
     id: "both-sides",
@@ -314,6 +316,19 @@ export const FAQ_ENTRIES: FaqEntry[] = [
   },
   /* ── Parameters ───────────────────────────────────────────────────────── */
   {
+    id: "where-to-ask",
+    category: "basics",
+    question: {
+      ru: "Где задать вопрос по генератору или протоколу?",
+      en: "Where do I ask a question about the generator or the protocol?",
+    },
+    answer: {
+      ru: "**По этому генератору: issues на GitHub.** Ошибки, странные конфиги, предложения — всё это issue в репозитории: [Any-Tech-ARCHITECT/issues](https://github.com/Vadim-Khristenko/Any-Tech-ARCHITECT/issues). Так вопрос не потеряется, а ответ увидят следующие. Приложите версию протокола и клиента, что происходит и что уже проверено; шаблон баг-репорта в репозитории подскажет форму.\n\n**По соединению и приложению Amnezia VPN: Telegram-сообщество.** Бытовые вопросы про настройку быстрее всего разбираются там: [t.me/amnezia_vpn](https://t.me/amnezia_vpn).\n\nПроект ведётся открыто на GitHub: код, история решений и чейнджлог лежат там же, рядом с issues.",
+      en: "**For this generator: GitHub issues.** Bugs, strange configs, suggestions — all of that is an issue in the repository: [Any-Tech-ARCHITECT/issues](https://github.com/Vadim-Khristenko/Any-Tech-ARCHITECT/issues). That way the question is not lost, and the next person sees the answer. Attach the protocol and client versions, what happens and what you already checked; the bug report template in the repository suggests the shape.\n\n**For the connection and the Amnezia VPN app: the Telegram community.** Everyday setup questions get sorted fastest there: [t.me/amnezia_vpn](https://t.me/amnezia_vpn).\n\nThe project is run in the open on GitHub: the code, the decision history and the changelog live there next to the issues.",
+    },
+    keywords: ["помощь", "help", "telegram", "github", "вопрос", "question", "поддержка", "support"],
+  },
+  {
     id: "param-classes",
     category: "params",
     question: {
@@ -356,8 +371,8 @@ export const FAQ_ENTRIES: FaqEntry[] = [
       en: "What do S1, S2, S3 and S4 mean?",
     },
     answer: {
-      ru: "**Это количество случайных байт, дописываемых перед пакетом, чтобы сбить его характерный размер.** `S1` — для handshake initiation, `S2` — для handshake response, `S3` — для cookie reply, `S4` — для транспортных пакетов.\n\nИтоговые размеры становятся 148 + `S1` и 92 + `S2` вместо фиксированных. **Важное следствие: если `S1` + 56 окажется равным `S2`, initiation и response снова станут одного размера и вы вернёте ровно тот отпечаток, от которого уходили.** *Генератор такие совпадения отслеживает и не выпускает.* `S4` ограничен 32 байтами протоколом.",
-      en: "**They are counts of random bytes prepended to a packet to break its characteristic size.** `S1` covers the handshake initiation, `S2` the handshake response, `S3` the cookie reply and `S4` transport packets. The resulting sizes become 148 + `S1` and 92 + `S2` instead of fixed values.\n\n**One consequence matters: if `S1` + 56 happens to equal `S2`, the initiation and response end up the same size again and you have recreated exactly the fingerprint you were escaping.** *The generator watches for these collisions and refuses to emit them.* `S4` is capped at 32 bytes by the protocol.",
+      ru: "**Это количество случайных байт, дописываемых перед пакетом, чтобы сбить его характерный размер.** `S1` — для handshake initiation, `S2` — для handshake response, `S3` — для cookie reply, `S4` — для транспортных пакетов.\n\nИтоговые размеры становятся 148 + `S1` и 92 + `S2` вместо фиксированных. **Важное следствие: если `S1` + 56 окажется равным `S2`, initiation и response снова станут одного размера и вы вернёте ровно тот отпечаток, от которого уходили.** *Генератор такие совпадения отслеживает и не выпускает.* `S4` ограничен 32 байтами протоколом. При включённой защите заголовков все четыре не могут быть ниже 12 байт: из паддинга берётся нонс шифра. Подробности — в ответе про порог 12.",
+      en: "**They are counts of random bytes prepended to a packet to break its characteristic size.** `S1` covers the handshake initiation, `S2` the handshake response, `S3` the cookie reply and `S4` transport packets. The resulting sizes become 148 + `S1` and 92 + `S2` instead of fixed values.\n\n**One consequence matters: if `S1` + 56 happens to equal `S2`, the initiation and response end up the same size again and you have recreated exactly the fingerprint you were escaping.** *The generator watches for these collisions and refuses to emit them.* `S4` is capped at 32 bytes by the protocol. With header protection on, none of the four may go below 12 bytes: the cipher nonce comes from the padding. Details live in the 12-byte floor answer.",
     },
     keywords: ["s1", "s2", "s3", "s4", "паддинг", "padding", "размер"],
   },
@@ -423,8 +438,8 @@ export const FAQ_ENTRIES: FaqEntry[] = [
       en: "Should I move to 3.0, or is 2.0 still enough?",
     },
     answer: {
-      ru: "**2.0 остаётся полностью рабочей и на сегодня наиболее совместимой версией**: её понимают все актуальные клиенты.\n\n3.0 сильнее там, где против вас работает статистический анализ, а не сигнатурный — **шифрование заголовков и рандомизация таймеров закрывают именно те каналы утечки, которые 2.0 оставляет открытыми**. Но за это приходится платить совместимостью: обе стороны должны быть собраны с поддержкой 3.0. **Разумный порядок такой: если 2.0 у вас работает и не блокируется, переходить незачем; если начались блокировки, которые 2.0 не переживает, — 3.0 даёт следующий уровень.**",
-      en: "**2.0 remains fully functional and is currently the most compatible version** — every current client understands it.\n\n3.0 is stronger where statistical analysis rather than signature matching is being used against you: **header encryption and timer randomisation close exactly the leaks 2.0 leaves open**. The price is compatibility, since both ends must be built with 3.0 support. **A sensible rule: if 2.0 works and is not being blocked, there is no reason to move; if blocking starts and 2.0 cannot survive it, 3.0 is the next step.**",
+      ru: "**2.0 остаётся полностью рабочей и на сегодня наиболее совместимой версией**: её понимают все актуальные клиенты.\n\n3.0 сильнее там, где против вас работает статистический анализ, а не сигнатурный — **шифрование заголовков и рандомизация таймеров закрывают именно те каналы утечки, которые 2.0 оставляет открытыми**. Но за это приходится платить совместимостью: обе стороны должны быть собраны с поддержкой 3.0. **Разумный порядок такой: если 2.0 у вас работает и не блокируется, переходить незачем; если начались блокировки, которые 2.0 не переживает, — 3.0 даёт следующий уровень.** Та же лестница продолжается на 3.1: случайные хвосты и отказ от cookie против блокировок, которые переживают 3.0. Правило то же: работает и не блокируется — не трогайте.",
+      en: "**2.0 remains fully functional and is currently the most compatible version** — every current client understands it.\n\n3.0 is stronger where statistical analysis rather than signature matching is being used against you: **header encryption and timer randomisation close exactly the leaks 2.0 leaves open**. The price is compatibility, since both ends must be built with 3.0 support. **A sensible rule: if 2.0 works and is not being blocked, there is no reason to move; if blocking starts and 2.0 cannot survive it, 3.0 is the next step.** The same ladder continues onto 3.1: random trailers and no cookies against blocks that survive 3.0. The rule is the same: if it works and is not blocked, leave it alone.",
     },
     keywords: ["2.0", "3.0", "переход", "upgrade", "migration"],
   },
@@ -562,8 +577,8 @@ export const FAQ_ENTRIES: FaqEntry[] = [
       en: "I found a bug or something does not work — where do I report it?",
     },
     answer: {
-      ru: "**Пожалуйста, напишите** — это лучший способ починить то, о чём мы не знаем. Можно присоединиться к обсуждению в чате, завести issue на GitHub в репозитории проекта.\n\n*Если GitHub недоступен, исходный код продублирован на git.vai-rice.space — там же лежит зеркало установщика для сервера.* Если проблема в конкретном конфиге, **приложите версию AmneziaWG, клиент и его версию, а также сами параметры без приватных ключей** — этого почти всегда достаточно, чтобы воспроизвести. Замечания по формулировкам и переводу тоже приветствуются.",
-      en: "**Please do** — it is the best way to fix things we do not know about. You can join the discussion in the chat, open an issue on the project's GitHub repository.\n\n*If GitHub is blocked for you, the source is mirrored on git.vai-rice.space, along with the server installer.* If the problem is a specific config, **include the AmneziaWG version, the client and its version, and the parameters themselves with private keys removed** — that is almost always enough to reproduce it. Notes on wording and translation are welcome too.",
+      ru: "**Пожалуйста, напишите** — это лучший способ починить то, о чём мы не знаем. Быстрые вопросы по настройке разбираются в Telegram-сообществе [t.me/amnezia_vpn](https://t.me/amnezia_vpn), а ошибки генератора и предложения едут issue на GitHub в [репозиторий проекта](https://github.com/Vadim-Khristenko/Any-Tech-ARCHITECT/issues) — так ответ увидят следующие. Куда с чем идти подробнее — в ответе «Где задать вопрос».\n\n*Если GitHub недоступен, исходный код продублирован на git.vai-rice.space — там же лежит зеркало установщика для сервера.* Если проблема в конкретном конфиге, **приложите версию AmneziaWG, клиент и его версию, а также сами параметры без приватных ключей** — этого почти всегда достаточно, чтобы воспроизвести. Замечания по формулировкам и переводу тоже приветствуются.",
+      en: "**Please do** — it is the best way to fix things we do not know about. Quick setup questions go to the Telegram community at [t.me/amnezia_vpn](https://t.me/amnezia_vpn), while generator bugs and suggestions go to a GitHub issue in the [project repository](https://github.com/Vadim-Khristenko/Any-Tech-ARCHITECT/issues) — that way the next person sees the answer. Which door to knock on lives in the “Where do I ask” answer.\n\n*If GitHub is blocked for you, the source is mirrored on git.vai-rice.space, along with the server installer.* If the problem is a specific config, **include the AmneziaWG version, the client and its version, and the parameters themselves with private keys removed** — that is almost always enough to reproduce it. Notes on wording and translation are welcome too.",
     },
     keywords: [
       "баг",
@@ -706,6 +721,20 @@ export const FAQ_ENTRIES: FaqEntry[] = [
     },
     keywords: ["headerprotectionkey", "chacha20", "3.0", "заголовки"],
   },
+  /* ── Managed key ──────────────────────────────────────────────────── */
+  {
+    id: "managed-hpk",
+    category: "awg3",
+    question: {
+      ru: "Amnezia VPN не показывает HeaderProtectionKey в конфиге. Защита вообще работает?",
+      en: "Amnezia VPN shows no HeaderProtectionKey in the config. Does protection work at all?",
+    },
+    answer: {
+      ru: "Да, просто ключ живёт не в конфиге. **В Amnezia VPN свой переключатель защиты и свой ключ: приложение генерирует его само.** Поэтому генератор строку ключа не пишет: второй ключ никто не просил, а с серверным он бы не совпал.\n\n## Порог S остаётся\n\nШифр работает от ключа из приложения, а нонс берёт из того же паддинга. Поэтому S1–S4 держатся на 12+ и для этого клиента, и переключатель защиты в генераторе при нём не прячется.\n\n## В выводе вместо ключа записка\n\nРаз строки нет, в конфиг пишется комментарий: защита включается переключателем в приложении и подхватывается при импорте .conf. Комментарий есть, только пока включена галка.\n\n## Проверка видит меньше\n\nВставленный конфиг строки ключа не несёт, а состояние тумблера в приложении из файла не видно. Поэтому маленькие S здесь это предупреждение, а не ошибка: с выключенной защитой они валидны, а с включённой устройство их отвергнет.",
+      en: "Yes, the key just does not live in the config. **Amnezia VPN has its own protection toggle and its own key: the app generates it itself.** So the generator writes no key line: nobody asked for a second key, and it would not match the server one.\n\n## The S floor stays\n\nThe cipher runs off the in-app key but takes its nonce from the same padding. So S1–S4 stay at 12+ for this client too, and the protection switch in the generator does not hide for it.\n\n## A note instead of a key in the output\n\nWith no line to write, the config carries a comment: protection is enabled by the in-app toggle and picked up on config import. The comment is there only while the checkbox is on.\n\n## The checker sees less\n\nA pasted config carries no key line, and the in-app toggle state is not visible from the file. So small S here is a warning rather than an error: with protection off they are valid, with it on the device rejects them.",
+    },
+    keywords: ["amnezia vpn", "ключ", "key", "переключатель", "toggle", "managed"],
+  },
   {
     id: "s-floor-12",
     category: "awg3",
@@ -714,8 +743,8 @@ export const FAQ_ENTRIES: FaqEntry[] = [
       en: "Why can't S1–S4 go below 12 when HeaderProtectionKey is set?",
     },
     answer: {
-      ru: "Потому что nonce шифра нигде не передаётся отдельно — он берётся из первых 12 байт того самого случайного паддинга, который задают `S1–S4`. Это видно в коде отправки: буфер паддинга режется на 12 байт и используется как nonce.\n\nПаддинг короче двенадцати байт просто нечего дать шифру.\n\nДо этого места, впрочем, дело не доходит. **Обе реализации проверяют границу до подъёма интерфейса и отказываются принимать такой конфиг, назвав параметр по имени.** `amneziawg-go` в `device/uapi.go` возвращает `S%d must be more then %d to use headerProtection`; модуль ядра в `src/netlink.c` пишет ту же фразу в лог и возвращает `-EINVAL`.\n\nТо есть симптом — интерфейс не поднимается, и в логе лежит внятная причина. Не «работает, но слабее». Здесь было написано обратное, и это отправляло человека искать проблему где угодно, кроме той строки, которую ему уже показали.\n\nГенератор поднимает все четыре S до 12 байт, а валидатор отклоняет конфиги, где это нарушено.",
-      en: "Because the cipher nonce is never transmitted separately — it is taken from the first 12 bytes of the same random padding that `S1–S4` define. You can see it in the [send path](https://github.com/amnezia-vpn/amneziawg-go/blob/master/device/send.go): the padding buffer is sliced to 12 bytes and used as the nonce.\n\nA padding shorter than twelve bytes has no nonce to give it.\n\nYou never get that far, though. **Both implementations check the bound before the interface comes up and refuse the configuration, naming the parameter.** `amneziawg-go` returns `S%d must be more then %d to use headerProtection` from `device/uapi.go`; the kernel module logs the same sentence in `src/netlink.c` and returns `-EINVAL`.\n\nSo the symptom is an interface that will not start, with the reason spelled out in the log — not something that runs but weaker. This answer used to say the opposite, which sent people looking anywhere except at the line they had already been shown.\n\nThe generator raises all four S values to 12 bytes, and the validator rejects configs that break it.",
+      ru: "Потому что nonce шифра нигде не передаётся отдельно — он берётся из первых 12 байт того самого случайного паддинга, который задают `S1–S4`. Это видно в коде отправки: буфер паддинга режется на 12 байт и используется как nonce.\n\nПаддинг короче двенадцати байт просто нечего дать шифру.\n\nДо этого места, впрочем, дело не доходит. **Обе реализации проверяют границу до подъёма интерфейса и отказываются принимать такой конфиг, назвав параметр по имени.** `amneziawg-go` в `device/uapi.go` возвращает `S%d must be more then %d to use headerProtection`; модуль ядра в `src/netlink.c` пишет ту же фразу в лог и возвращает `-EINVAL`.\n\nТо есть симптом — интерфейс не поднимается, и в логе лежит внятная причина. Не «работает, но слабее». Здесь было написано обратное, и это отправляло человека искать проблему где угодно, кроме той строки, которую ему уже показали.\n\nГенератор поднимает все четыре S до 12 байт, а валидатор отклоняет конфиги, где это нарушено.\n\nУправляемый ключ считается включённым: если HeaderProtectionKey живёт в приложении (Amnezia VPN), порог действует точно так же, хотя строки ключа в конфиге нет. Генератор держит S1–S4 на 12+ и в этом случае, а проверка вставленного конфига предупреждает о маленьких S.",
+      en: "Because the cipher nonce is never transmitted separately — it is taken from the first 12 bytes of the same random padding that `S1–S4` define. You can see it in the [send path](https://github.com/amnezia-vpn/amneziawg-go/blob/master/device/send.go): the padding buffer is sliced to 12 bytes and used as the nonce.\n\nA padding shorter than twelve bytes has no nonce to give it.\n\nYou never get that far, though. **Both implementations check the bound before the interface comes up and refuse the configuration, naming the parameter.** `amneziawg-go` returns `S%d must be more then %d to use headerProtection` from `device/uapi.go`; the kernel module logs the same sentence in `src/netlink.c` and returns `-EINVAL`.\n\nSo the symptom is an interface that will not start, with the reason spelled out in the log — not something that runs but weaker. This answer used to say the opposite, which sent people looking anywhere except at the line they had already been shown.\n\nThe generator raises all four S values to 12 bytes, and the validator rejects configs that break it.\n\nA managed key counts as set: when HeaderProtectionKey lives in the app (Amnezia VPN), the floor applies exactly the same even though no key line is in the config. The generator holds S1–S4 at 12+ there too, and the pasted-config check warns about small S.",
     },
     keywords: ["nonce", "12", "s1", "паддинг", "chacha20"],
   },
@@ -752,6 +781,45 @@ export const FAQ_ENTRIES: FaqEntry[] = [
     ],
   },
   {
+    id: "h-still-matter",
+    category: "awg3",
+    question: {
+      ru: "На 3.x с защитой и хвостами H1–H4 всё ещё на что-то влияют?",
+      en: "On 3.x with protection and trailers, do H1–H4 still affect anything?",
+    },
+    answer: {
+      ru: "**Да, и сильно: без них туннель не опознает ни один пакет.** Приёмный тракт сверяет H1–H4 на каждом пакете при любом наборе фич: защита только шифрует байты типа, а магия всё равно матчится, хвосты меняют только сравнение длин. Проверка непересечения тоже безусловна.\n\nОтсюда три следствия. Пустыми их оставлять нельзя. Одинаковыми нельзя: пересечение это сломанный туннель, а не слабый. Значения 1–4 зарезервированы под настоящие типы WireGuard.\n\nДиапазоны держите широкими, если только не лечите конкретный баг CPU на 3.1 узкими: для него в генераторе есть отдельный переключатель.",
+      en: "**Yes, a lot: without them the tunnel recognises no packet at all.** The receive path matches H1–H4 on every packet under any feature set: protection only encrypts the type bytes while the magic still matches, and trailers only change the length comparison. The no-overlap check is unconditional too.\n\nThree consequences follow. They cannot be left empty. They cannot be identical: an overlap is a broken tunnel, not a weak one. Values 1–4 are reserved for the real WireGuard message types.\n\nKeep the ranges wide unless you are treating the specific 3.1 CPU bug with narrow ones: the generator has a separate switch for that.",
+    },
+    keywords: ["h1", "магия", "magic", "пересечение", "overlap", "trailers"],
+  },
+  {
+    id: "trailers-cookies",
+    category: "awg31",
+    question: {
+      ru: "Что делают RandomTrailers и DisableCookies и чем за это платят?",
+      en: "What do RandomTrailers and DisableCookies do, and what do they cost?",
+    },
+    answer: {
+      ru: "**Оба прячут поведение соединения, а не отдельные поля.**\n\n## RandomTrailers\n\nК каждому пакету дописывается случайный хвост. Приёмная сторона вместо точного равенства длины проверяет «не короче», так что распределение длин размывается. Цена прямая: каждый байт хвоста это трафик и батарея.\n\n## DisableCookies\n\nCookie-ответы не отправляются вовсе: убирается cookie-поведение WireGuard, которое при активном зондировании работает дополнительным отпечатком. Цена: без cookie хуже keepalive за NAT при нагрузке.\n\nОба понимает только 3.1. Устройство 3.0 отвергнет эти ключи при чтении конфига.",
+      en: "**Both hide connection behaviour rather than single fields.**\n\n## RandomTrailers\n\nA random tail is appended to every packet. The receiving side checks \"not shorter\" instead of an exact length match, so the length distribution smears. The price is direct: every tail byte is traffic and battery.\n\n## DisableCookies\n\nCookie replies are never sent: this removes the WireGuard cookie behaviour that serves as an extra fingerprint under active probing. The price: without cookies, keepalive behind NAT degrades under load.\n\nOnly 3.1 understands either. A 3.0 device refuses these keys when reading the config.",
+    },
+    keywords: ["trailers", "cookies", "хвост", "tail", "3.1", "keepalive", "nat"],
+  },
+  {
+    id: "narrow-h",
+    category: "awg31",
+    question: {
+      ru: "Когда включать «Уменьшить разброс H1–H4»?",
+      en: "When should I switch on “Reduce H1–H4 spread”?",
+    },
+    answer: {
+      ru: "Только на 3.1 с включённой защитой и только если видите проблему. Широкие H1–H4 (до 100M) заставляют amneziawg-go 3.1 тратить заметно больше CPU на классификацию пакетов, а при включённой HeaderProtection дают misclassify из-за пересечения интервалов.\n\n## Что делает переключатель\n\nСужает каждый диапазон до ~20k (H4 ~30k). Баг уходит ценой чуть меньшей обфускации заголовков: чем уже диапазон, тем чаще значения повторяются.\n\n## Когда не включать\n\nНа остальных версиях и без защиты переключатель не показывается, и это правильно: там широкие диапазоны только на пользу. Выкл. по умолчанию.",
+      en: "Only on 3.1 with protection on, and only if you see the problem. Wide H1–H4 (up to 100M) make amneziawg-go 3.1 spend visibly more CPU classifying packets, and with HeaderProtection on they misclassify on overlapping intervals.\n\n## What the switch does\n\nIt narrows every range to ~20k (H4 ~30k). The bug goes away at the cost of slightly weaker header obfuscation: the narrower the range, the more often values repeat.\n\n## When to leave it off\n\nOn other versions and without protection the switch is not shown, and rightly so: wide ranges only help there. Off by default.",
+    },
+    keywords: ["narrow", "узкие", "cpu", "разброс", "spread", "misclassify", "h1"],
+  },
+  {
     id: "awg3-support",
     category: "awg3",
     question: {
@@ -759,8 +827,8 @@ export const FAQ_ENTRIES: FaqEntry[] = [
       en: "Which clients already support the 3.0 parameters?",
     },
     answer: {
-      ru: "**Поддержка на стороне ядра появилась в `amneziawg-go` начиная с версии 3.0.1.**\n\nС пользовательскими утилитами ситуация сложнее: разбор новых ключей в `.conf` на момент написания живёт в ветке feat/awg3 репозитория `amneziawg-tools`, а не в master. **Практический вывод: прежде чем разворачивать конфиг 3.0, убедитесь, что и клиент, и сервер собраны с поддержкой этих параметров.** Если сомневаетесь — 2.0 остаётся полностью рабочим вариантом, и генератор его никуда не убирал.",
-      en: "**Kernel-side support landed in `amneziawg-go` from version 3.0.1.**\n\nThe userspace tooling is messier: at the time of writing, parsing the new `.conf` keys lives on the feat/awg3 branch of `amneziawg-tools` rather than on master. **The practical takeaway is to confirm that both your client and your server are built with these parameters before deploying a 3.0 config.** If in doubt, 2.0 remains fully functional and the generator still offers it.",
+      ru: "**Поддержка на стороне ядра появилась в `amneziawg-go` начиная с версии 3.0.1.**\n\nРазбор новых ключей в `.conf` давно в master `amneziawg-tools`, а флаги 3.1 понимает линия 3.1 и там, и в `amneziawg-go`, и в модуле ядра. **Практический вывод: прежде чем разворачивать конфиг 3.0, убедитесь, что и клиент, и сервер собраны с поддержкой этих параметров.** Если сомневаетесь — 2.0 остаётся полностью рабочим вариантом, и генератор его никуда не убирал.",
+      en: "**Kernel-side support landed in `amneziawg-go` from version 3.0.1.**\n\nParsing the new `.conf` keys has long been on `amneziawg-tools` master, and the 3.1 line understands the 3.1 flags in the tools, in `amneziawg-go` and in the kernel module alike. **The practical takeaway is to confirm that both your client and your server are built with these parameters before deploying a 3.0 config.** If in doubt, 2.0 remains fully functional and the generator still offers it.",
     },
     keywords: ["поддержка", "support", "amneziawg-go", "tools", "клиенты"],
   },
@@ -778,6 +846,19 @@ export const FAQ_ENTRIES: FaqEntry[] = [
       en: "There is no universal answer — **pick whatever looks unremarkable on your network.** QUIC Initial and HTTP/3 work well where browser traffic over UDP/443 is routine, which covers most home and mobile networks.\n\nDNS Query suits networks that filter UDP aggressively but leave port 53 open. TLS Client Hello fits when UDP is rare on your network and a TCP-shaped signature is the more plausible cover. **If you have no idea where to start, QUIC Initial is a reasonable default.**",
     },
     keywords: ["профиль", "profile", "quic", "tls", "dns", "мимикрия"],
+  },
+  {
+    id: "same-s",
+    category: "awg31",
+    question: {
+      ru: "В рекомендациях советуют одинаковые S1–S4. Включить?",
+      en: "The recommendations advise identical S1–S4. Should I switch it on?",
+    },
+    answer: {
+      ru: "**Можно, но мы не советуем, и вот почему.** Одинаковые размеры легальны: типы пакетов всё равно различаются длинами, устройство такой конфиг принимает. Проблема не в устройстве, а в соседях: **одно значение у всех, кто последовал совету, это общий отпечаток**, называющий рекомендацию, а не вас.\n\nСлучайные разные S стоят ничего и такого следа не оставляют. Переключатель «Одинаковые S1–S4» в генераторе существует для тех, кому нужен ровно советуемый вид. Он показывается только на 3.1 при включённых защите и случайных хвостах: хвост дописывает случайные байты к каждому пакету и размывает длины, без него одинаковые S светятся сильнее.\n\nДаже в этом режиме значение тянется случайно из 12–32, а не берётся константой.",
+      en: "**You can, but we advise against it, and here is why.** Identical sizes are legal: packet types still differ in length, and the device accepts such a config. The problem is not the device but the neighbours: **one value shared by everyone who followed the advice is a common fingerprint**, naming the recommendation rather than you.\n\nRandom distinct S values cost nothing and leave no such trace. The \"Identical S1–S4\" switch in the generator exists for whoever wants exactly the advised look. It shows only on 3.1 with protection and random trailers on: the tail appends random bytes to every packet and smears the lengths, while without it identical S values stand out more.\n\nEven in this mode the value is drawn at random from 12–32 rather than taken as a constant.",
+    },
+    keywords: ["одинаковые", "identical", "same", "рекомендации", "recommendations", "s1"],
   },
   {
     id: "router-mode",
@@ -815,10 +896,23 @@ export const FAQ_ENTRIES: FaqEntry[] = [
       en: "The config is generated but the tunnel will not come up. Where do I start?",
     },
     answer: {
-      ru: "**Сначала проверьте симметрию, но именно тех параметров, которые обязаны совпадать**: `H1–H4`, `S1–S4` и `HeaderProtectionKey`. **Это причина большинства случаев.** `Jc`, `Jmin`, `Jmax`, `I1–I5` и `ContentPaddingAddition` сюда не относятся — их расхождение подключению не мешает, и искать ошибку там не нужно.\n\nЗатем убедитесь, что версия совпадает с тем, что реально поддерживает ваш клиент: конфиг 2.0 на клиенте, знающем только 1.0, не заработает, а параметры 3.0 требуют `amneziawg-go` 3.0.1 или новее. Если с этим порядок, попробуйте уменьшить `Jc` до 2–3: некоторые провайдеры режут длинные очереди UDP-пакетов на старте. Наконец, проверьте, что H-диапазоны не пересекаются — генератор это гарантирует, но если конфиг правился руками, пересечение легко внести.",
-      en: "**Start with symmetry, but only of the parameters that actually require it**: `H1–H4`, `S1–S4` and `HeaderProtectionKey`. **That accounts for most cases.** `Jc`, `Jmin`, `Jmax`, `I1–I5` and `ContentPaddingAddition` are not in that group — a mismatch there does not prevent a connection, so there is no point looking for the fault in them.\n\nNext confirm the version matches what your client actually supports: a 2.0 config will not work against a client that only knows 1.0, and the 3.0 parameters need `amneziawg-go` 3.0.1 or newer. If that all checks out, try lowering `Jc` to 2 or 3, since some providers throttle long UDP bursts at connection start. Finally verify the H ranges do not overlap — the generator guarantees this, but a hand-edited config can easily reintroduce it.",
+      ru: "**Сначала проверьте симметрию, но именно тех параметров, которые обязаны совпадать**: `H1–H4`, `S1–S4` и `HeaderProtectionKey`. **Это причина большинства случаев.** `Jc`, `Jmin`, `Jmax`, `I1–I5` и `ContentPaddingAddition` сюда не относятся — их расхождение подключению не мешает, и искать ошибку там не нужно.\n\nЗатем убедитесь, что версия совпадает с тем, что реально поддерживает ваш клиент: конфиг 2.0 на клиенте, знающем только 1.0, не заработает, а параметры 3.0 требуют `amneziawg-go` 3.0.1 или новее. Если с этим порядок, попробуйте уменьшить `Jc` до 2–3: некоторые провайдеры режут длинные очереди UDP-пакетов на старте. Наконец, проверьте, что H-диапазоны не пересекаются — генератор это гарантирует, но если конфиг правился руками, пересечение легко внести.\n\nОтдельный случай — интерфейс не создаётся вообще, а `awg setconf` отвечает `Invalid argument`. Это устройство отвергло конфиг целиком, смотреть надо в конфиг, а не в сеть. Чаще всего это S ниже 12 при включённой защите: подробности в ответе про ошибку Invalid argument.",
+      en: "**Start with symmetry, but only of the parameters that actually require it**: `H1–H4`, `S1–S4` and `HeaderProtectionKey`. **That accounts for most cases.** `Jc`, `Jmin`, `Jmax`, `I1–I5` and `ContentPaddingAddition` are not in that group — a mismatch there does not prevent a connection, so there is no point looking for the fault in them.\n\nNext confirm the version matches what your client actually supports: a 2.0 config will not work against a client that only knows 1.0, and the 3.0 parameters need `amneziawg-go` 3.0.1 or newer. If that all checks out, try lowering `Jc` to 2 or 3, since some providers throttle long UDP bursts at connection start. Finally verify the H ranges do not overlap — the generator guarantees this, but a hand-edited config can easily reintroduce it.\n\nA separate case: the interface is never created and `awg setconf` answers `Invalid argument`. That is the device refusing the config outright, so look at the config, not the network. Usually it is an S under 12 with header protection on; see the Invalid argument answer for the full check.",
     },
     keywords: ["не работает", "not working", "handshake", "отладка", "debug"],
+  },
+  {
+    id: "setconf-invalid-argument",
+    category: "troubleshooting",
+    question: {
+      ru: "`awg setconf` отвечает Invalid argument. Что проверять?",
+      en: "`awg setconf` answers Invalid argument. What do I check?",
+    },
+    answer: {
+      ru: "**Это устройство отвергло конфиг целиком: интерфейс не создан, смотреть надо в конфиг, а не в сеть.** Пинг и порт здесь ни при чём.\n\n## Первое: S против ключа\n\nЧаще всего это S ниже 12 при включённой защите заголовков. Сверьте: есть ли в конфиге `HeaderProtectionKey` (или включён ли тумблер защиты в приложении, если ключом управляет оно), и все ли S1–S4 не ниже 12. Граница именно 12: оно принимается, 11 нет.\n\n## Второе: пересечение H\n\n`H1–H4` не должны пересекаться между собой, устройство проверяет и это.\n\n## Третье: чужие ключи версии\n\nКлючи 3.1 (`RandomTrailers`, `DisableCookies`) на устройстве 3.0 отвергаются при чтении. Версия конфига и устройства должны совпадать.\n\nПроверка вставленного конфига в генераторе находит все три случая до копирования на устройство.",
+      en: "**The device refused the config outright: no interface was created, so look at the config, not the network.** Ping and ports have nothing to do with it.\n\n## First: S against the key\n\nUsually it is an S under 12 with header protection on. Check: is there a `HeaderProtectionKey` in the config (or is the in-app protection toggle on, where the app manages the key), and are all of S1–S4 at 12 or above. The bound is exactly 12: it is accepted, 11 is not.\n\n## Second: H overlap\n\n`H1–H4` must not overlap each other; the device checks that too.\n\n## Third: keys from another version\n\nThe 3.1 keys (`RandomTrailers`, `DisableCookies`) are refused by a 3.0 device when reading. Config and device versions must match.\n\nThe pasted-config check in the generator catches all three cases before anything is copied onto the device.",
+    },
+    keywords: ["invalid argument", "setconf", "отклоняет", "rejected", "einval", "не создаётся"],
   },
   {
     id: "slow-connect",
@@ -885,6 +979,19 @@ export const FAQ_ENTRIES: FaqEntry[] = [
       en: "**It draws what a connection looks like with your parameters**: first the `I1–I5` CPS chain, then the junk train of `Jc` packets sized between `Jmin` and `Jmax`, then the handshake, with each packet carrying its own H and S.\n\n*It is a model, not a capture*: the values come from your config, but a real network adds latency, retransmits and fragmentation that are not shown here. **The point is to see the orders of magnitude** — how many packets go out before the first useful one, and how much each one swells — and to understand where the connection delay comes from when `Jc` is set high.",
     },
     keywords: ["симулятор", "simulator", "пакеты", "handshake", "визуализация"],
+  },
+  {
+    id: "amneziavpn-app-settings",
+    category: "clients",
+    question: {
+      ru: "Что за поля на экране AmneziaWG в приложении Amnezia VPN?",
+      en: "What are the fields on the AmneziaWG screen in the Amnezia VPN app?",
+    },
+    answer: {
+      ru: "Экран настроек протокола в приложении это те же параметры, что генерирует этот инструмент, только руками. По порядку сверху вниз.\n\n## Сеть и мусор\n\nАдрес подсети, порт, затем junk-поезд: количество пакетов, минимальный и максимальный размер.\n\n## Размеры и заголовки\n\nПаддинги типов пакетов и магические заголовки. Значения H задаются диапазонами через дефис. Помните про порог: при включённой защите любой S ниже 12 устройство отвергнет.\n\n## Цепочка и защита\n\nСигнатурные пакеты, галка HeaderProtectionKey, добавочный паддинг. Ключ приложение генерирует само, в конфиге его нет.\n\n## Таймеры и поведение\n\nПять диапазонов времён, затем переключатели случайных хвостов и отказа от cookie. Внизу кнопка Save: без неё правки не применятся.",
+      en: "The in-app protocol settings screen holds the same parameters this tool generates, only by hand. Top to bottom.\n\n## Network and junk\n\nThe subnet address, the port, then the junk train: packet count, minimum and maximum size.\n\n## Sizes and headers\n\nPer-type packet paddings and magic headers. H values are ranges with a dash. Mind the floor: with protection on, the device rejects any S under 12.\n\n## Chain and protection\n\nThe signature packets, the HeaderProtectionKey checkbox, the extra padding. The app generates the key itself; it is not in the config.\n\n## Timers and behaviour\n\nFive time ranges, then the random-trails and no-cookies switches. The Save button at the bottom applies the edits: without it nothing sticks.",
+    },
+    keywords: ["amnezia vpn", "приложение", "app", "настройки", "settings", "экран", "screen", "save"],
   },
   {
     id: "same-params-many-clients",
