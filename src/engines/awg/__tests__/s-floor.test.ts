@@ -100,4 +100,26 @@ describe("AWG 3.0 S-padding floor", () => {
       expect(92 + s2!).not.toBe(64 + s3!);
     }
   });
+
+  it("leaves small paddings alone without the key: the floor is gated, not global", () => {
+    // Without header protection no implementation enforces a minimum —
+    // pre-3.0 accepts any uint16 — so flooring every config would throw away
+    // legal variety to fix a case that is not broken. S3 draws from 1–64,
+    // so a global floor would show up here as its absence.
+    const rows: number[][] = [];
+    for (let i = 0; i < 200; i++) {
+      const cfg = genCfg(
+        seeded({
+          version: "3.0",
+          clientId: "amneziawg-windows",
+          useHeaderProtection: false,
+          iterCount: i,
+        }),
+      );
+      rows.push([cfg.s1, cfg.s2, cfg.s3, cfg.s4]);
+    }
+    expect(rows.flat().some((s) => s < MIN_S_WITH_HEADER_PROTECTION)).toBe(
+      true,
+    );
+  });
 });

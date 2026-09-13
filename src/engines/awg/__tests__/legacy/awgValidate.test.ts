@@ -87,3 +87,100 @@ describe("validateAwgParams", () => {
     );
   });
 });
+
+describe("validateAwgParams S-padding floor with HeaderProtectionKey", () => {
+  // A 44-char base64 key: presence is what the rule reads, not validity.
+  const HPK = "HeaderProtectionKey";
+  const KEY = "c2VjcmV0c2VjcmV0c2VjcmV0c2VjcmV0c2VjcmV0c2U=";
+  const withKey = (p: Record<string, string | number>) => ({
+    ...p,
+    [HPK]: KEY,
+  });
+
+  it("flags the reported config: S3 = 3 with the key set", () => {
+    const f = findings(withKey({ S1: 121, S2: 98, S3: 3, S4: 30 }));
+    const hit = f.filter((x) => x.code === "awg3.s_below_nonce");
+    expect(hit.map((x) => x.field)).toEqual(["S3"]);
+    expect(hit[0]!.level).toBe("error");
+  });
+
+  it("flags each of S1-S4 below 12 when the key is set", () => {
+    for (const key of ["S1", "S2", "S3", "S4"] as const) {
+      const f = findings(withKey({ [key]: 5 }));
+      expect(
+        f.some(
+          (x) =>
+            x.field === key &&
+            x.level === "error" &&
+            x.code === "awg3.s_below_nonce",
+        ),
+      ).toBe(true);
+    }
+  });
+
+  it("rejects 11 and accepts 12: the bound is at least, not more than", () => {
+    expect(
+      findings(withKey({ S3: 11 })).some(
+        (x) => x.code === "awg3.s_below_nonce",
+      ),
+    ).toBe(true);
+    expect(
+      findings(withKey({ S1: 12, S2: 12, S3: 12, S4: 12 })).some(
+        (x) => x.code === "awg3.s_below_nonce",
+      ),
+    ).toBe(false);
+  });
+
+  it("reads a small S as clean without the key: no minimum pre-3.0 or keyless", () => {
+    expect(
+      findings({ S1: 121, S2: 98, S3: 3, S4: 30 }).some(
+        (x) => x.code === "awg3.s_below_nonce",
+      ),
+    ).toBe(false);
+  });
+
+  it("treats an empty key as absent", () => {
+    expect(
+      findings({ S3: 3, [HPK]: "" }).some(
+        (x) => x.code === "awg3.s_below_nonce",
+      ),
+    ).toBe(false);
+  });
+
+  it("reports S4 = 0 with the key as the nonce error, not the zero warning", () => {
+    const f = findings(withKey({ S4: 0 }));
+    expect(
+      f.some(
+        (x) =>
+          x.field === "S4" &&
+          x.level === "error" &&
+          x.code === "awg3.s_below_nonce",
+      ),
+    ).toBe(true);
+    expect(f.some((x) => x.code === "awg.s4_zero")).toBe(false);
+  });
+
+  it("keeps the zero warning without the key", () => {
+    expect(
+      findings({ S4: 0 }).some(
+        (x) => x.field === "S4" && x.code === "awg.s4_zero",
+      ),
+    ).toBe(true);
+  });
+
+  it("skips missing S fields even with the key set", () => {
+    expect(
+      findings(withKey({ S1: 50 })).some(
+        (x) => x.code === "awg3.s_below_nonce",
+      ),
+    ).toBe(false);
+  });
+
+  it("leaves pre-3.0 shapes untouched: small S without the key is fully clean", () => {
+    // 1.0 has S1/S2 only, 2.0 adds S3/S4 — neither version knows the key,
+    // so the floor must not even look at them. Empty means no error, no
+    // warning, nothing: the fix does not exist for these configs.
+    expect(findings({ S1: 5, S2: 70 })).toEqual([]);
+    expect(findings({ S1: 5, S2: 70, S3: 3, S4: 30 })).toEqual([]);
+  });
+});

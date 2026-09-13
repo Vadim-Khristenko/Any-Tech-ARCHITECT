@@ -39,6 +39,9 @@ const AWG_FIELDS = [
   "I3",
   "I4",
   "I5",
+  // Not obfuscation itself, but the S-padding floor in `rules.ts` applies
+  // only when the key is present — without it a small S reads as clean.
+  "HeaderProtectionKey",
 ] as const;
 
 /**

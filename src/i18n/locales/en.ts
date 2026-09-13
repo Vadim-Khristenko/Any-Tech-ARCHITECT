@@ -784,7 +784,7 @@ export const en: Catalog = {
   "find.awg3.hpk_format":
     "HeaderProtectionKey must be {bytes} bytes in base64 ({chars} characters).",
   "find.awg3.s_below_nonce":
-    "{name}={value} < {min}: with HeaderProtectionKey the cipher nonce is taken from the padding, and shorter padding quietly weakens the encryption.",
+    "{name}={value} < {min}: with HeaderProtectionKey the first 12 padding bytes are the cipher nonce, and the device rejects such a config with Invalid argument, so the interface never comes up.",
   "find.awg3.cpa_format":
     "ContentPaddingAddition must be a number or a min-max range.",
   "find.awg3.cpa_zero":

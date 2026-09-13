@@ -65,4 +65,25 @@ describe("healthCheckConf", () => {
     const f = healthCheckConf(makeConf("S4 = 33"), "amneziawg-windows");
     expect(f.some((x) => x.field === "S4" && x.level === "error")).toBe(true);
   });
+
+  it("flags S3 = 3 as an error when HeaderProtectionKey is present", () => {
+    const f = healthCheckConf(
+      makeConf(
+        "S1 = 121\nS2 = 98\nS3 = 3\nS4 = 30\nHeaderProtectionKey = c2VjcmV0c2VjcmV0c2VjcmV0c2VjcmV0c2VjcmV0c2U=",
+      ),
+    );
+    expect(
+      f.some(
+        (x) =>
+          x.field === "S3" &&
+          x.level === "error" &&
+          x.code === "awg3.s_below_nonce",
+      ),
+    ).toBe(true);
+  });
+
+  it("reads the same S3 = 3 as clean without the key", () => {
+    const f = healthCheckConf(makeConf("S1 = 121\nS2 = 98\nS3 = 3\nS4 = 30"));
+    expect(f.some((x) => x.code === "awg3.s_below_nonce")).toBe(false);
+  });
 });

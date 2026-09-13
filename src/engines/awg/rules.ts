@@ -21,6 +21,7 @@
 import { error, warn } from "@/shared/findings";
 import type { Finding } from "@/types/findings";
 import { parseRangeValue } from "@/shared/validation";
+import { MIN_S_WITH_HEADER_PROTECTION } from "./generator/awg3";
 import {
   INIT_TO_RESPONSE,
   INIT_TO_COOKIE,
@@ -29,7 +30,12 @@ import {
 
 /* ── Input ────────────────────────────────────────────────────────────────── */
 
-/** A loose field map: what the editor has, and what a parsed config becomes. */
+/**
+ * A loose field map: what the editor has, and what a parsed config becomes.
+ *
+ * Besides the Jc/S/H/I fields, `checkSizes` reads `HeaderProtectionKey`:
+ * its presence is the 3.x gate for the S-padding floor (see the rule).
+ */
 export interface AwgParamInput {
   [key: string]: string | number | undefined;
 }
@@ -163,6 +169,53 @@ function checkSizes(p: AwgParamInput, options: AwgRuleOptions): Finding[] {
   const s3 = num(p.S3);
   const s4 = num(p.S4);
 
+  /*
+   * AWG 3.0/3.1 with header protection: the ChaCha20 nonce is read from the
+   * first 12 bytes of every S-padding (amneziawg-go `device/uapi.go`, kernel
+   * module `src/netlink.c`), so each of S1–S4 below 12 makes the device
+   * refuse the config with EINVAL and the interface never comes up.
+   *
+   * The gate is the key, not the version, and that is exactly "3.x only":
+   * HeaderProtectionKey exists since 3.0 (`params.ts`, `since: "3.0"`), and
+   * neither caller here can supply a reliable version anyway — a pasted
+   * `.conf` carries no version marker, an editor buffer is still being
+   * typed. A config carrying the key is 3.x by construction (older tooling
+   * rejects the unknown key at parse, before S values ever matter), and a
+   * config without it has no minimum on any version: pre-3.0 accepts any
+   * uint16, and keyless 3.x accepts it too. So 1.0–2.0 configs pass through
+   * this rule untouched — there is nothing to version-branch on.
+   *
+   * The bound is “at least 12”, not “more than 12”: both implementations
+   * compare `value < 12`, and 12 itself is accepted.
+   */
+  const rawHpk = p.HeaderProtectionKey;
+  const hasHpk =
+    typeof rawHpk === "number"
+      ? true
+      : typeof rawHpk === "string" && rawHpk.trim() !== "";
+  // S4 = 0 with the key set is the nonce error below, not the zero warning.
+  let s4NonceError = false;
+  if (hasHpk) {
+    const sizes: [string, number | null][] = [
+      ["S1", s1],
+      ["S2", s2],
+      ["S3", s3],
+      ["S4", s4],
+    ];
+    for (const [key, value] of sizes) {
+      if (value !== null && value < MIN_S_WITH_HEADER_PROTECTION) {
+        found.push(
+          error(key, "awg3.s_below_nonce", {
+            name: key,
+            value,
+            min: MIN_S_WITH_HEADER_PROTECTION,
+          }),
+        );
+        if (key === "S4") s4NonceError = true;
+      }
+    }
+  }
+
   const ceilings: [string, number | null, number][] = [
     ["S1", s1, S1_MAX],
     ["S2", s2, S2_MAX],
@@ -178,7 +231,7 @@ function checkSizes(p: AwgParamInput, options: AwgRuleOptions): Finding[] {
     if (s4 > S4_MAX) {
       found.push(error("S4", "awg.s4_max", { s4, max: S4_MAX }));
     }
-    if (s4 === 0) {
+    if (s4 === 0 && !s4NonceError) {
       found.push(warn("S4", "awg.s4_zero"));
     }
     const client = options.client;

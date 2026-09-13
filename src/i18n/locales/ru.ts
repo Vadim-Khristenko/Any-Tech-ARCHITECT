@@ -791,7 +791,7 @@ export const ru = {
   "find.awg3.hpk_format":
     "HeaderProtectionKey должен быть {bytes} байт в base64 ({chars} символа).",
   "find.awg3.s_below_nonce":
-    "{name}={value} < {min}: при HeaderProtectionKey из паддинга берётся nonce шифра, и более короткий паддинг молча ослабляет шифрование.",
+    "{name}={value} < {min}: при HeaderProtectionKey первые 12 байт паддинга это nonce шифра, и устройство отвергает такой конфиг с ошибкой Invalid argument, интерфейс не поднимается.",
   "find.awg3.cpa_format":
     "ContentPaddingAddition должен быть числом или диапазоном «мин-макс».",
   "find.awg3.cpa_zero":
