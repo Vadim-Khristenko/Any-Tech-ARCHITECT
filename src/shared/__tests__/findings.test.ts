@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 
 import {
   error,
@@ -80,7 +80,17 @@ describe("resolving to text", () => {
   it("falls back to the bare code rather than to nothing", () => {
     // A visible identifier is a bug report; an empty string is a rule that
     // silently stopped being reported.
-    expect(resolveFinding(error("x", "no.such.code"))).toBe("no.such.code");
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      expect(resolveFinding(error("x", "no.such.code"))).toBe("no.such.code");
+      // The fallback stays loud in dev: a missing message is a bug, and the
+      // test exercises that path on purpose, so it owns the noise it makes.
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("no.such.code"),
+      );
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 
   it("describes a whole list worst-first", () => {
