@@ -20,6 +20,7 @@ export type MimicProfile =
   | "tls_to_quic"
   | "quic_burst"
   | "dns_query"
+  | "stun"
   | "random";
 
 /**

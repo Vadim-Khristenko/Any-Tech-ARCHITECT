@@ -22,6 +22,7 @@ export const PROFILE_LABELS: Record<MimicProfile, string> = {
   tls_to_quic: "TLS → QUIC",
   quic_burst: "QUIC Burst",
   dns_query: "DNS Query",
+  stun: "STUN / TURN",
   random: "Random",
 };
 

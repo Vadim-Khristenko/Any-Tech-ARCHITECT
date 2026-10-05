@@ -13,3 +13,4 @@ export { mkDTLS12 as mkDTLS } from "./dtls12";
 export { mkSIP } from "./sip";
 export { mkDNS } from "./dns";
 export { mkEntropy } from "./entropy";
+export { mkSTUN, STUN_FLOW, STUN_VARIANTS, type StunVariant } from "./stun";

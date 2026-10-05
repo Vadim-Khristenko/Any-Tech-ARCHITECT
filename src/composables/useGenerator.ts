@@ -616,6 +616,7 @@ export function useGenerator() {
     dtls_1_3: "dtls",
     sip: "sip",
     dns_query: "dns",
+    stun: "stun",
     wireguard_noise: "none",
     random: "none",
   };

@@ -187,6 +187,7 @@ const PROFILES = [
     { id: "tls_to_quic", label: "TLS → QUIC", spec: "Alt-Svc" },
     { id: "quic_burst", label: "QUIC Burst", spec: "multi-packet" },
     { id: "dns_query", label: "DNS Query", spec: "RFC 1035" },
+    { id: "stun", label: "STUN / TURN", spec: "RFC 8489" },
     { id: "random", label: t("gen.profile.random"), spec: "" },
 ] as const;
 

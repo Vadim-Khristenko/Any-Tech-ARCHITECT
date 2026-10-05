@@ -80,10 +80,10 @@ const PROFILES: { name: string; spec: string; engine: string; soon?: boolean }[]
     { name: "DTLS 1.2 ClientHello", spec: "RFC 6347", engine: "AmneziaWG" },
     { name: "DTLS 1.3 ClientHello", spec: "RFC 9147", engine: "AmneziaWG" },
     { name: "DNS query", spec: "RFC 1035", engine: "AmneziaWG" },
-    { name: "DNS-over-HTTPS", spec: "RFC 8484", engine: "AmneziaWG" },
-    { name: "SIP INVITE", spec: "RFC 3261", engine: "AmneziaWG" },
-    { name: "STUN binding", spec: "RFC 5389", engine: "AmneziaWG", soon: true },
-    { name: "NTP client", spec: "RFC 5905", engine: "AmneziaWG" },
+    { name: "HTTP/3", spec: "RFC 9114", engine: "AmneziaWG" },
+    { name: "SIP REGISTER", spec: "RFC 3261", engine: "AmneziaWG" },
+    { name: "STUN / TURN", spec: "RFC 8489", engine: "AmneziaWG" },
+    { name: "QUIC 0-RTT", spec: "RFC 9001", engine: "AmneziaWG" },
     { name: "REALITY", spec: "TLS 1.3", engine: "XRay" },
     { name: "XHTTP stream-up", spec: "HTTP/2", engine: "XRay" },
     { name: "XHTTP packet-up", spec: "HTTP/3", engine: "XRay" },
@@ -349,7 +349,7 @@ const MORE = [
 
         <!-- ══ The dial ═════════════════════════════════════════════════ -->
         <!--
-            The one place the page plays. Still made of facts: eleven profiles
+            The one place the page plays. Still made of facts: twelve profiles
             across both engines, each with the document it was built from.
         -->
         <section class="landing-section">

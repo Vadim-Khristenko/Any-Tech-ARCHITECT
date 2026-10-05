@@ -36,6 +36,8 @@ import {
   mkSIP,
   mkDNS,
   mkEntropy,
+  mkSTUN,
+  STUN_FLOW,
 } from "./profiles";
 import { validateGeneratedConfig } from "./validators";
 import { genAwg3, MIN_S_WITH_HEADER_PROTECTION } from "./awg3";
@@ -56,7 +58,8 @@ export * from "./render";
 export * from "./summary";
 export * from "./chainBudget";
 
-export { mkQUICi, mkQUIC0, mkHTTP3, mkTLS, mkNoise, mkDTLS12, mkDTLS13, mkSIP, mkDNS, mkEntropy };
+export { mkQUICi, mkQUIC0, mkHTTP3, mkTLS, mkNoise, mkDTLS12, mkDTLS13, mkSIP, mkDNS, mkEntropy, mkSTUN };
+export { STUN_FLOW, STUN_VARIANTS, type StunVariant } from "./profiles";
 /** @deprecated pre-4.2.0 name for mkDTLS12. */
 export { mkDTLS12 as mkDTLS };
 
@@ -96,6 +99,7 @@ export function genI1(
     http3: mkHTTP3,
     sip: mkSIP,
     dns_query: mkDNS,
+    stun: mkSTUN,
     tls_to_quic: mkTLS,
     quic_burst: mkQUICi,
   };
@@ -301,6 +305,17 @@ function buildChain(
       entropy(3),
       entropy(4),
     ];
+  }
+  if (profile === "stun") {
+    // The flow a WebRTC client walks through, one packet per slot. Alone in
+    // I1 it is the authenticated Allocate, the one that names a host.
+    return [0, 1, 2, 3, 4].map((slot) =>
+      input.mimicAll
+        ? mkSTUN(input, iv, opts, STUN_FLOW[slot])
+        : slot === 0
+          ? mkSTUN(input, iv, opts)
+          : entropy(slot),
+    );
   }
   if (profile === "dns_query") {
     return [0, 1, 2, 3, 4].map((slot) =>
