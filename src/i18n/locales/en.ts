@@ -317,6 +317,8 @@ export const en: Catalog = {
     "The only client outside Amnezia's own ecosystem that reaches AWG 3.0, and only with version: 3 in the outbound options. Below that it runs the older implementation, without header protection.",
   "client.note.opnsenseBounds":
     "The plugin bounds Jc to 1-128 and starts Jmin and Jmax at 1 rather than 0. It takes H values as either a number or a range.",
+  "client.note.wgEasyHCap":
+    "The panel accepts H1-H4 only up to 2,147,483,647, half of what the protocol allows, and will not save an interface with anything higher. Ranges here are laid out under that cap. Underneath it is awg-quick: the kernel module when the host has it, amneziawg-go when it does not, so only the tags both understand are used.",
   "client.note.engineUnverified":
     "What this client uses to read the I1–I5 chain could not be established from source. It keeps the tags both known engines understand; <c> is withheld, because an unfamiliar tag rejects not itself but the whole packet.",
   "gen.client.releaseCurrent": "Current client version",

@@ -147,11 +147,29 @@ export const ENGINE_UNVERIFIED: AwgEngine = {
   verified: false,
 };
 
+/**
+ * awg-quick on Linux, which picks the engine at run time.
+ *
+ * amneziawg-tools `src/wg-quick/linux.bash`, `add_if`: `ip link add ... type
+ * amneziawg` first, and only when the kernel module is missing does it start
+ * the userspace binary. A container image that ships both (wg-easy builds
+ * amneziawg-go and amneziawg-tools into its own) can end up on either, and the
+ * same config has to work on both. So the tag set is the intersection, as for
+ * an unverified engine, but read from both sources rather than guessed.
+ */
+export const ENGINE_AWG_QUICK: AwgEngine = {
+  id: "awg-quick",
+  label: "awg-quick (kernel module, or amneziawg-go without it)",
+  tags: ["b", "t", "r", "rc", "rd"],
+  verified: true,
+};
+
 export const AWG_ENGINES: readonly AwgEngine[] = [
   ENGINE_GO,
   ENGINE_KMOD,
   ENGINE_KMOD_BSD,
   ENGINE_WIRESOCK,
+  ENGINE_AWG_QUICK,
   ENGINE_UNVERIFIED,
 ];
 

@@ -23,6 +23,7 @@ import {
   engineTagSupport,
   ENGINE_GO,
   ENGINE_KMOD,
+  ENGINE_AWG_QUICK,
   ENGINE_KMOD_BSD,
   ENGINE_UNVERIFIED,
   ENGINE_WIRESOCK,
@@ -214,6 +215,25 @@ export const AWG_CLIENT_PROFILES: readonly ClientProfile<AwgClientLimits>[] = [
     platforms: ["Keenetic OS 4.x"],
     limits: on(ENGINE_UNVERIFIED, { maxJc: 128 }),
     notes: ["client.note.keeneticI1", "client.note.engineUnverified"],
+  },
+  {
+    id: "wg-easy",
+    name: "wg-easy",
+    platforms: ["Docker", "Linux"],
+    /*
+     * A server panel rather than an app, and the first in this table: since
+     * 15.x it runs AmneziaWG through awg-quick, which takes the kernel module
+     * when the host has it and amneziawg-go when it does not (see
+     * ENGINE_AWG_QUICK).
+     *
+     * Its own validator is what sets the limits. `src/server/utils/types.ts`
+     * (wg-easy `d68b66e`, 30 sep 2026) bounds H1–H4 with `H_MIN = 5` and
+     * `H_MAX = 2 ** 31 - 1`, though the protocol and both engines take the full
+     * uint32: a range like `3600000000-3600040000` fails the check and the
+     * interface cannot be saved. `JcSchema` is 1–128. Issue #18.
+     */
+    limits: on(ENGINE_AWG_QUICK, { maxHValue: INT32_MAX, maxJc: 128 }),
+    notes: ["client.note.wgEasyHCap"],
   },
   {
     id: "awg-go-legacy",
