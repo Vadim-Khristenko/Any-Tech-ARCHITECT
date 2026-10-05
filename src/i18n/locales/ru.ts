@@ -86,7 +86,7 @@ export const ru = {
   "landing.fun.outside": "Снаружи это выглядит как",
   "landing.fun.spec": "собрано по",
   "landing.fun.count": "профилей на выбор",
-  "landing.fun.soon": "скоро — в 4.3.0",
+  "landing.fun.soon": "скоро",
 
   "landing.more.title": "Что ещё есть",
   "landing.more.mergekeys":
@@ -667,7 +667,7 @@ export const ru = {
   "about.chip.protocols.value": "AmneziaWG и XRay",
   "about.chip.protocols.label": "Два протокола",
   "about.chip.params.label": "Параметров генерации",
-  "about.chip.params.hint": "23 у AmneziaWG и 74 у XRay",
+  "about.chip.params.hint": "{awg} у AmneziaWG и {xray} у XRay",
   "about.chip.tests.label": "Автотестов",
   "about.chip.tests.hint": "Гоняются на каждой сборке",
   "about.chip.clients.label": "Поддерживаемых клиентов",

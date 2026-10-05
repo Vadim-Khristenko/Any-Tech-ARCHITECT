@@ -62,11 +62,9 @@ const LICENSE_URL = "https://opensource.org/license/mit";
 /* Counted, not typed: the text used to say "forty-four" and went stale. */
 const faqCount = FAQ_ENTRIES.length;
 
-const paramCount = computed(() => {
-    const awg = new Set(AWG_PARAMETERS.map((p) => p.key)).size;
-    const xray = new Set(XRAY_PARAMETERS.map((p) => p.key)).size;
-    return awg + xray;
-});
+const awgParamCount = new Set(AWG_PARAMETERS.map((p) => p.key)).size;
+const xrayParamCount = new Set(XRAY_PARAMETERS.map((p) => p.key)).size;
+const paramCount = computed(() => awgParamCount + xrayParamCount);
 
 const clientCount = AWG_CLIENT_PROFILES.length;
 
@@ -91,8 +89,9 @@ const dayCount = computed(() =>
  * 4.2.1: 1181 tests — floor holds.
  * 4.3.0: 1200 tests — floor holds.
  * 4.3.1: 1208 tests — floor holds.
+ * 4.4.0: 1268 tests, bump floor to 1200+.
  */
-const TEST_FLOOR = "1100+";
+const TEST_FLOOR = "1200+";
 
 const chips = computed(() => [
     {
@@ -106,7 +105,9 @@ const chips = computed(() => [
         id: "params",
         value: String(paramCount.value),
         label: t("about.chip.params.label"),
-        hint: t("about.chip.params.hint"),
+        // Counted like the total: the hint said 23 for AmneziaWG after 3.1
+        // had made it 25.
+        hint: t("about.chip.params.hint", { awg: awgParamCount, xray: xrayParamCount }),
         span: 1,
     },
     {

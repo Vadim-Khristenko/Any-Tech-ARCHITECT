@@ -86,7 +86,7 @@ export const en: Catalog = {
   "landing.fun.outside": "From outside it looks like",
   "landing.fun.spec": "built from",
   "landing.fun.count": "profiles to choose from",
-  "landing.fun.soon": "soon — in 4.3.0",
+  "landing.fun.soon": "soon",
 
   "landing.more.title": "What else is here",
   "landing.more.mergekeys":
@@ -665,7 +665,7 @@ export const en: Catalog = {
   "about.chip.protocols.value": "AmneziaWG and XRay",
   "about.chip.protocols.label": "Two protocols",
   "about.chip.params.label": "Generated parameters",
-  "about.chip.params.hint": "23 for AmneziaWG and 74 for XRay",
+  "about.chip.params.hint": "{awg} for AmneziaWG and {xray} for XRay",
   "about.chip.tests.label": "Automated tests",
   "about.chip.tests.hint": "Run on every build",
   "about.chip.clients.label": "Supported clients",
