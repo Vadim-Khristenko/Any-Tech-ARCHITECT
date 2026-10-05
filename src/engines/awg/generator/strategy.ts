@@ -84,6 +84,19 @@ export function headerZones(
   };
 }
 
+/**
+ * The widest range narrow mode draws.
+ *
+ * With RandomTrailers on, amneziawg-go stops checking the size of handshake
+ * messages and tests every transport packet against H1, H2 and H3 in turn
+ * (`device/receive.go`, `DeterminePacketTypeAndPadding`). The four bytes it
+ * reads are ciphertext, so a packet lands inside a range with probability
+ * width / 2^32 and is dropped as a handshake that fails its MAC. With all
+ * three at 50,000 that is one packet in about 28,600; at 20,000, one in
+ * 71,600.
+ */
+export const NARROW_WIDTH = 20_000;
+
 type HeaderKey = keyof ReturnType<typeof headerZones>;
 
 const isHeaderKey = (key: string): key is HeaderKey =>
@@ -107,10 +120,17 @@ const drawHeaderRange: Draw = (ctx, param) => {
   if (!isHeaderKey(param.key)) return 0;
   const zone = headerZones(ctx.client, ctx.extreme, ctx.narrowH)[param.key];
 
-  const headroom = zone.spread + RANGE_MAX_WIDTH;
+  /*
+   * Narrow mode narrows the window as well as where it starts. It used to
+   * move only the start, so every range stayed up to 50,000 wide whatever
+   * the switch said, and width is what costs packets under RandomTrailers
+   * (issue #14, `NARROW_WIDTH`).
+   */
+  const width = ctx.narrowH ? Math.min(RANGE_MAX_WIDTH, NARROW_WIDTH) : RANGE_MAX_WIDTH;
+  const headroom = zone.spread + width;
   const top = Math.max(zone.min, zone.max - headroom);
 
-  return rRange(rnd(zone.min, top), zone.spread, ctx.client.maxHValue);
+  return rRange(rnd(zone.min, top), zone.spread, ctx.client.maxHValue, width);
 };
 
 /**

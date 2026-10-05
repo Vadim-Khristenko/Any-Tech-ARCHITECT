@@ -222,11 +222,16 @@ export const AWG_PARAMETERS: readonly AWGParameter[] = [
     key: "RandomTrailers",
     group: "awg3",
     kind: "flag",
-    scope: "local",
+    // Shared, not local: the receiver reads its own flag to decide whether a
+    // handshake longer than expected is still a handshake
+    // (`DeterminePacketTypeAndPadding`), so trailers sent at a peer with the
+    // switch off make every handshake miss. wg-easy's `src/server/utils/awg.ts`
+    // lists it among the values both ends must share for the same reason.
+    scope: "shared",
     since: "3.1",
     field: "awg3.randomTrailers",
     note: "awgParam.RandomTrailers",
-    source: "device/uapi.go: random_trailers",
+    source: "device/uapi.go: random_trailers; device/receive.go",
   },
   {
     key: "DisableCookies",

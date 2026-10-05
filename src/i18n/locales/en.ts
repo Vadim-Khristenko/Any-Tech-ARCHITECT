@@ -141,8 +141,8 @@ export const en: Catalog = {
   "gen.zone.transport": "Transport protection",
   "gen.zone.transport.note": "Everything else on this page hides the handshake. This hides the established tunnel: headers are encrypted, transport packets are padded, and the timers stop being constants.",
   "gen.narrowH.label": "Reduce H1–H4 spread",
-  "gen.narrowH.detail": "Matters for 3.1: wide H1-H4 (up to 100M) make amneziawg-go spend visibly more CPU classifying packets, and with HeaderProtection on they misclassify on overlapping intervals. The switch narrows every range to ~20k (H4 ~30k) and fixes the bug at the cost of slightly weaker header obfuscation. Off by default.",
-  "gen.narrowH.help": "Wide H1–H4 in 3.1 is a bug: the Go client scans large header intervals, causing CPU spikes and rare handshake failures with HeaderProtection. Narrow ranges (~20k) remove the issue but make headers slightly less diverse.",
+  "gen.narrowH.detail": "Matters for 3.1 with RandomTrailers: amneziawg-go then tests every transport packet against H1-H3 and drops the ones whose bytes land inside a range, so each range costs its width out of 2^32 of the traffic. The generator keeps ranges under 50,000 anyway (one packet in about 28,600); the switch narrows them to 20,000 and keeps their starts close together, for one in about 71,600. Off by default.",
+  "gen.narrowH.help": "With RandomTrailers on, amneziawg-go drops transport packets that happen to fall inside H1-H3, in proportion to their width. Narrow ranges (up to 20k) make that loss negligible at the cost of slightly less varied headers.",
   "gen.junk.size": "Packet size",
   "gen.junk.sizeNote": "Jmin and Jmax come from here. On 3.0 the same choice sets the padding and timer spread.",
   "gen.junk.recommendedMark": "recommended",
@@ -948,6 +948,8 @@ export const en: Catalog = {
     "{a} and {b} produce the same packet length — two message types become indistinguishable by size, which is exactly what the padding is there to prevent.",
   "find.awg.h_overlap":
     "The {a} and {b} ranges overlap: the receiver cannot tell one message type from the other.",
+  "find.awg.h_width_loss":
+    "With RandomTrailers on, the receiver tests every transport packet against H1-H3 and drops the ones that happen to land inside. At these widths that is {percent}% of traffic, one packet in {oneIn}, and nothing logs or counts it. Narrow H1-H3 to a few tens of thousands; H4 is checked last and can stay as wide as you like.",
   "find.awg.h_reserved":
     "{key} falls in the 1–4 range, reserved for WireGuard's own message types.",
   "find.awg.h_over_client":
@@ -1247,7 +1249,7 @@ export const en: Catalog = {
   "awgParam.HeaderProtectionKey": "ChaCha20 key for encrypting headers. The nonce comes from the first 12 bytes of the S padding.",
   "awgParam.ContentPaddingAddition": "Random padding inside the encrypted payload. The receiver does not need to know it.",
   "awgParam.timer": "A protocol timer. Each side keeps its own.",
-"awgParam.RandomTrailers": "A random-length trailer appended to every outgoing packet. Needs no agreement with the other side.",
+"awgParam.RandomTrailers": "A random-length trailer appended to every outgoing packet. Both ends need it: a receiver with it off expects handshakes of an exact size and drops the longer ones. With it on, the width of H1-H3 starts costing transport packets, so keep those ranges narrow.",
 "awgParam.DisableCookies": "The device stays silent instead of sending a Cookie Reply. Breaks NAT keepalive under load, so turn it on knowingly.",
   "xrayParam.inbound.port": "The port the server listens on and the client connects to.",
   "xrayParam.vless.id": "The client UUID. A non-UUID string is accepted too — the core hashes it into one.",

@@ -99,8 +99,13 @@ export function assertEvenHex(hex: string, label = "?"): string {
  */
 export const RANGE_MAX_WIDTH = 50_000;
 
-export function rRange(base: number, spread = 500_000, maxEnd?: number): string {
-  const width = rnd(1000, RANGE_MAX_WIDTH);
+export function rRange(
+  base: number,
+  spread = 500_000,
+  maxEnd?: number,
+  maxWidth = RANGE_MAX_WIDTH,
+): string {
+  const width = rnd(Math.min(1000, maxWidth), maxWidth);
   let start = base + rnd(0, spread);
 
   if (maxEnd !== undefined) {

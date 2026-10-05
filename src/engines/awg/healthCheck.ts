@@ -42,6 +42,9 @@ const AWG_FIELDS = [
   // Not obfuscation itself, but the S-padding floor in `rules.ts` applies
   // only when the key is present — without it a small S reads as clean.
   "HeaderProtectionKey",
+  // Turns the width of H1-H3 into lost packets on the receiving side; the
+  // rule needs to see it to know whether the width costs anything (#14).
+  "RandomTrailers",
 ] as const;
 
 /**

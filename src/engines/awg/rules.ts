@@ -305,9 +305,17 @@ function checkHeaders(p: AwgParamInput, options: AwgRuleOptions): Finding[] {
     }
   }
 
+  /*
+   * With HeaderProtectionKey the type field goes out encrypted, and 1-4 is
+   * what Amnezia VPN itself writes into H1-H4 for its 3.x containers: the
+   * headers are kept only for compatibility, and nothing on the wire shows
+   * them. The reserved zone is a problem only where they are visible.
+   */
+  const headersVisible = !hasValue(p.HeaderProtectionKey);
+
   for (const [key, r] of parsed) {
     if (!r) continue;
-    if (r[0] >= 1 && r[0] <= RESERVED_HEADER_MAX) {
+    if (headersVisible && r[0] >= 1 && r[0] <= RESERVED_HEADER_MAX) {
       found.push(warn(key, "awg.h_reserved", { key }));
     }
     const client = options.client;
@@ -322,7 +330,86 @@ function checkHeaders(p: AwgParamInput, options: AwgRuleOptions): Finding[] {
     }
   }
 
+  const loss = trailerLoss(p);
+  if (loss !== null && loss > TRAILER_LOSS_MAX) {
+    found.push(
+      warn("H1-H3", "awg.h_width_loss", {
+        percent: formatPercent(loss),
+        oneIn: Math.round(1 / loss).toLocaleString("en-US"),
+      }),
+    );
+  }
+
   return found;
+}
+
+/* ── RandomTrailers and range width ───────────────────────────────────────── */
+
+/**
+ * Above this share of lost transport packets the width gets a warning.
+ *
+ * Three ranges at the generator's own widest (50,000 each) lose 3.5·10⁻⁵, so
+ * nothing it produces gets near. 10⁻⁴ is about 430,000 of combined width and
+ * catches every config where the loss can actually be felt. The number is the
+ * one proposed in issue #14.
+ */
+export const TRAILER_LOSS_MAX = 1e-4;
+
+/** 2^32: how many values a 4-byte header can take. */
+const HEADER_SPACE = 4_294_967_296;
+
+/**
+ * The share of transport packets a receiver drops because of H1-H3's width,
+ * or null when RandomTrailers is off and the width costs nothing.
+ *
+ * amneziawg-go `device/receive.go`, `DeterminePacketTypeAndPadding` (tag
+ * v3.1.20260828): the init, response and cookie branches are guarded by
+ * `size == expectedSize || randomTrailers && size > expectedSize`. With the
+ * trailers off, a transport packet never has the size of a handshake and
+ * skips them. With them on, the second half swallows the size check, and the
+ * four bytes at S1, S2 and S3 of every transport packet, uniform ciphertext,
+ * are tested against H1, H2 and H3 in turn. A hit goes to the handshake queue
+ * and dies at `CheckMAC1`, logged at Verbosef, counted nowhere.
+ *
+ * So each range takes width / 2^32 of the traffic, one after another:
+ * `1 − Π(1 − Wᵢ / 2^32)`. H4 is checked last and competes with nothing, which
+ * is why its width is free.
+ */
+export function trailerLoss(p: AwgParamInput): number | null {
+  if (!flagOn(p.RandomTrailers)) return null;
+
+  let kept = 1;
+  for (const key of ["H1", "H2", "H3"] as const) {
+    const r = range(p[key]);
+    if (!r) continue;
+    const width = Math.max(0, r[1] - r[0] + 1);
+    kept *= 1 - Math.min(1, width / HEADER_SPACE);
+  }
+  return 1 - kept;
+}
+
+/** A share as a percentage with as many decimals as it takes to show it. */
+function formatPercent(share: number): string {
+  const pct = share * 100;
+  const decimals = pct >= 1 ? 1 : pct >= 0.1 ? 2 : 3;
+  return pct.toFixed(decimals);
+}
+
+/**
+ * amneziawg-tools `parse_bool`: `on`/`off` in any case, or a number where
+ * anything but zero is true.
+ */
+function flagOn(value: string | number | undefined): boolean {
+  if (value === undefined) return false;
+  if (typeof value === "number") return value !== 0;
+  const text = value.trim().toLowerCase();
+  if (text === "on") return true;
+  const n = Number.parseInt(text, 10);
+  return Number.isFinite(n) && n !== 0;
+}
+
+function hasValue(value: string | number | undefined): boolean {
+  return typeof value === "number" || (typeof value === "string" && value.trim() !== "");
 }
 
 function checkChains(p: AwgParamInput, options: AwgRuleOptions): Finding[] {
