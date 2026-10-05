@@ -1,0 +1,161 @@
+/**
+ * Any Tech ARCHITECT — Data — readouts, tables, lists.
+ *
+ * Part of the kit; see kit/index.css for the load order and kit/tokens.css
+ * for the values everything here is built from.
+ */
+
+/*
+ * A readout is a labelled number the user will copy. Tabular figures, so a
+ * column of them lines up and a changed digit is visible in place.
+ */
+.readout {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: var(--sp-4);
+    background: var(--surface-solid);
+    border: var(--rule) solid var(--line-faint);
+    border-radius: var(--r-2);
+}
+
+.readout-key {
+    font-family: var(--fm);
+    font-size: var(--t-2xs);
+    letter-spacing: var(--track-label);
+    text-transform: uppercase;
+    color: var(--ink-3);
+}
+
+.readout-val {
+    font-family: var(--fm);
+    font-size: var(--t-md);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--accent-ink);
+    overflow-wrap: anywhere;
+}
+
+.readout--wide .readout-val {
+    font-size: var(--t-sm);
+    font-weight: 500;
+}
+
+.readout-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(84px, 1fr));
+    gap: var(--sp-2);
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--t-sm);
+}
+
+.table th {
+    padding: var(--sp-2) var(--sp-3);
+    border-bottom: var(--rule) solid var(--line);
+    text-align: left;
+    font-family: var(--fm);
+    font-size: var(--t-2xs);
+    font-weight: 700;
+    letter-spacing: var(--track-label);
+    text-transform: uppercase;
+    color: var(--ink-3);
+    white-space: nowrap;
+}
+
+.table td {
+    padding: var(--sp-3) var(--sp-4);
+    border-bottom: var(--rule) solid var(--line-faint);
+    color: var(--ink-2);
+    vertical-align: top;
+}
+
+.table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.table tbody tr:hover td {
+    background: var(--surface);
+}
+
+.table td.num {
+    font-family: var(--fm);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    white-space: nowrap;
+}
+
+/* A wide table scrolls inside its own box; the page never scrolls sideways. */
+.tablewrap {
+    background: var(--ground-2);
+    overflow-x: auto;
+    border: var(--rule) solid var(--line-soft);
+    border-radius: var(--r-2);
+}
+
+.list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.list-item {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+    padding: var(--sp-4);
+    border-bottom: var(--rule) solid var(--line-faint);
+}
+
+.list-item:last-child {
+    border-bottom: none;
+}
+
+/* ── The row you are on ───────────────────────────────────────────────────── */
+
+/*
+ * An active row is tinted and re-inked rather than striped down one edge. The
+ * tint is opaque for the same reason everything else here is: a table can sit
+ * straight on the page, and a translucent highlight over a grid highlights the
+ * grid.
+ *
+ * The accent underline is on the row's own bottom border, so it reads as the
+ * row being underlined rather than as a bar stuck to its side.
+ */
+.table tbody tr.is-active td {
+    background: var(--surface-solid-2);
+    border-bottom-color: var(--accent);
+    color: var(--ink);
+}
+
+.table tbody tr.is-active td:first-child {
+    color: var(--accent-ink);
+    font-weight: 700;
+}
+
+.table tbody tr.is-active:hover td {
+    background: var(--surface-solid-3);
+}
+
+.list-item.is-active {
+    background: var(--surface-solid-2);
+    border-bottom-color: var(--accent);
+    color: var(--ink);
+}
+
+/*
+ * A striped table, for the long ones. Opaque bands rather than an alpha, so
+ * the stripes do not multiply with whatever is behind the table.
+ */
+.table--striped tbody tr:nth-child(even) td {
+    background: var(--ground-3);
+}
+
+.table--striped tbody tr.is-active td {
+    background: var(--surface-solid-2);
+}

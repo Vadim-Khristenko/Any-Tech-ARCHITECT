@@ -1,0 +1,237 @@
+/**
+ * Any Tech ARCHITECT — Surfaces — sheets, panels, cards, the title block.
+ *
+ * Part of the kit; see kit/index.css for the load order and kit/tokens.css
+ * for the values everything here is built from.
+ */
+
+/*
+ * A sheet is the paper. A panel is a framed area on it. A card is a panel you
+ * can click. Nesting a card inside a card is always wrong; nesting a panel
+ * inside a sheet is the normal case.
+ */
+
+.sheet {
+    position: relative;
+    background: var(--ground-2);
+    border: var(--rule) solid var(--line-soft);
+    border-radius: var(--r-3);
+}
+
+/* The drawing grid, as a surface rather than as a page background. */
+.sheet--gridded {
+    background-image:
+        linear-gradient(var(--grid-major) var(--rule), transparent var(--rule)),
+        linear-gradient(90deg, var(--grid-major) var(--rule), transparent var(--rule)),
+        linear-gradient(var(--grid-minor) var(--rule), transparent var(--rule)),
+        linear-gradient(90deg, var(--grid-minor) var(--rule), transparent var(--rule));
+    background-size:
+        96px 96px,
+        96px 96px,
+        16px 16px,
+        16px 16px;
+}
+
+.panel {
+    background: var(--ground-2);
+    border: var(--rule) solid var(--line-soft);
+    border-radius: var(--r-3);
+    overflow: hidden;
+}
+
+.panel-head {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+    padding: var(--sp-4) var(--sp-5);
+    border-bottom: var(--rule) solid var(--line-faint);
+    background: var(--surface);
+}
+
+.panel-title {
+    font-family: var(--fu);
+    font-size: var(--t-xs);
+    font-weight: 700;
+    letter-spacing: var(--track-label);
+    text-transform: uppercase;
+    color: var(--accent-ink);
+}
+
+/* Pushed to the right of a head: counts, actions, status. */
+.panel-aside {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+}
+
+.panel-body {
+    padding: var(--sp-5);
+}
+
+.panel-foot {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    padding: var(--sp-4) var(--sp-5);
+    border-top: var(--rule) solid var(--line-faint);
+}
+
+.card {
+    display: block;
+    position: relative;
+    padding: var(--sp-5);
+    background: var(--ground-2);
+    border: var(--rule) solid var(--line-soft);
+    border-radius: var(--r-3);
+    color: inherit;
+    text-decoration: none;
+    transition:
+        border-color var(--trans-fast),
+        background-color var(--trans-fast),
+        transform var(--trans-fast);
+}
+
+a.card:hover,
+button.card:hover {
+    border-color: var(--line);
+    background: var(--ground-3);
+    transform: translateY(-2px);
+}
+
+a.card:focus-visible,
+button.card:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+/*
+ * The title block: the stamp in the corner of a drawing sheet. Fields in a
+ * fixed order, each labelled, each a fact about the thing being drawn.
+ */
+.titleblock {
+    background: var(--ground-2);
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    border: var(--rule) solid var(--line);
+    border-radius: var(--r-1);
+    overflow: hidden;
+    font-family: var(--fm);
+    font-size: var(--t-2xs);
+}
+
+.titleblock-cell {
+    padding: var(--sp-3) var(--sp-4);
+    border-right: var(--rule) solid var(--line-faint);
+}
+
+.titleblock-cell:last-child {
+    border-right: none;
+}
+
+.titleblock-key {
+    display: block;
+    color: var(--ink-3);
+    letter-spacing: var(--track-label);
+    text-transform: uppercase;
+    font-size: var(--t-2xs);
+}
+
+.titleblock-val {
+    display: block;
+    margin-top: 2px;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   MORE GROUND TO STAND ON
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/*
+ * The field: the part of a gridded sheet that content actually sits on.
+ *
+ * A grid running underneath a diagram is not a background, it is a second
+ * diagram — squares crossing an octet ruler read as ticks that are not there.
+ * So the grid is the sheet's margin and the field is where the drawing goes,
+ * which is also how a real sheet is laid out.
+ */
+.sheet-field {
+    background: var(--ground-2);
+    border: var(--rule) solid var(--line-faint);
+    border-radius: var(--r-2);
+    padding: var(--sp-5);
+}
+
+/*
+ * A plate: a figure frame, drawn the way a plate is framed in a technical
+ * manual — an outer rule, a gap, and a lighter inner rule. Two lines say
+ * "this is a figure, and it is finished" in a way one line cannot.
+ */
+.plate {
+    position: relative;
+    padding: var(--sp-5);
+    background: var(--ground-2);
+    border: var(--rule) solid var(--draw-soft);
+    border-radius: var(--r-2);
+}
+
+.plate::after {
+    content: "";
+    position: absolute;
+    inset: 5px;
+    border: var(--rule) solid var(--line-faint);
+    border-radius: calc(var(--r-2) - 3px);
+    pointer-events: none;
+}
+
+/* A caption under a plate, numbered the way a figure is numbered. */
+.plate-caption {
+    display: flex;
+    gap: var(--sp-2);
+    margin-top: var(--sp-3);
+    font-family: var(--fm);
+    font-size: var(--t-2xs);
+    color: var(--ink-3);
+}
+
+.plate-caption-no {
+    color: var(--accent-ink);
+    white-space: nowrap;
+}
+
+/*
+ * A well: a recess rather than a raise. For the places where the app shows
+ * something the machine produced — a rendered config, a log, an output the
+ * user reads but does not own. Sunk, so it reads as a different kind of thing
+ * from a panel you act on.
+ */
+.well {
+    padding: var(--sp-4);
+    background: var(--code-bg);
+    border: var(--rule) solid var(--line-faint);
+    border-radius: var(--r-2);
+    box-shadow: inset 0 1px 3px light-dark(rgb(0 0 0 / 0.06), rgb(0 0 0 / 0.35));
+}
+
+/*
+ * A strip: a full-width band with a rule above and below, for a row of facts
+ * that belongs to the page rather than to any panel on it. It is the one
+ * surface here with no corners — a band, not a box.
+ */
+.strip {
+    padding: var(--sp-5) 0;
+    border-top: var(--rule) solid var(--line-faint);
+    border-bottom: var(--rule) solid var(--line-faint);
+    background: var(--surface-solid);
+}
+
+/*
+ * The same specificity problem as the linked button: a card is usually an
+ * anchor, and the base `a:hover` would repaint everything inside it — heading,
+ * prose and all — in the accent. A card highlights by its border and its
+ * ground, not by turning its own contents a different colour.
+ */
+a.card:hover {
+    color: inherit;
+}

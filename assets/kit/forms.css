@@ -1,0 +1,482 @@
+/**
+ * Any Tech ARCHITECT — Form controls.
+ *
+ * Part of the kit; see kit/index.css for the load order and kit/tokens.css
+ * for the values everything here is built from.
+ */
+
+/*
+ * A field is a label, a control, and an explanation of what went wrong. The
+ * three are one unit because shipping them separately is how a form ends up
+ * with a red border and no reason attached to it.
+ */
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+}
+
+.label {
+    font-family: var(--fw);
+    font-size: var(--t-xs);
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: var(--ink-2);
+}
+
+.label-req {
+    color: var(--red);
+    margin-left: 2px;
+}
+
+.hint {
+    font-size: var(--t-xs);
+    line-height: var(--lh-snug);
+    color: var(--ink-3);
+}
+
+.error {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--sp-1);
+    font-size: var(--t-xs);
+    line-height: var(--lh-snug);
+    color: var(--red);
+}
+
+.input,
+.select,
+.textarea,
+.input-field,
+.select-field,
+.textarea-field {
+    width: 100%;
+    padding: 0 var(--sp-3);
+    height: 38px;
+    background: var(--ground);
+    border: var(--rule) solid var(--line-soft);
+    border-radius: var(--r-2);
+    color: var(--ink);
+    font-family: var(--fw);
+    font-size: var(--t-base);
+    transition:
+        border-color var(--trans-fast),
+        background-color var(--trans-fast);
+}
+
+.textarea,
+.textarea-field {
+    height: auto;
+    min-height: 96px;
+    padding: var(--sp-3);
+    line-height: var(--lh-body);
+    resize: vertical;
+}
+
+/* Anything holding a key, a hex string or a config is set in the mono face. */
+.input--mono,
+.textarea--mono {
+    font-family: var(--fm);
+    font-size: var(--t-sm);
+    letter-spacing: var(--track-mono);
+}
+
+.input::placeholder,
+.textarea::placeholder,
+.input-field::placeholder,
+.textarea-field::placeholder {
+    /* Measured, not guessed: this tier clears 4.5:1 in both schemes. */
+    color: var(--ink-3);
+}
+
+.input:hover,
+.select:hover,
+.textarea:hover,
+.input-field:hover,
+.select-field:hover,
+.textarea-field:hover {
+    border-color: var(--line);
+}
+
+.input:focus,
+.select:focus,
+.textarea:focus,
+.input-field:focus,
+.select-field:focus,
+.textarea-field:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: var(--focus-ring-tight);
+}
+
+.input:disabled,
+.select:disabled,
+.textarea:disabled,
+.input-field:disabled,
+.select-field:disabled,
+.textarea-field:disabled {
+    cursor: not-allowed;
+    color: var(--ink-3);
+    background-color: var(--ground-3);
+    background-image: var(--hatch);
+}
+
+.input.is-invalid,
+.select.is-invalid,
+.textarea.is-invalid,
+.input-field.is-invalid,
+.select-field.is-invalid,
+.textarea-field.is-invalid {
+    border-color: var(--red);
+}
+
+.select,
+.select-field {
+    appearance: none;
+    padding-right: var(--sp-7);
+    cursor: pointer;
+    /* The chevron is drawn rather than shipped, so it follows the ink colour. */
+    background-image:
+        linear-gradient(45deg, transparent 50%, currentcolor 50%),
+        linear-gradient(135deg, currentcolor 50%, transparent 50%);
+    background-position:
+        calc(100% - 20px) 17px,
+        calc(100% - 15px) 17px;
+    background-size:
+        5px 5px,
+        5px 5px;
+    background-repeat: no-repeat;
+}
+
+/* An input with something welded to its left or right: a unit, a button. */
+.inputgroup {
+    display: flex;
+    align-items: stretch;
+}
+
+.inputgroup > .input:not(:first-child),
+.inputgroup > .select:not(:first-child),
+.inputgroup > .input-field:not(:first-child),
+.inputgroup > .select-field:not(:first-child) {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+}
+
+.inputgroup > .input:not(:last-child),
+.inputgroup > .select:not(:last-child),
+.inputgroup > .input-field:not(:last-child),
+.inputgroup > .select-field:not(:last-child) {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.inputgroup > .btn:not(:first-child) {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    margin-left: calc(var(--rule) * -1);
+}
+
+.affix {
+    display: flex;
+    align-items: center;
+    padding: 0 var(--sp-3);
+    background: var(--ground-3);
+    border: var(--rule) solid var(--line-soft);
+    color: var(--ink-3);
+    font-family: var(--fm);
+    font-size: var(--t-xs);
+    white-space: nowrap;
+}
+
+.affix:first-child {
+    border-right: none;
+    border-radius: var(--r-2) 0 0 var(--r-2);
+}
+
+.affix:last-child {
+    border-left: none;
+    border-radius: 0 var(--r-2) var(--r-2) 0;
+}
+
+/* ── Checkbox, radio, switch ──────────────────────────────────────────────── */
+
+/*
+ * The box is the native input, restyled with `appearance: none`, so keyboard
+ * behaviour, form association and the indeterminate state are the browser's
+ * and not a div's approximation of them.
+ */
+.check {
+    display: inline-flex;
+    align-items: flex-start;
+    gap: var(--sp-3);
+    cursor: pointer;
+    font-size: var(--t-base);
+    color: var(--ink-2);
+}
+
+/*
+ * Every rule from here down is written against the bare element, not against
+ * `.check`.
+ *
+ * The reset already was: it takes the native drawing away from any checkbox on
+ * the page. The state rules under it were not, so a checkbox outside a `.check`
+ * label lost its tick and its fill and kept nothing in return — a blank square
+ * that looked identical checked and unchecked. A reset that removes the
+ * browser's rendering owes a replacement to exactly what it stripped.
+ *
+ * `.check` stays, and is still the right thing to reach for: it lays out the
+ * box beside its text. It just is not what makes the box work.
+ */
+input[type="checkbox"],
+input[type="radio"] {
+    appearance: none;
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+    margin-top: 1px;
+    background: var(--ground);
+    border: var(--rule) solid var(--line);
+    border-radius: var(--r-1);
+    cursor: pointer;
+    transition:
+        background-color var(--dur-1) var(--ease-out-quart),
+        border-color var(--dur-1) var(--ease-out-quart);
+}
+
+input[type="radio"] {
+    border-radius: 50%;
+}
+
+input[type="checkbox"]:checked,
+input[type="radio"]:checked {
+    background: var(--accent);
+    border-color: var(--accent);
+}
+
+/*
+ * The tick is an SVG rather than two crossed gradients, which is what it was
+ * and which draws an ✗. An input is a replaced element, so `::after` is not
+ * dependable — the mark has to be a background.
+ *
+ * The stroke is a fixed near-black because `--on-accent` is a fixed near-black
+ * in both schemes: the accent is a mid-light colour either way, so what reads
+ * on top of it does not change.
+ */
+input[type="checkbox"]:checked {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2 6.4 4.6 9 10 3.2' fill='none' stroke='%230b0a0a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-size: 12px 12px;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+input[type="checkbox"]:indeterminate {
+    background: var(--accent);
+    border-color: var(--accent);
+    background-image: linear-gradient(
+        var(--on-accent) 0 0
+    );
+    background-size: 9px 2px;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+input[type="radio"]:checked {
+    background-image: radial-gradient(
+        circle,
+        var(--on-accent) 0 3.5px,
+        transparent 3.5px
+    );
+}
+
+input[type="checkbox"]:focus-visible,
+input[type="radio"]:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+input[type="checkbox"]:disabled,
+input[type="radio"]:disabled {
+    cursor: not-allowed;
+    background-color: var(--ground-3);
+    background-image: var(--hatch);
+    border-color: var(--line-faint);
+}
+
+.check:has(input:disabled) {
+    cursor: not-allowed;
+    color: var(--ink-3);
+}
+
+/*
+ * The switch is a real checkbox with the track drawn in a sibling element.
+ *
+ * It was the input itself, styled with `appearance: none` and a `::after` for
+ * the knob — and an input is a replaced element, so its pseudo-elements are at
+ * the engine's discretion. The knob rendered and then would not move: the
+ * track was amber and the handle still on the left, which is a switch that
+ * says both things at once.
+ *
+ * A sibling has no such ambiguity, and the input keeps every native behaviour
+ * — label association, keyboard, form submission, `:checked`.
+ */
+.switch {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-3);
+    cursor: pointer;
+    font-size: var(--t-base);
+    color: var(--ink-2);
+}
+
+.switch input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.switch-track {
+    position: relative;
+    flex-shrink: 0;
+    width: 38px;
+    height: 22px;
+    background: var(--ground-4);
+    border: var(--rule) solid var(--line);
+    border-radius: var(--r-pill);
+    transition:
+        background-color var(--dur-2) var(--ease-out-quart),
+        border-color var(--dur-2) var(--ease-out-quart);
+}
+
+.switch-track::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    background: var(--ink-2);
+    border-radius: 50%;
+    transition:
+        transform var(--dur-2) var(--ease-out-quart),
+        background-color var(--dur-2) var(--ease-out-quart);
+}
+
+.switch input:checked + .switch-track {
+    background: var(--accent);
+    border-color: var(--accent);
+}
+
+.switch input:checked + .switch-track::after {
+    background: var(--on-accent);
+    transform: translateX(16px);
+}
+
+.switch input:focus-visible + .switch-track {
+    box-shadow: var(--focus-ring);
+}
+
+.switch input:disabled + .switch-track {
+    cursor: not-allowed;
+    background-color: var(--ground-3);
+    background-image: var(--hatch);
+    border-color: var(--line-faint);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .switch-track,
+    .switch-track::after {
+        transition-duration: 1ms;
+    }
+}
+
+/* ── Range ────────────────────────────────────────────────────────────────── */
+
+.range {
+    width: 100%;
+    height: 22px;
+    appearance: none;
+    background: transparent;
+    cursor: pointer;
+}
+
+.range::-webkit-slider-runnable-track {
+    height: 4px;
+    background: var(--ground-4);
+    border-radius: var(--r-pill);
+}
+
+.range::-moz-range-track {
+    height: 4px;
+    background: var(--ground-4);
+    border-radius: var(--r-pill);
+}
+
+.range::-webkit-slider-thumb {
+    appearance: none;
+    margin-top: -6px;
+    width: 16px;
+    height: 16px;
+    background: var(--accent);
+    border: var(--rule-heavy) solid var(--ground-2);
+    border-radius: 50%;
+}
+
+.range::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    background: var(--accent);
+    border: var(--rule-heavy) solid var(--ground-2);
+    border-radius: 50%;
+}
+
+.range:focus-visible {
+    outline: none;
+}
+
+.range:focus-visible::-webkit-slider-thumb {
+    box-shadow: var(--focus-ring-tight);
+}
+
+/* Segmented control: one choice from a short, fixed set. */
+.segment {
+    display: inline-flex;
+    padding: 3px;
+    gap: 2px;
+    background: var(--ground-3);
+    border: var(--rule) solid var(--line-soft);
+    border-radius: var(--r-2);
+}
+
+.segment-opt {
+    padding: var(--sp-2) var(--sp-4);
+    border: none;
+    border-radius: var(--r-1);
+    background: transparent;
+    color: var(--ink-3);
+    font-family: var(--fw);
+    font-size: var(--t-xs);
+    font-weight: 700;
+    letter-spacing: var(--track-label);
+    text-transform: uppercase;
+    cursor: pointer;
+    transition:
+        background-color var(--dur-2) var(--ease-out-quart),
+        color var(--dur-2) var(--ease-out-quart);
+}
+
+.segment-opt:hover {
+    color: var(--ink);
+}
+
+.segment-opt.is-active {
+    background: var(--ground-2);
+    color: var(--accent-ink);
+    box-shadow: var(--shadow-sm);
+}
+
+.segment-opt:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring-tight);
+}

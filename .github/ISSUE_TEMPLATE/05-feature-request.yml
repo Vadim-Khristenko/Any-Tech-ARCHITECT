@@ -1,0 +1,54 @@
+name: "Идея или улучшение · Idea or improvement"
+description: "Предложить фичу, профиль мимикрии, параметр или улучшение UX · Propose a feature or improvement"
+title: "[FEAT] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Идеи приветствуются. Полезнее всего описать не решение, а задачу:
+        что вы пытались сделать и на чём споткнулись.
+
+        *Ideas are welcome. It helps most to describe the problem rather than
+        the solution — what you were trying to do, and where it got awkward.*
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Область · Area
+      options:
+        - "Генератор и параметры · Generator and parameters"
+        - "Новый профиль мимикрии · New mimicry profile"
+        - "Поддержка клиента · Client support"
+        - "MergeKeys"
+        - "Симулятор пакетов · Packet simulator"
+        - "FAQ и документация · FAQ and docs"
+        - "Интерфейс и UX · UI and UX"
+        - "Перевод и локализация · Translation and localisation"
+        - "Другое · Something else"
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Какую задачу это решает · What problem it solves
+      description: >
+        Что вы пытались сделать, что мешало и как выкручивались сейчас.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Как это могло бы работать · How it might work
+      description: Если есть конкретное предложение — опишите.
+
+  - type: textarea
+    id: refs
+    attributes:
+      label: Ссылки и источники · References
+      description: >
+        Особенно ценно, если предложение касается протокола: ссылка на код
+        `amneziawg-go`, коммит, RFC или тред. Документация AmneziaWG местами
+        отстаёт от реализации, поэтому ссылка на исходники весит больше.

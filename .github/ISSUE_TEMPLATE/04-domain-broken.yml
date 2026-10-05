@@ -1,0 +1,69 @@
+name: "Домен перестал работать · Domain no longer works"
+description: "Домен из hostPools недоступен, троттлится или изменил поведение · A hostPools domain is blocked or throttled"
+title: "[DOMAIN-] "
+labels: ["bug", "infra"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Доступность домена сильно зависит от страны и провайдера, поэтому
+        укажите, откуда проверяли — без этого отличить локальную блокировку от
+        общей невозможно.
+
+        *Reachability depends heavily on country and ISP, so please say where
+        you tested from — without it, a local block is indistinguishable from a
+        global one.*
+
+  - type: input
+    id: domain
+    attributes:
+      label: Домен · Domain
+      description: Ровно как он записан в `hostPools`.
+      placeholder: "fastly.net"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: symptom
+    attributes:
+      label: Что происходит · What happens
+      options:
+        - "Полностью недоступен · Completely unreachable"
+        - "Троттлинг, очень медленно · Throttled, very slow"
+        - "Резолвится, но соединение рвётся · Resolves, but the connection drops"
+        - "Изменилось поведение протокола · Protocol behaviour changed"
+    validations:
+      required: true
+
+  - type: input
+    id: region
+    attributes:
+      label: Страна и провайдер · Country and ISP
+      placeholder: "Россия, МТС (мобильный) · Iran, MCI"
+    validations:
+      required: true
+
+  - type: input
+    id: since
+    attributes:
+      label: С какого момента · Since when
+      placeholder: "примерно с 20 июля · around 20 July"
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Проверки · Evidence
+      render: shell
+      placeholder: |
+        $ dig +short fastly.net
+        …
+        $ curl -sI --max-time 10 https://fastly.net/
+        …
+    validations:
+      required: true
+
+  - type: input
+    id: alternative
+    attributes:
+      label: Чем можно заменить · Suggested replacement
+      description: Если знаете домен, который в вашей сети работает.

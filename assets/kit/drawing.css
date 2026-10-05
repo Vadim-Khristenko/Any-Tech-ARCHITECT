@@ -1,0 +1,288 @@
+/**
+ * Any Tech ARCHITECT — Drawing motifs — the house style, and the rule that governs it.
+ *
+ * Part of the kit; see kit/index.css for the load order and kit/tokens.css
+ * for the values everything here is built from.
+ */
+
+/*
+ * A dimension line: a rule with tick terminators and a value in the middle.
+ * This is how a range is drawn on a technical drawing, and a range is what the
+ * generator produces for Jmin–Jmax and for each of H1–H4. It replaces writing
+ * `1605374704-1605414583` as a bare string, which is a number pair pretending
+ * to be a word.
+ */
+.dim {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: var(--sp-2);
+    font-family: var(--fm);
+    font-size: var(--t-xs);
+    font-variant-numeric: tabular-nums;
+    color: var(--ink-2);
+}
+
+.dim-end {
+    color: var(--accent-ink);
+    white-space: nowrap;
+}
+
+/* The rule itself, with a tick at each end. */
+.dim-line {
+    position: relative;
+    height: 9px;
+}
+
+.dim-line::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: var(--rule);
+    background: var(--draw);
+}
+
+.dim-line::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    border-left: var(--rule) solid var(--draw);
+    border-right: var(--rule) solid var(--draw);
+}
+
+/* The measurement, sitting on the line. */
+.dim-span {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    padding: 0 var(--sp-2);
+    background: var(--ground-2);
+    color: var(--ink-3);
+    font-size: var(--t-2xs);
+    white-space: nowrap;
+}
+
+/*
+ * The octet ruler: the bit-numbering strip that sits above a packet diagram in
+ * every RFC. Here it labels which byte of a header a value lands in.
+ */
+.ruler {
+    display: flex;
+    height: 15px;
+    background: var(--ground-2);
+    border-bottom: var(--rule) solid var(--draw-soft);
+}
+
+.ruler-tick {
+    flex: 1;
+    position: relative;
+    border-right: var(--rule) solid var(--draw-soft);
+}
+
+.ruler-tick:last-child {
+    border-right: none;
+}
+
+.ruler-tick > span {
+    position: absolute;
+    bottom: 1px;
+    left: 3px;
+    font-family: var(--fm);
+    font-size: 9px;
+    line-height: 1;
+    color: var(--ink-3);
+}
+
+/* Every eighth tick is a major one — an octet boundary. */
+.ruler-tick--major {
+    border-right-color: var(--draw);
+}
+
+/*
+ * A field map: the packet, drawn as the boxes it is made of. Widths are set
+ * inline from the real byte counts, so the picture is the data.
+ */
+/*
+ * Widths come from the real byte counts, so the picture is the data. But a
+ * one-byte field given one forty-eighth of the row is four pixels wide, and a
+ * label nobody can read is worse than a proportion nobody can measure — so
+ * every field keeps enough room for its name and the row scrolls if the sum
+ * does not fit. Proportion is preserved above that floor, which is where it
+ * carries information.
+ */
+.fieldmap {
+    container-type: inline-size;
+    display: flex;
+    border: var(--rule) solid var(--draw);
+    border-radius: var(--r-1);
+    /* Opaque: on a gridded sheet the squares must not show between fields. */
+    background: var(--ground-2);
+    overflow: hidden;
+    font-family: var(--fm);
+    font-size: var(--t-2xs);
+}
+
+.fieldmap-field {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+    min-width: 46px;
+    padding: var(--sp-2) var(--sp-2);
+    border-right: var(--rule) solid var(--draw-soft);
+    background: var(--ground-2);
+    text-align: center;
+    overflow: hidden;
+}
+
+.fieldmap-field:last-child {
+    border-right: none;
+}
+
+.fieldmap-name {
+    color: var(--ink-2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.fieldmap-size {
+    color: var(--ink-3);
+    font-size: 9px;
+}
+
+/* The field this tool actually writes, as opposed to the ones it copies. */
+.fieldmap-field--ours {
+    background: var(--surface-active);
+}
+
+.fieldmap-field--ours .fieldmap-name {
+    color: var(--accent-ink);
+}
+
+/* Reserved, or not supported by the selected client. */
+.fieldmap-field--void {
+    background-image: var(--hatch);
+}
+
+/*
+ * A leader: a line from a label to the thing it names. Two segments, the way
+ * one is drawn by hand — out, then along.
+ */
+.leader {
+    position: relative;
+    padding-left: var(--sp-5);
+    font-family: var(--fm);
+    font-size: var(--t-xs);
+    color: var(--ink-3);
+}
+
+.leader::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 50%;
+    width: var(--sp-4);
+    height: var(--rule);
+    background: var(--draw);
+}
+
+.leader::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 50%;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--accent);
+    transform: translate(-2px, -2px);
+}
+
+/* A labelled separator: a rule with a word set into it. */
+.rule {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+    color: var(--ink-3);
+    font-family: var(--fm);
+    font-size: var(--t-2xs);
+    letter-spacing: var(--track-label);
+    text-transform: uppercase;
+}
+
+.rule::before,
+.rule::after {
+    content: "";
+    flex: 1;
+    height: var(--rule);
+    background: var(--line-soft);
+}
+
+.rule--start::before {
+    display: none;
+}
+
+.divider {
+    height: var(--rule);
+    background: var(--line-faint);
+    border: none;
+}
+
+/* An area that is deliberately not available. */
+.void {
+    background-image: var(--hatch);
+    border: var(--rule) dashed var(--line-soft);
+    border-radius: var(--r-1);
+}
+
+/*
+ * Below about five hundred pixels the byte counts are the first thing to go.
+ * A field whose name has been reduced to two letters and an ellipsis has
+ * stopped being a label; the proportion it is drawn at still carries meaning
+ * without it.
+ */
+@container (max-width: 520px) {
+    .fieldmap-size {
+        display: none;
+    }
+
+    .fieldmap-field {
+        min-width: 42px;
+        padding: var(--sp-2) 4px;
+    }
+
+    /*
+     * Smaller lettering rather than a shorter name. A field called "Fla…" has
+     * stopped being a label; at nine pixels "Flags" still fits and still reads,
+     * which is the whole job.
+     */
+    .fieldmap-name {
+        font-size: 9px;
+    }
+}
+
+/*
+ * The ruler, read from below.
+ *
+ * Under a field map its ticks are a scale for the drawing above them, which is
+ * where a scale belongs. Above it, the ticks and the field boundaries are two
+ * sets of vertical lines a few pixels apart and the eye has to work out which
+ * is which.
+ */
+.ruler--under {
+    border-bottom: none;
+    border-top: var(--rule) solid var(--draw-soft);
+    align-items: flex-start;
+}
+
+.ruler--under .ruler-tick > span {
+    bottom: auto;
+    top: 2px;
+}

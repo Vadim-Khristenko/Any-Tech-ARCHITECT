@@ -1,46 +1,56 @@
 {
-  "name": "amneziawg-architect-lite",
-  "version": "2.3.0",
-  "description": "AmneziaWG Architect — Lite Config Generator",
-  "author": "Vadim Khristenko <just@vai-prog.ru>",
+  "name": "any-tech-architect",
+  "version": "4.4.0",
+  "description": "Any Tech Architect — obfuscation config generator for AmneziaWG and XRay/REALITY, with batch tooling, a packet simulator and a health checker.",
+  "author": "Vadim Khristenko <vadim@vai-rice.space>",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vue-tsc && vite build --mode lite",
-    "build:full": "vue-tsc && vite build",
-    "build:lite": "vue-tsc && vite build --mode lite",
-    "build:lite:single": "vue-tsc && vite build --mode lite-single && node scripts/make-single-file.mjs",
-    "preview": "vite preview",
-    "test": "vitest",
-    "test:run": "vitest run",
-    "test:coverage": "vitest run --coverage",
-    "typecheck": "vue-tsc --noEmit"
+    "dev": "bun run vite",
+    "dev:mirror": "bun scripts/run-mirror.ts dev",
+    "build": "bun run vue-tsc && bun run vite build",
+    "build:mirror": "bun scripts/run-mirror.ts build",
+    "preview": "bun run vite preview",
+    "test": "bun test --isolate --timeout 20000 --path-ignore-patterns \"**/node_modules/**\" --path-ignore-patterns \"**/dist/**\" --path-ignore-patterns \"**/.git/**\" --path-ignore-patterns \"**/.claude/**\" --path-ignore-patterns \"**/.worktrees/**\" src/",
+    "test:watch": "bun test --watch --isolate --timeout 20000 src/",
+    "test:run": "bun run test",
+    "test:coverage": "bun test --isolate --timeout 20000 --coverage --coverage-reporter=text --coverage-reporter=lcov --coverage-dir=coverage --path-ignore-patterns \"**/node_modules/**\" --path-ignore-patterns \"**/dist/**\" --path-ignore-patterns \"**/.git/**\" --path-ignore-patterns \"**/.claude/**\" --path-ignore-patterns \"**/.worktrees/**\" src/",
+    "typecheck": "bun run vue-tsc --noEmit --skipLibCheck",
+    "og": "bun scripts/og/generate.mjs",
+    "domains": "bun scripts/domains.ts",
+    "configs": "bun scripts/configs.ts",
+    "kit": "bun run vite --config vite.kit.config.ts",
+    "lite:prepare": "bun scripts/lite/prepare.ts",
+    "build:lite": "bun scripts/lite/prepare.ts && bun run vue-tsc --noEmit --skipLibCheck && bun run vite build --config vite.lite.config.ts",
+    "preview:lite": "bun run vite preview --config vite.lite.config.ts"
   },
   "engines": {
-    "node": ">=20.19.0",
-    "bun": ">=1.0.0"
+    "node": ">=18.0.0",
+    "bun": ">=1.4.0"
   },
   "dependencies": {
+    "@fontsource-variable/jetbrains-mono": "^5.2.8",
+    "@fontsource-variable/manrope": "^5.2.8",
+    "@fontsource-variable/unbounded": "^5.2.8",
     "lucide-vue-next": "^0.577.0",
-    "pako": "^2.1.0",
-    "vue": "^3.5.13",
-    "vue-router": "^5.0.3"
+    "pako": "^2.2.0",
+    "vue": "^3.5.39",
+    "vue-router": "^5.1.0"
   },
   "devDependencies": {
-    "@types/node": "^25.4.0",
+    "@resvg/resvg-js": "^2.6.2",
+    "@types/node": "^25.9.4",
     "@types/pako": "^2.0.4",
-    "@vitejs/plugin-vue": "^6.0.4",
-    "@vitest/coverage-v8": "^4.1.0",
-    "typescript": "^5.7.3",
-    "vite": "^7.3.1",
-    "vitest": "^4.1.0",
-    "vue-tsc": "^3.2.5"
+    "@vitejs/plugin-vue": "^6.0.7",
+    "bun-types": "^1.4.2",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.6",
+    "vue-tsc": "^3.3.6"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Vadim-Khristenko/AmneziaWG-Architect.git",
-    "issues": "https://github.com/Vadim-Khristenko/AmneziaWG-Architect/issues",
+    "url": "git+https://github.com/Vadim-Khristenko/Any-Tech-ARCHITECT.git",
+    "issues": "https://github.com/Vadim-Khristenko/Any-Tech-ARCHITECT/issues",
     "directory": "src"
   },
   "license": "MIT"

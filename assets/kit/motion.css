@@ -1,0 +1,582 @@
+/**
+ * Any Tech ARCHITECT — Motion.
+ *
+ * Part of the kit; see kit/index.css for the load order and kit/tokens.css
+ * for the values everything here is built from.
+ */
+
+/*
+ * A reveal enhances something already visible. It never gates visibility on a
+ * class, because a transition that has not run leaves the section blank — on a
+ * hidden tab, in a headless renderer, in a pane that is not compositing.
+ */
+.rise {
+    animation: rise var(--dur-5) var(--ease-out-expo) backwards;
+}
+
+@keyframes rise {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+}
+
+.stagger > * {
+    animation: rise var(--dur-5) var(--ease-out-expo) backwards;
+}
+
+.stagger > :nth-child(1) { animation-delay: 40ms; }
+.stagger > :nth-child(2) { animation-delay: 90ms; }
+.stagger > :nth-child(3) { animation-delay: 140ms; }
+.stagger > :nth-child(4) { animation-delay: 190ms; }
+.stagger > :nth-child(5) { animation-delay: 240ms; }
+.stagger > :nth-child(6) { animation-delay: 290ms; }
+
+/*
+ * A line that draws itself. Used once, on the landing, where the packet is
+ * being assembled in front of the reader — not as a decoration on every rule.
+ */
+.draw-in {
+    animation: draw var(--dur-5) var(--ease-out-quart) backwards;
+}
+
+@keyframes draw {
+    from {
+        clip-path: inset(0 100% 0 0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .rise,
+    .stagger > *,
+    .draw-in {
+        animation: none;
+    }
+
+    .dot--live,
+    .skeleton::after,
+    .progress--indeterminate .progress-bar {
+        animation: none;
+    }
+
+    .btn.is-loading::after,
+.spinner,
+.btn.is-loading::after {
+        animation-duration: 2s;
+    }
+}
+
+/* Icon slots, so an icon never stretches or shifts the line it sits on. */
+.toast-icon {
+    flex-shrink: 0;
+    margin-top: 1px;
+    color: var(--green);
+}
+
+.card-go {
+    flex-shrink: 0;
+    color: var(--ink-3);
+    transition: transform var(--trans-fast);
+}
+
+a.card:hover .card-go,
+button.card:hover .card-go {
+    transform: translateX(3px);
+    color: var(--accent-ink);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   MORE OF IT
+   ══════════════════════════════════════════════════════════════════════════
+
+   Everything here eases out on an exponential curve and nothing overshoots: an
+   instrument that springs reads as a toy. Entrances are `backwards`-filled so
+   the element is already in its final state before the animation starts —
+   an entrance must never be the thing that makes content visible.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/*
+ * A rule that draws itself, left to right, the way a line is drawn. Used on
+ * dimension lines and dividers when the page is assembling in front of the
+ * reader. `transform` only, so it composites.
+ */
+.trace {
+    animation: trace 900ms var(--ease-out-quart) backwards;
+    transform-origin: left center;
+}
+
+@keyframes trace {
+    from {
+        transform: scaleX(0);
+    }
+}
+
+/* ── Interaction, not entrance ────────────────────────────────────────────── */
+
+/*
+ * A surface that answers the pointer. Deliberately small: two pixels and a
+ * border, because a card that leaps at the cursor is a card that will be
+ * clicked by accident.
+ */
+.lift {
+    transition:
+        transform var(--dur-2) var(--ease-out-quart),
+        border-color var(--dur-2) var(--ease-out-quart),
+        box-shadow var(--dur-2) var(--ease-out-quart);
+}
+
+.lift:hover {
+    transform: translateY(-2px);
+    border-color: var(--line);
+    box-shadow: var(--shadow-md);
+}
+
+.press:active {
+    transform: translateY(1px);
+}
+
+/*
+ * A dashed outline that marches. It means work is in progress inside — the
+ * moving version of the hatch that means "not available", and the only looping
+ * animation in the kit that is allowed on a large area, because it is
+ * reporting state rather than decorating.
+ */
+.marching {
+    border: var(--rule) dashed var(--draw);
+    border-radius: var(--r-2);
+    background-image:
+        repeating-linear-gradient(
+            45deg,
+            var(--draw-soft) 0 1px,
+            transparent 1px 9px
+        );
+    background-size: 12.73px 12.73px;
+    animation: marching 900ms linear infinite;
+}
+
+@keyframes marching {
+    to {
+        background-position: 12.73px 0;
+    }
+}
+
+/*
+ * A glow that breathes, for one element that is live.
+ *
+ * It used to animate `box-shadow`, which is a paint: every frame of the loop
+ * asked the main thread to redraw the element and its surroundings, forever.
+ * The halo is on a pseudo-element now and only its `opacity` moves, which is
+ * the compositor's work — the same arrangement as `.badge-glow`, and the one
+ * this file already argued for two hundred lines up.
+ */
+.glow-pulse {
+    position: relative;
+}
+
+.glow-pulse::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    box-shadow: 0 0 18px 2px var(--glow-halo);
+    pointer-events: none;
+    animation: glow-pulse 2.8s var(--ease-out-quart) infinite;
+}
+
+@keyframes glow-pulse {
+    0%,
+    100% {
+        opacity: 0;
+    }
+    50% {
+        opacity: 1;
+    }
+}
+
+/* ── Reduced motion ───────────────────────────────────────────────────────── */
+
+/*
+ * Entrances become nothing — the content is already there. The two that report
+ * state keep a still form of themselves rather than disappearing, because
+ * their whole job is to say something is happening.
+ */
+@media (prefers-reduced-motion: reduce) {
+    .trace {
+        animation: none;
+    }
+
+    .lift:hover {
+        transform: none;
+    }
+
+    .press:active {
+        transform: none;
+    }
+
+    .marching,
+    .glow-pulse {
+        animation: none;
+    }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   OPENING, CLOSING, ARRIVING
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/*
+ * Expand and collapse, without measuring anything.
+ *
+ * The usual way is to animate `max-height` to a number somebody guessed, which
+ * is wrong twice: too small and the content is clipped, too large and the
+ * close is slow at the start and abrupt at the end because most of the
+ * animation is spent on empty space. A grid track can be animated from `0fr`
+ * to `1fr`, which is the content's real height, whatever it turns out to be.
+ *
+ * The child needs `overflow: hidden`, which is why the wrapper is two elements
+ * and not one.
+ */
+.disclose {
+    display: grid;
+    grid-template-rows: 0fr;
+    opacity: 0;
+    transition:
+        grid-template-rows 420ms var(--ease-out-quart),
+        opacity 260ms var(--ease-out-quart);
+}
+
+/*
+ * One rule for the child, not two. It carries a zero minimum height because a
+ * grid item will not shrink below its own content otherwise, and hidden
+ * overflow because the closing track is what has to clip the text.
+ */
+.disclose > * {
+    min-height: 0;
+    overflow: hidden;
+}
+
+.disclose.is-open {
+    grid-template-rows: 1fr;
+    opacity: 1;
+}
+
+/*
+ * Closed, it is gone: nothing inside can be tabbed to and nothing is
+ * announced. Visibility flips only after the track has finished closing, so
+ * the content is still there to watch on the way out.
+ *
+ * Without this a collapsed panel stays in the tab order — the defect nobody
+ * sees and everybody using a keyboard walks into.
+ */
+.disclose:not(.is-open) {
+    visibility: hidden;
+    transition:
+        grid-template-rows 420ms var(--ease-out-quart),
+        opacity 200ms var(--ease-out-quart),
+        visibility 0s linear 420ms;
+}
+
+
+/*
+ * Something small appearing in place: a badge, a chip, a toast. Scales from
+ * just under full size — a pop that starts at half size is a bounce with extra
+ * steps.
+ */
+.pop-in {
+    animation: pop-in var(--dur-3) var(--ease-out-quart) backwards;
+}
+
+@keyframes pop-in {
+    from {
+        opacity: 0;
+        transform: scale(0.94);
+    }
+}
+
+/*
+ * The answer to a rejected value. Two small moves and done — a field that
+ * shakes five times is telling the user off.
+ */
+.nudge {
+    animation: nudge 220ms var(--ease-out-quart);
+}
+
+@keyframes nudge {
+    25% {
+        transform: translateX(-4px);
+    }
+    75% {
+        transform: translateX(4px);
+    }
+}
+
+/*
+ * Content replacing content in the same box. Used where a value updates and
+ * the old one should not appear to have moved.
+ */
+.fade-swap {
+    animation: fade-swap var(--dur-3) var(--ease-out-quart);
+}
+
+@keyframes fade-swap {
+    from {
+        opacity: 0;
+        transform: translateY(-3px);
+    }
+}
+
+
+/*
+ * Rows revealing in order. `.stagger` stops at six children because a page has
+ * about that many sections; a table has as many rows as it has, so this one
+ * derives the delay from the row's own index, which the markup sets.
+ */
+.reveal-rows > * {
+    animation: rise var(--dur-4) var(--ease-out-quart) backwards;
+    animation-delay: calc(var(--row, 0) * 45ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .disclose,
+    .disclose > * {
+        transition: none;
+    }
+
+    .pop-in,
+    .nudge,
+    .fade-swap,
+    .reveal-rows > * {
+        animation: none;
+    }
+
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   ENTRANCES AND EXITS
+   ══════════════════════════════════════════════════════════════════════════
+
+   Four ways in, each with a way out, and each doing something the others do
+   not. The first version of this set gave them all the same duration and
+   nearly the same movement, so they were four names for one animation — the
+   only honest reason to have four is that you can tell them apart.
+
+     .rise      moves           up          the default
+     .settle    scales          down onto   a panel taking its place
+     .sweep-in  wipes           downward    a figure being drawn
+     .slide-in  moves           sideways    a drawer, a toast, a column
+
+   Durations rise with weight: a small thing arriving quickly is right, and a
+   large one arriving quickly is a flicker.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.rise {
+    animation: rise 520ms var(--ease-out-quart) backwards;
+}
+
+@keyframes rise {
+    from {
+        opacity: 0;
+        transform: translateY(14px);
+    }
+}
+
+.rise-out {
+    animation: rise-out 320ms var(--ease-out-quart) forwards;
+}
+
+@keyframes rise-out {
+    to {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+}
+
+/*
+ * Settle is the only one that changes size, and it changes it inward: the
+ * panel is briefly larger than its resting size and comes down onto it, the
+ * way something set on a table stops moving.
+ */
+.settle {
+    animation: settle 760ms var(--ease-out-expo) backwards;
+}
+
+@keyframes settle {
+    from {
+        opacity: 0;
+        transform: scale(1.03);
+    }
+}
+
+.settle-out {
+    animation: settle-out 400ms var(--ease-out-quart) forwards;
+}
+
+@keyframes settle-out {
+    to {
+        opacity: 0;
+        transform: scale(0.97);
+    }
+}
+
+/*
+ * Sweep does not move at all — it is uncovered, top to bottom, like a drawing
+ * appearing under a pen. Slowest of the four because a wipe reads as a
+ * process rather than as an arrival.
+ */
+.sweep-in {
+    animation: sweep-in 900ms var(--ease-out-expo) backwards;
+}
+
+@keyframes sweep-in {
+    from {
+        clip-path: inset(0 0 100% 0);
+    }
+}
+
+.sweep-out {
+    animation: sweep-out 500ms var(--ease-out-quart) forwards;
+}
+
+@keyframes sweep-out {
+    to {
+        clip-path: inset(100% 0 0 0);
+    }
+}
+
+/* Sideways, and further than the others move, so the direction is unmistakable. */
+.slide-in {
+    animation: slide-in 640ms var(--ease-out-expo) backwards;
+}
+
+@keyframes slide-in {
+    from {
+        opacity: 0;
+        transform: translateX(38px);
+    }
+}
+
+.slide-in--left {
+    animation-name: slide-in-left;
+}
+
+@keyframes slide-in-left {
+    from {
+        opacity: 0;
+        transform: translateX(-38px);
+    }
+}
+
+.slide-out {
+    animation: slide-out 380ms var(--ease-out-quart) forwards;
+}
+
+@keyframes slide-out {
+    to {
+        opacity: 0;
+        transform: translateX(38px);
+    }
+}
+
+.slide-out--left {
+    animation-name: slide-out-left;
+}
+
+@keyframes slide-out-left {
+    to {
+        opacity: 0;
+        transform: translateX(-38px);
+    }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   TYPING
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/*
+ * Text arriving a character at a time.
+ *
+ * The obvious implementation — animate `width` from 0 with `steps()` — does
+ * nothing at all, because the other end of that animation is `auto` and `auto`
+ * does not interpolate. It has to run to a real length, so the width is stated
+ * in `ch` from a character count the markup supplies:
+ *
+ *     <span class="typing" style="--chars: 34">0xc2000000011487e88c…</span>
+ *
+ * `ch` is the width of a zero, which is every character in a monospaced face —
+ * so this is exact for mono text and approximate for anything else. It is
+ * meant for mono text.
+ *
+ * For a line that types itself, erases and types the next one, the character
+ * count changes per phrase and CSS cannot know it: use `utils/typing.ts`,
+ * which drives the same two classes from script.
+ */
+.typing {
+    display: inline-block;
+    white-space: nowrap;
+    animation: typing calc(var(--chars, 20) * 45ms) steps(var(--chars, 20), end)
+        backwards;
+}
+
+/*
+ * Revealed by a clip, not by a width.
+ *
+ * Animating the width meant computing one, and a width computed in `ch` is the
+ * width of a zero times the character count — close for a monospaced face and
+ * not exact, so the last glyph of a long string sat outside the box and was
+ * cut off. `clip-path` needs no measurement at all: the element is its natural
+ * size the whole time and the reveal is a rectangle moving across it.
+ */
+@keyframes typing {
+    from {
+        clip-path: inset(0 100% 0 0);
+    }
+    to {
+        clip-path: inset(0 0 0 0);
+    }
+}
+
+/*
+ * The cursor. Steps rather than a fade: a caret that dissolves belongs to a
+ * different kind of interface.
+ */
+.typing-cursor::after {
+    content: "";
+    display: inline-block;
+    width: 0.55em;
+    height: 1.05em;
+    margin-left: 2px;
+    vertical-align: text-bottom;
+    background: var(--accent);
+    animation: typing-cursor 1.06s steps(2, jump-none) infinite;
+}
+
+/* While something is being typed the cursor stays solid; blinking is idle. */
+.typing-cursor.is-typing::after {
+    animation: none;
+}
+
+@keyframes typing-cursor {
+    to {
+        opacity: 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .rise,
+    .rise-out,
+    .settle,
+    .settle-out,
+    .sweep-in,
+    .sweep-out,
+    .slide-in,
+    .slide-out {
+        animation: none;
+    }
+
+    .typing {
+        animation: none;
+    }
+
+    .typing-cursor::after {
+        animation: none;
+    }
+}

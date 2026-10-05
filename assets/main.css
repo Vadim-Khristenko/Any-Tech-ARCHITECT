@@ -1,196 +1,36 @@
-/* ═══════════════════════════════════════════════════════════════════════════
-   AmneziaWG Architect — main.css
-   Redesigned: 2026 — Rich Dark Amber / Technical Precision
-   ═══════════════════════════════════════════════════════════════════════════ */
+/**
+ * What is left of the old stylesheet.
+ *
+ * Everything that describes how the product looks now lives in `assets/kit/`.
+ * This file holds only what the un-rewritten views still reach for: a layout
+ * container, a handful of spacing and text utilities, and the Vue transition
+ * classes their templates name.
+ *
+ * It is meant to shrink. Each view that moves onto the kit deletes some of
+ * this, and when the last one has moved the file goes and `assets/kit/` is the
+ * stylesheet.
+ *
+ * Nothing new belongs here. If a rule is worth keeping, it is worth putting in
+ * the kit.
+ */
 
-/* ── Palette ──────────────────────────────────────────────────────────────── */
-:root {
-    /* Backgrounds — layered depth */
-    --bg: #0a0806;
-    --bg2: #110e0a;
-    --bg3: #181410;
-    --bg4: #201a14;
-    --bg5: #281f16;
+/* ── The content column ───────────────────────────────────────────────────── */
 
-    /* Surface — for cards, panels, elevated elements */
-    --surface: rgba(232, 168, 64, 0.03);
-    --surface-hover: rgba(232, 168, 64, 0.06);
-    --surface-active: rgba(232, 168, 64, 0.09);
-
-    /* Accent: Amber */
-    --amber: #e8a840;
-    --amber2: #f5c060;
-    --amber3: #ffd980;
-    --amber-dim: #7a5820;
-    --amber-deep: #c48520;
-
-    /* Accent Glow */
-    --ag: rgba(232, 168, 64, 0.12);
-    --ag2: rgba(232, 168, 64, 0.06);
-    --ag3: rgba(232, 168, 64, 0.03);
-
-    /* Semantic — Green */
-    --green: #5cb87a;
-    --green2: #7dd99a;
-    --green-bg: rgba(92, 184, 122, 0.08);
-    --gd: rgba(92, 184, 122, 0.15);
-
-    /* Semantic — Red */
-    --red: #d4604a;
-    --red2: #ff8f7d;
-    --red-bg: rgba(212, 96, 74, 0.08);
-    --rd: rgba(212, 96, 74, 0.12);
-
-    /* Semantic — Blue (info accents) */
-    --blue: #5b9bd5;
-    --blue-bg: rgba(91, 155, 213, 0.08);
-
-    /* Text */
-    --text: #e0d4b8;
-    --text2: #9a8a68;
-    --text3: #5e5038;
-    --text4: #3d3226;
-
-    /* Borders */
-    --border: rgba(232, 168, 64, 0.14);
-    --border2: rgba(232, 168, 64, 0.07);
-    --border3: rgba(232, 168, 64, 0.03);
-
-    /* Semantic Aliases */
-    --accent: var(--amber2);
-    --accent-glow: var(--ag);
-    --radius: 12px;
-    --radius-sm: 8px;
-    --radius-lg: 16px;
-    --radius-xl: 20px;
-
-    /* Fonts (lite: no external requests) */
-    --fw: "Segoe UI", "Noto Sans", "Liberation Sans", sans-serif;
-    --fu: "Trebuchet MS", "Segoe UI", "Noto Sans", sans-serif;
-    --fm: "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
-
-    /* Animation */
-    --ease: cubic-bezier(0.23, 1, 0.32, 1);
-    --ease-snap: cubic-bezier(0.16, 1, 0.3, 1);
-    --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
-    --trans-fast: 150ms var(--ease);
-    --trans-norm: 250ms var(--ease);
-    --trans-slow: 400ms var(--ease);
-
-    /* Shadows */
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.15);
-    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4), 0 1px 4px rgba(0, 0, 0, 0.2);
-    --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3);
-    --shadow-glow:
-        0 0 20px rgba(232, 168, 64, 0.08), 0 0 60px rgba(232, 168, 64, 0.04);
-}
-
-/* ── Reset ────────────────────────────────────────────────────────────────── */
-*,
-*::before,
-*::after {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-}
-
-html {
-    scroll-behavior: smooth;
-    background-color: var(--bg);
-    -webkit-text-size-adjust: 100%;
-    text-size-adjust: 100%;
-    hanging-punctuation: first last;
-}
-
-body {
-    font-family: var(--fw);
-    background-color: var(--bg);
-    color: var(--text);
-    line-height: 1.6;
-    font-size: 16px;
-    overflow-x: hidden;
-    min-height: 100vh;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    text-rendering: optimizeLegibility;
-}
-
-::selection {
-    background: rgba(232, 168, 64, 0.3);
-    color: var(--amber3);
-}
-
-/* ── Typography ───────────────────────────────────────────────────────────── */
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-    font-family: var(--fu);
-    color: var(--text);
-    line-height: 1.15;
-    font-weight: 700;
-    margin-bottom: 0.5em;
-    letter-spacing: -0.02em;
-}
-
-h1 {
-    font-size: clamp(1.6rem, 3vw, 2.4rem);
-}
-h2 {
-    font-size: clamp(1.2rem, 2.2vw, 1.6rem);
-}
-h3 {
-    font-size: clamp(1rem, 1.8vw, 1.25rem);
-}
-
-p {
-    margin-bottom: 1em;
-    color: var(--text2);
-}
-
-code,
-pre,
-.mono {
-    font-family: var(--fm);
-}
-
-a {
-    color: inherit;
-    text-decoration: none;
-    cursor: pointer;
-    transition: color var(--trans-fast);
-}
-
-a:hover {
-    color: var(--accent);
-}
-
-img {
-    max-width: 100%;
-    display: block;
-}
-
-/* ── Layout Utilities ─────────────────────────────────────────────────────── */
 .container {
     width: 100%;
     max-width: 1200px;
     margin: 0 auto;
-    padding: 0 24px;
+    padding: 0 var(--sp-gutter);
 }
 
-@media (max-width: 768px) {
-    .container {
-        padding: 0 16px;
-    }
-}
+/* ── Spacing and layout utilities ─────────────────────────────────────────── */
 
+/*
+ * The kit has `.row`, `.stack` and `.grid`, which say what an arrangement is
+ * for. These say what it is made of, which is why they are on the way out.
+ */
 .flex {
     display: flex;
-}
-.flex-col {
-    flex-direction: column;
 }
 .flex-wrap {
     flex-wrap: wrap;
@@ -208,28 +48,25 @@ img {
     justify-content: center;
 }
 .gap-1 {
-    gap: 4px;
+    gap: var(--sp-1);
 }
 .gap-2 {
-    gap: 8px;
+    gap: var(--sp-2);
 }
 .gap-3 {
-    gap: 12px;
+    gap: var(--sp-3);
 }
 .gap-4 {
-    gap: 16px;
+    gap: var(--sp-4);
 }
 .gap-6 {
-    gap: 24px;
+    gap: var(--sp-5);
 }
 .gap-8 {
-    gap: 32px;
+    gap: var(--sp-6);
 }
 .w-full {
     width: 100%;
-}
-.text-center {
-    text-align: center;
 }
 
 .mt-1 {
@@ -275,519 +112,16 @@ img {
     margin-bottom: 2.5rem;
 }
 
-/* ── Buttons ──────────────────────────────────────────────────────────────── */
-.btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    height: 44px;
-    padding: 0 20px;
-    border-radius: var(--radius);
-    font-family: var(--fw);
-    font-weight: 600;
-    font-size: 0.9rem;
-    transition: all var(--trans-fast);
-    cursor: pointer;
-    border: 1px solid transparent;
-    white-space: nowrap;
-    user-select: none;
-    position: relative;
-    overflow: hidden;
-    letter-spacing: 0.01em;
-}
+/* ── Text utilities ───────────────────────────────────────────────────────── */
 
-.btn:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-    pointer-events: none;
-}
-
-.btn:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
-}
-
-/* Primary */
-.btn-primary {
-    background: linear-gradient(
-        135deg,
-        var(--amber) 0%,
-        var(--amber-deep) 100%
-    );
-    color: var(--bg);
-    border-color: transparent;
-    font-weight: 700;
-    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.1);
-}
-.btn-primary:hover {
-    background: linear-gradient(135deg, var(--amber2) 0%, var(--amber) 100%);
-    transform: translateY(-1px);
-    box-shadow:
-        0 4px 16px rgba(232, 168, 64, 0.25),
-        0 0 0 1px rgba(232, 168, 64, 0.2);
-}
-.btn-primary:active {
-    transform: translateY(0);
-    box-shadow: 0 2px 8px rgba(232, 168, 64, 0.15);
-}
-
-/* Secondary */
-.btn-secondary {
-    background: var(--surface);
-    border-color: var(--border);
-    color: var(--text);
-}
-.btn-secondary:hover {
-    border-color: rgba(232, 168, 64, 0.3);
-    color: var(--accent);
-    background: var(--surface-hover);
-    transform: translateY(-1px);
-}
-
-/* Ghost */
-.btn-ghost {
-    background: transparent;
-    color: var(--text2);
-}
-.btn-ghost:hover {
-    background: var(--surface);
-    color: var(--text);
-}
-
-/* Danger */
-.btn-danger {
-    background: var(--red-bg);
-    color: var(--red);
-    border-color: transparent;
-}
-.btn-danger:hover {
-    background: rgba(212, 96, 74, 0.15);
-    border-color: rgba(212, 96, 74, 0.25);
-    color: var(--red2);
-}
-
-/* Icon Button */
-.btn-icon {
-    width: 40px;
-    height: 40px;
-    padding: 0;
-}
-.btn-icon.sm {
-    width: 32px;
-    height: 32px;
-}
-.btn-icon.lg {
-    width: 48px;
-    height: 48px;
-}
-
-/* Shimmer effect for generate button */
-.btn.shimmer::after {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(
-        90deg,
-        transparent 0%,
-        rgba(255, 255, 255, 0.15) 50%,
-        transparent 100%
-    );
-    animation: shimmer-slide 0.65s ease-out forwards;
-}
-
-@keyframes shimmer-slide {
-    to {
-        left: 100%;
-    }
-}
-
-/* ── Forms / Inputs ───────────────────────────────────────────────────────── */
-.input-group {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
-.input-label {
-    font-size: 0.82rem;
-    color: var(--text2);
-    font-weight: 600;
-    font-family: var(--fw);
-    letter-spacing: 0.01em;
-}
-
-.input-field,
-.textarea-field,
-.select-field {
-    width: 100%;
-    background: var(--bg2);
-    border: 1px solid var(--border2);
-    border-radius: var(--radius-sm);
-    padding: 10px 14px;
-    color: var(--text);
-    font-family: var(--fm);
-    font-size: 0.88rem;
-    transition: all var(--trans-fast);
-    line-height: 1.5;
-}
-
-.input-field:hover,
-.textarea-field:hover,
-.select-field:hover {
-    border-color: var(--border);
-}
-
-.input-field:focus,
-.textarea-field:focus,
-.select-field:focus {
-    outline: none;
-    border-color: var(--amber);
-    box-shadow:
-        0 0 0 3px var(--ag2),
-        0 0 0 1px var(--amber);
-    background: var(--bg3);
-}
-
-.input-field::placeholder,
-.textarea-field::placeholder {
-    color: var(--text4);
-}
-
-.textarea-field {
-    resize: vertical;
-    min-height: 80px;
-}
-
-.select-field {
-    appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239a8a68' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 12px center;
-    padding-right: 40px;
-    cursor: pointer;
-}
-
-.select-field option {
-    background: var(--bg2);
-    color: var(--text);
-}
-
-/* Checkbox styling */
-input[type="checkbox"] {
-    appearance: none;
-    width: 18px;
-    height: 18px;
-    border: 2px solid var(--border);
-    border-radius: 5px;
-    background: var(--bg2);
-    cursor: pointer;
-    transition: all var(--trans-fast);
-    flex-shrink: 0;
-    position: relative;
-}
-
-input[type="checkbox"]:checked {
-    background: var(--amber);
-    border-color: var(--amber);
-}
-
-input[type="checkbox"]:checked::after {
-    content: "";
-    position: absolute;
-    left: 4px;
-    top: 1px;
-    width: 6px;
-    height: 10px;
-    border: solid var(--bg);
-    border-width: 0 2px 2px 0;
-    transform: rotate(45deg);
-}
-
-input[type="checkbox"]:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
-}
-
-input[type="checkbox"]:hover {
-    border-color: var(--amber-dim);
-}
-
-/* Number input — hide spinners by default */
-input[type="number"]::-webkit-outer-spin-button,
-input[type="number"]::-webkit-inner-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-}
-input[type="number"] {
-    appearance: textfield;
-    -moz-appearance: textfield;
-}
-
-/* ── Cards ────────────────────────────────────────────────────────────────── */
-.card {
-    background: var(--bg2);
-    border: 1px solid var(--border2);
-    border-radius: var(--radius-lg);
-    padding: 24px;
-    position: relative;
-}
-
-/* Subtle inner glow on cards */
-.card::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    background: linear-gradient(
-        180deg,
-        rgba(232, 168, 64, 0.02) 0%,
-        transparent 40%
-    );
-    pointer-events: none;
-}
-
-.card-elevated {
-    box-shadow: var(--shadow-md);
-}
-
-/* ── Alerts ───────────────────────────────────────────────────────────────── */
-.alert {
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-    padding: 14px 16px;
-    border-radius: var(--radius);
-    border-left: 3px solid var(--accent);
-    background: linear-gradient(90deg, var(--ag2) 0%, transparent 60%);
-    color: var(--text);
-    font-size: 0.88rem;
-    line-height: 1.55;
-    margin-bottom: 16px;
-}
-
-.alert-icon {
-    flex-shrink: 0;
-    color: var(--accent);
-    margin-top: 1px;
-    align-self: center;
-}
-
-.alert-info {
-    border-color: var(--amber);
-}
-
-.alert-warn {
-    border-color: var(--amber);
-    background: linear-gradient(
-        90deg,
-        rgba(232, 168, 64, 0.06) 0%,
-        transparent 60%
-    );
-}
-.alert-warn .alert-icon {
-    color: var(--amber);
-}
-
-.alert-success {
-    border-color: var(--green);
-    background: linear-gradient(90deg, var(--green-bg) 0%, transparent 60%);
-}
-.alert-success .alert-icon {
-    color: var(--green);
-}
-
-.alert-error {
-    border-color: var(--red);
-    background: linear-gradient(90deg, var(--red-bg) 0%, transparent 60%);
-}
-.alert-error .alert-icon {
-    color: var(--red);
-}
-
-.alert-content {
-    flex: 1;
-    min-width: 0;
-}
-
-.alert-content b {
-    color: var(--text);
-    font-weight: 700;
-}
-
-.alert-content a {
-    color: var(--accent);
-    text-decoration: underline;
-    text-decoration-style: dotted;
-    text-underline-offset: 3px;
-}
-
-.alert-content a:hover {
-    text-decoration-style: solid;
-}
-
-.alert.small-alert {
-    padding: 10px 12px;
-    font-size: 0.8rem;
-}
-
-/* ── Badges ───────────────────────────────────────────────────────────────── */
-.badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 5px 12px;
-    border-radius: 100px;
-    font-size: 0.72rem;
-    font-weight: 700;
-    font-family: var(--fm);
-    letter-spacing: 0.02em;
-    text-transform: uppercase;
-}
-
-.badge-amber {
-    background: var(--ag);
-    color: var(--amber2);
-    border: 1px solid rgba(232, 168, 64, 0.2);
-}
-.badge-green {
-    background: var(--green-bg);
-    color: var(--green);
-    border: 1px solid rgba(92, 184, 122, 0.2);
-}
-.badge-red {
-    background: var(--red-bg);
-    color: var(--red);
-    border: 1px solid rgba(212, 96, 74, 0.2);
-}
-
-/* ── Dividers ─────────────────────────────────────────────────────────────── */
-.divider {
-    height: 1px;
-    background: linear-gradient(
-        90deg,
-        transparent 0%,
-        var(--border2) 20%,
-        var(--border) 50%,
-        var(--border2) 80%,
-        transparent 100%
-    );
-    border: none;
-    margin: 24px 0;
-}
-
-/* ── Transitions & Animations ─────────────────────────────────────────────── */
-.fade-enter-active,
-.fade-leave-active {
-    transition: opacity 0.25s var(--ease);
-}
-.fade-enter-from,
-.fade-leave-to {
-    opacity: 0;
-}
-
-/* Expand/collapse */
-.expand-enter-active {
-    transition: all 0.3s var(--ease);
-    overflow: hidden;
-}
-.expand-leave-active {
-    transition: all 0.2s var(--ease);
-    overflow: hidden;
-}
-.expand-enter-from,
-.expand-leave-to {
-    opacity: 0;
-    max-height: 0;
-    margin-top: 0;
-    padding-top: 0;
-    padding-bottom: 0;
-}
-.expand-enter-to,
-.expand-leave-from {
-    max-height: 500px;
-}
-
-/* Spin animation (for generate icon) */
-@keyframes spin {
-    to {
-        transform: rotate(360deg);
-    }
-}
-.spin-anim {
-    animation: spin 0.65s linear;
-}
-
-/* Fade-in on mount */
-.fade-in {
-    animation: fadeInUp 0.45s var(--ease-snap) both;
-}
-
-@keyframes fadeInUp {
-    from {
-        opacity: 0;
-        transform: translateY(12px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-/* Stagger children */
-.stagger > *:nth-child(1) {
-    animation-delay: 0.05s;
-}
-.stagger > *:nth-child(2) {
-    animation-delay: 0.1s;
-}
-.stagger > *:nth-child(3) {
-    animation-delay: 0.15s;
-}
-.stagger > *:nth-child(4) {
-    animation-delay: 0.2s;
-}
-.stagger > *:nth-child(5) {
-    animation-delay: 0.25s;
-}
-.stagger > *:nth-child(6) {
-    animation-delay: 0.3s;
-}
-
-/* ── Scrollbars ───────────────────────────────────────────────────────────── */
-::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-}
-::-webkit-scrollbar-track {
-    background: transparent;
-}
-::-webkit-scrollbar-thumb {
-    background: var(--text4);
-    border-radius: 4px;
-}
-::-webkit-scrollbar-thumb:hover {
-    background: var(--amber-dim);
-}
-
-/* Firefox scrollbar */
-* {
-    scrollbar-width: thin;
-    scrollbar-color: var(--text4) transparent;
-}
-
-/* ── Utility Text Classes ─────────────────────────────────────────────────── */
 .text-accent {
-    color: var(--accent);
+    color: var(--accent-ink);
 }
 .text-muted {
-    color: var(--text2);
+    color: var(--ink-2);
 }
 .text-dim {
-    color: var(--text3);
+    color: var(--ink-3);
 }
 .text-green {
     color: var(--green);
@@ -796,13 +130,13 @@ input[type="number"] {
     color: var(--red);
 }
 .text-sm {
-    font-size: 0.85rem;
+    font-size: var(--t-sm);
 }
 .text-xs {
-    font-size: 0.75rem;
+    font-size: var(--t-xs);
 }
 .text-lg {
-    font-size: 1.1rem;
+    font-size: var(--t-md);
 }
 
 .font-head {
@@ -824,60 +158,59 @@ input[type="number"] {
     white-space: nowrap;
 }
 
-/* ── Code Blocks (global) ─────────────────────────────────────────────────── */
-code:not(pre code) {
-    background: rgba(232, 168, 64, 0.08);
-    border: 1px solid rgba(232, 168, 64, 0.1);
-    color: var(--amber2);
-    padding: 2px 6px;
-    border-radius: 5px;
-    font-size: 0.85em;
-    font-family: var(--fm);
-}
+/* ── Vue transition classes the templates name ────────────────────────────── */
 
-pre {
-    background: var(--bg);
-    border: 1px solid var(--border2);
-    border-radius: var(--radius-sm);
-    padding: 16px;
-    overflow-x: auto;
-    font-family: var(--fm);
-    font-size: 0.82rem;
-    line-height: 1.6;
-    color: var(--text2);
+/*
+ * These are behaviour rather than appearance — a `<transition name="fade">`
+ * will not fade without them — so they stay until the templates that name them
+ * are rewritten.
+ */
+.fade-enter-active,
+.fade-leave-active {
+    transition: opacity var(--dur-3) var(--ease);
 }
-
-/* ── Tooltip / Popover Base ───────────────────────────────────────────────── */
-[data-tooltip] {
-    position: relative;
-}
-
-[data-tooltip]::after {
-    content: attr(data-tooltip);
-    position: absolute;
-    bottom: calc(100% + 8px);
-    left: 50%;
-    transform: translateX(-50%) scale(0.9);
-    padding: 6px 10px;
-    background: var(--bg4);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    color: var(--text);
-    font-size: 0.72rem;
-    font-family: var(--fw);
-    white-space: nowrap;
-    pointer-events: none;
+.fade-enter-from,
+.fade-leave-to {
     opacity: 0;
-    transition: all var(--trans-fast);
-    z-index: 1000;
 }
 
-[data-tooltip]:hover::after {
-    opacity: 1;
-    transform: translateX(-50%) scale(1);
+.expand-enter-active {
+    transition: all var(--dur-3) var(--ease);
+    overflow: hidden;
+}
+.expand-leave-active {
+    transition: all var(--dur-2) var(--ease);
+    overflow: hidden;
+}
+.expand-enter-from,
+.expand-leave-to {
+    opacity: 0;
+    max-height: 0;
+    margin-top: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+.expand-enter-to,
+.expand-leave-from {
+    max-height: 500px;
 }
 
-/* ── Responsive Visibility ────────────────────────────────────────────────── */
+/* Spun once when a config is regenerated. */
+@keyframes spin-once {
+    to {
+        transform: rotate(360deg);
+    }
+}
+.spin-anim {
+    animation: spin-once 0.65s linear;
+}
+
+.fade-in {
+    animation: rise var(--dur-4) var(--ease-snap) both;
+}
+
+/* ── Responsive visibility ────────────────────────────────────────────────── */
+
 @media (max-width: 768px) {
     .hide-mobile {
         display: none !important;
@@ -887,36 +220,5 @@ pre {
 @media (min-width: 769px) {
     .hide-desktop {
         display: none !important;
-    }
-}
-
-/* ── Lite Runtime Overrides ─────────────────────────────────────────────── */
-.lite-mode *,
-.lite-mode *::before,
-.lite-mode *::after {
-    animation: none !important;
-    transition: none !important;
-}
-
-.lite-mode .header,
-.lite-mode .footer,
-.lite-mode .mobile-overlay {
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-}
-
-.lite-mode [data-tooltip]::after {
-    display: none !important;
-}
-
-/* ── Reduced Motion ───────────────────────────────────────────────────────── */
-@media (prefers-reduced-motion: reduce) {
-    *,
-    *::before,
-    *::after {
-        animation-duration: 0.01ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: 0.01ms !important;
-        scroll-behavior: auto !important;
     }
 }

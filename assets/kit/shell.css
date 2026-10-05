@@ -1,0 +1,492 @@
+/**
+ * Any Tech ARCHITECT — the shell: the page, its header and its footer.
+ *
+ * One idea holds all three together: **the page is a drawing sheet.** The
+ * header is the sheet's top margin, the content sits on the field, and the
+ * footer is the title block along the bottom edge. Registration marks in the
+ * corners say the whole thing is one sheet rather than three stacked bars.
+ *
+ * What this replaces was four blurred colour blobs drifting behind everything
+ * on twenty-six second loops — a 2023 aurora, which is the background every
+ * generated page has. It was also expensive: four `filter: blur(90px)` layers
+ * animating `transform` and `opacity` forever, on every page, for decoration
+ * that said nothing about the product.
+ *
+ * The grid is the one thing kept from it, because the grid means something
+ * here: it is the scale the drawing is at.
+ *
+ * Part of the kit; see kit/index.css for the load order.
+ */
+
+/* ══════════════════════════════════════════════════════════════════════════
+   THE SHEET
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.sheet-bg {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-under);
+    pointer-events: none;
+    overflow: hidden;
+    background-color: var(--ground);
+}
+
+/*
+ * Two densities, sixteen and ninety-six, so the eye reads a fine grid grouped
+ * into large squares rather than one busy mesh. Masked to fade downward and at
+ * the edges: a grid that runs to the borders of the viewport reads as a
+ * texture, and one that fades reads as a field with a margin around it.
+ */
+.sheet-grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+        linear-gradient(var(--grid-major) var(--rule), transparent var(--rule)),
+        linear-gradient(90deg, var(--grid-major) var(--rule), transparent var(--rule)),
+        linear-gradient(var(--grid-minor) var(--rule), transparent var(--rule)),
+        linear-gradient(90deg, var(--grid-minor) var(--rule), transparent var(--rule));
+    background-size:
+        96px 96px,
+        96px 96px,
+        16px 16px,
+        16px 16px;
+    /* Anchored to the top-left so the majors line up with the content column. */
+    background-position: 0 0;
+    mask-image: radial-gradient(
+        ellipse 120% 90% at 50% 0%,
+        rgb(0 0 0 / 0.9) 0%,
+        rgb(0 0 0 / 0.35) 55%,
+        transparent 100%
+    );
+    -webkit-mask-image: radial-gradient(
+        ellipse 120% 90% at 50% 0%,
+        rgb(0 0 0 / 0.9) 0%,
+        rgb(0 0 0 / 0.35) 55%,
+        transparent 100%
+    );
+}
+
+/*
+ * A drafting lamp, not an aurora: one soft wash from the corner the light
+ * would come from, and a much weaker counter-colour opposite it so the field
+ * is never one flat hue. Both are static — the old version drifted on a
+ * twenty-six second loop, which nobody watches and every frame of which costs
+ * a composite.
+ */
+.sheet-wash {
+    position: absolute;
+    inset: 0;
+    background:
+        radial-gradient(
+            60% 55% at 8% -6%,
+            var(--fx-aurora-core) 0%,
+            var(--fx-aurora-mid) 34%,
+            transparent 72%
+        ),
+        radial-gradient(
+            55% 50% at 104% 104%,
+            var(--fx-counter-core) 0%,
+            var(--fx-counter-mid) 38%,
+            transparent 74%
+        );
+}
+
+/*
+ * Grain, painted through the noise rather than laid over it.
+ *
+ * THE SIZE IS THE POINT
+ *
+ * This was `inset: -50%; width: 200%; height: 200%` — a layer four times the
+ * viewport, masked with an SVG `feTurbulence`, animated forever. A masked
+ * layer is not one a compositor can simply move: where the mask cannot be
+ * kept with the layer, every tick of the animation repaints the whole thing
+ * on the main thread, and four viewports of turbulence is how a tab that is
+ * doing nothing at all ends up holding a core.
+ *
+ * The element is now the viewport plus the distance it travels, which is all
+ * the animation ever needed — it starts at zero and moves `SHIFT` down and
+ * right, so `SHIFT` of bleed is exactly what keeps the far edge covered.
+ * `will-change` asks for the layer once, so the transform is the
+ * compositor's job rather than the paint's.
+ */
+.sheet-grain {
+    --grain-shift: 64px;
+    --grain-bleed: 72px;
+    position: absolute;
+    inset: calc(-1 * var(--grain-bleed));
+    background-color: var(--fx-noise);
+    --noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    -webkit-mask-image: var(--noise);
+    mask-image: var(--noise);
+    -webkit-mask-size: 256px 256px;
+    mask-size: 256px 256px;
+    animation: grain 8s steps(4) infinite;
+    will-change: transform;
+}
+
+@keyframes grain {
+    0% {
+        transform: translate3d(0, 0, 0);
+    }
+    100% {
+        transform: translate3d(var(--grain-shift), var(--grain-shift), 0);
+    }
+}
+
+/*
+ * Registration marks. On a real sheet they are how two overlays are aligned;
+ * here they are the cheapest possible statement that this is one drawing and
+ * not a stack of sections. Four crosshairs, inset from the viewport corners,
+ * drawn with two gradients each so they cost no elements of their own.
+ */
+.sheet-marks {
+    position: absolute;
+    inset: 22px;
+}
+
+.sheet-marks::before,
+.sheet-marks::after {
+    content: "";
+    position: absolute;
+    width: 13px;
+    height: 13px;
+    background-image:
+        linear-gradient(var(--draw-soft), var(--draw-soft)),
+        linear-gradient(var(--draw-soft), var(--draw-soft));
+    background-size:
+        var(--rule) 100%,
+        100% var(--rule);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.sheet-marks::before {
+    top: 0;
+    left: 0;
+}
+
+.sheet-marks::after {
+    top: 0;
+    right: 0;
+}
+
+/* The lower pair, on a second element so all four can be positioned. */
+.sheet-marks-lower::before,
+.sheet-marks-lower::after {
+    top: auto;
+    bottom: 0;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   THE HEADER — the sheet's top margin
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/*
+ * Transparent at rest: at the top of the page the header *is* the margin of
+ * the sheet, and giving it its own surface there is what made it read as a
+ * separate bar sitting on the design rather than part of it.
+ *
+ * Once the page scrolls it has to become opaque, or content runs under it. It
+ * gains the ground and a drawn rule — a border margin line, not a UI divider.
+ */
+.header {
+    position: fixed;
+    inset: 0 0 auto;
+    z-index: var(--z-header);
+    height: 76px;
+    background: transparent;
+    border-bottom: var(--rule) solid transparent;
+    transition:
+        height var(--dur-3) var(--ease-out-quart),
+        background-color var(--dur-3) var(--ease-out-quart),
+        border-color var(--dur-3) var(--ease-out-quart);
+}
+
+/*
+ * Collapsed, the bar has to earn the space it keeps taking. It does three
+ * things the tall state does not: it lifts off the sheet with a shadow and a
+ * hairline of light along its top edge, it drops the qualifier from the
+ * lockup so only the name is left, and it grows a rule that reports how far
+ * down the page you are.
+ */
+.header.is-scrolled {
+    height: 58px;
+    background: color-mix(in srgb, var(--ground-2) 82%, transparent);
+    backdrop-filter: blur(16px) saturate(1.5);
+    -webkit-backdrop-filter: blur(16px) saturate(1.5);
+    border-bottom-color: var(--line-soft);
+    box-shadow:
+        inset 0 1px 0 light-dark(rgb(255 255 255 / 0.55), rgb(255 255 255 / 0.04)),
+        var(--shadow-md);
+}
+
+/*
+ * How far through the page you are, drawn as a line rather than told as a
+ * number. Driven by the scroll itself — no listener, no rAF, nothing running
+ * on the main thread — and simply absent where the browser cannot do that,
+ * which costs nothing because it is a convenience and not a control.
+ */
+.header-progress {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: calc(var(--rule) * -1);
+    height: var(--rule-heavy);
+    background: var(--accent);
+    transform: scaleX(0);
+    transform-origin: left center;
+    opacity: 0;
+    transition: opacity var(--dur-2) var(--ease-out-quart);
+}
+
+.header.is-scrolled .header-progress {
+    opacity: 1;
+}
+
+@supports (animation-timeline: scroll()) {
+    .header-progress {
+        animation: header-progress linear;
+        animation-timeline: scroll(root block);
+    }
+}
+
+@keyframes header-progress {
+    to {
+        transform: scaleX(1);
+    }
+}
+
+/*
+ * The lockup compacts rather than merely shrinking: the qualifier line closes
+ * up and the name stays. Animating the grid track rather than a height is what
+ * lets it collapse to nothing without a fixed number written into the CSS.
+ */
+.header-lockup {
+    display: grid;
+    grid-template-rows: 1fr;
+    transition:
+        grid-template-rows var(--dur-3) var(--ease-out-quart),
+        opacity var(--dur-2) var(--ease-out-quart);
+}
+
+.header-lockup > * {
+    overflow: hidden;
+}
+
+.header.is-scrolled .header-lockup {
+    grid-template-rows: 0fr;
+    opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .header-progress,
+    .header-lockup {
+        transition: none;
+    }
+}
+
+/*
+ * The margin line: a hairline that stops short of the edges, with a tick at
+ * each end, exactly as a border line is drawn on a sheet. It is the header's
+ * only ornament and it appears only while the header is transparent — once the
+ * bar is solid, its own bottom border is the line.
+ */
+.header::after {
+    content: "";
+    position: absolute;
+    left: var(--sp-gutter);
+    right: var(--sp-gutter);
+    bottom: 0;
+    height: 7px;
+    border-bottom: var(--rule) solid var(--draw-soft);
+    border-left: var(--rule) solid var(--draw-soft);
+    border-right: var(--rule) solid var(--draw-soft);
+    opacity: 1;
+    transition: opacity var(--dur-2) var(--ease-out-quart);
+}
+
+.header.is-scrolled::after {
+    opacity: 0;
+}
+
+.header-inner {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-5);
+    height: 100%;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   THE FOOTER — the title block
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/*
+ * The bottom of the sheet, and it is drawn like one: a heavy rule across the
+ * top, the grid continuing underneath, and the closing facts arranged as a
+ * stamp with each cell labelled.
+ *
+ * The old footer was a gradient band of its own colour with three link columns
+ * in it — a component that happened to be at the bottom of the page rather
+ * than the end of the drawing.
+ */
+.footer {
+    position: relative;
+    margin-top: auto;
+    padding: var(--sp-9) 0 var(--sp-6);
+    border-top: var(--rule-heavy) solid var(--draw-soft);
+    /*
+     * Solid, and deliberately not gridded.
+     *
+     * The sheet grid is fixed to the viewport, so a footer that also drew one
+     * put two grids at different offsets on top of each other — squares
+     * crossing squares, which is the one thing a drawing must never look like.
+     * A footer is also the place a reader lands to do something specific, and
+     * a plain ground under a list of links is simply easier to use than a
+     * textured one.
+     *
+     * It reads as the sheet's lower margin: one step off the field, opaque, so
+     * everything above it stops here.
+     */
+    background: var(--ground-2);
+}
+
+/*
+ * The margin line, repeated at the foot. Two ticks and a rule inset from the
+ * gutters — the same mark the header carries at the top, which is what makes
+ * the page read as one sheet with a top and a bottom rather than as a stack.
+ */
+.footer::before {
+    content: "";
+    position: absolute;
+    top: var(--sp-4);
+    left: var(--sp-gutter);
+    right: var(--sp-gutter);
+    height: 7px;
+    border-top: var(--rule) solid var(--draw-soft);
+    border-left: var(--rule) solid var(--draw-soft);
+    border-right: var(--rule) solid var(--draw-soft);
+    pointer-events: none;
+}
+
+.footer-inner {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-7);
+}
+
+/* ── The stamp ────────────────────────────────────────────────────────────── */
+
+/*
+ * A real title block: cells in a fixed order, each labelled, each a fact. It
+ * closes the sheet the way a drawing is closed, and it is the same primitive
+ * the hero uses — one thing, two places.
+ */
+.footer-stamp {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    border: var(--rule) solid var(--line-soft);
+    border-radius: var(--r-1);
+    overflow: hidden;
+    background: var(--ground-2);
+}
+
+.footer-stamp-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: var(--sp-3) var(--sp-4);
+    border-right: var(--rule) solid var(--line-faint);
+    font-family: var(--fm);
+    font-size: var(--t-2xs);
+}
+
+.footer-stamp-cell:last-child {
+    border-right: none;
+}
+
+.footer-stamp-key {
+    color: var(--ink-3);
+    letter-spacing: var(--track-label);
+    text-transform: uppercase;
+}
+
+.footer-stamp-val {
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+}
+
+.footer-stamp-val a:hover {
+    color: var(--accent-ink);
+}
+
+/* ── Footer link columns ──────────────────────────────────────────────────── */
+
+.footer-cols {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: var(--sp-6);
+}
+
+.footer-col {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-3);
+}
+
+.footer-colhead {
+    font-family: var(--fm);
+    font-size: var(--t-2xs);
+    letter-spacing: var(--track-label);
+    text-transform: uppercase;
+    color: var(--ink-3);
+}
+
+.footer-link {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    color: var(--ink-2);
+    font-size: var(--t-sm);
+    width: fit-content;
+}
+
+.footer-link:hover {
+    color: var(--accent-ink);
+}
+
+/* The icon leads the link and does not move; only the label changes colour. */
+.footer-link svg {
+    flex-shrink: 0;
+    color: var(--ink-3);
+    transition: color var(--trans-fast);
+}
+
+.footer-link:hover svg {
+    color: var(--accent-ink);
+}
+
+/* ── Reduced motion ───────────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+    .sheet-grain {
+        animation: none;
+    }
+}
+
+/* ── Narrow ───────────────────────────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+    .header {
+        height: 62px;
+    }
+
+    /* The margin line is a desktop conceit; at this width it is just clutter. */
+    .header::after {
+        display: none;
+    }
+
+    .sheet-marks {
+        display: none;
+    }
+}

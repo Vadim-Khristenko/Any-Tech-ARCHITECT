@@ -1,0 +1,708 @@
+/**
+ * The theme kit: one accent, two schemes, six pages.
+ *
+ * Everything that used to be a literal amber — every border, wash, glow and
+ * shadow — was written out as `rgba(232, 168, 64, …)` in a hundred places. A
+ * second accent was therefore impossible without a hundred edits, and a light
+ * scheme impossible without a rewrite.
+ *
+ * So the accent is stored as channels and everything else derives from it.
+ * Change `--accent-rgb` and the borders, washes and glows follow. A page sets
+ * it with `data-accent`; the scheme is `light-dark()`, which reads
+ * `color-scheme` — so the reader's system decides unless `data-theme` says
+ * otherwise. The two are independent: teal has a light form and a dark one,
+ * and neither knows about the other.
+ *
+ * WHY THE ACCENT IS TWO COLOURS
+ *
+ * `--accent` is for surfaces: borders, fills, a glow behind a card. On a dark
+ * ground it is also readable as text. On a light one it is not — amber on
+ * white is about 1.9:1 and body text needs 4.5 — so `--accent-ink` is the same
+ * hue taken down until it can be read. They are not interchangeable, and a
+ * kit with only one of them either cannot be read in light or looks muddy in
+ * dark.
+ */
+
+/* ── Shape, space, type, motion, depth ────────────────────────────────────── */
+
+/*
+ * The half of the kit that does not change with the page or the scheme.
+ *
+ * All of it is here rather than in main.css, where it used to sit, because a
+ * token set split across two files gets extended on one side only. The names
+ * the app already uses are kept exactly; what is new is that each of them is
+ * now one step of a scale rather than a value someone typed.
+ */
+:root {
+    /*
+     * A drawing sheet is mostly square. The radii stay small on the things
+     * that hold data — a panel, an input, a readout — and only the objects
+     * that are meant to read as physical controls get rounder.
+     */
+    --r-0: 0;
+    --r-1: 3px;
+    --r-2: 6px;
+    --r-3: 10px;
+    --r-4: 14px;
+    --r-5: 20px;
+    --r-pill: 999px;
+
+    /* The names in use across the app, mapped onto the scale. */
+    --radius-sm: var(--r-2);
+    --radius: var(--r-3);
+    --radius-lg: var(--r-4);
+    --radius-xl: var(--r-5);
+
+    /*
+     * Space, on a four-pixel base. Steps 1–4 are within a component, 5–7
+     * between them, 8–10 between regions. Section spacing is fluid because a
+     * gap that reads as generous at 1440 reads as broken at 390.
+     */
+    --sp-1: 4px;
+    --sp-2: 8px;
+    --sp-3: 12px;
+    --sp-4: 16px;
+    --sp-5: 24px;
+    --sp-6: 32px;
+    --sp-7: 40px;
+    --sp-8: 56px;
+    --sp-9: 80px;
+    --sp-10: 112px;
+    --sp-section: clamp(56px, 8vw, 112px);
+    --sp-gutter: clamp(16px, 4vw, 32px);
+
+    /* Self-hosted variable faces (bundled via @fontsource-variable in main.ts)
+       with metric-matched fallbacks (see @font-face in main.css), so a font
+       swap causes ~0 reflow. */
+    --fw: "Manrope Variable", "Manrope Fallback", sans-serif;
+    --fu: "Unbounded Variable", "Unbounded Fallback", sans-serif;
+    --fm: "JetBrains Mono Variable", ui-monospace, "Cascadia Mono",
+        "Segoe UI Mono", "Liberation Mono", monospace;
+
+    /*
+     * Type, at a ratio near 1.25. A flatter scale reads as uncommitted: if two
+     * steps are a tenth apart, nothing on the page is clearly more important
+     * than anything else.
+     *
+     * The display sizes are fluid and capped. Above about six rem a heading is
+     * shouting rather than leading, and the tracking floor is -0.035em because
+     * tighter than that and the letters of a geometric face touch.
+     */
+    --t-2xs: 0.6875rem;
+    --t-xs: 0.75rem;
+    --t-sm: 0.8125rem;
+    --t-base: 0.9375rem;
+    --t-md: 1.0625rem;
+    --t-lg: 1.3125rem;
+    --t-xl: 1.625rem;
+    --t-2xl: 2.0625rem;
+    --t-display-sm: clamp(1.75rem, 3.4vw, 2.5rem);
+    --t-display: clamp(2.25rem, 5.4vw, 3.75rem);
+    --t-display-lg: clamp(2.75rem, 8vw, 5.5rem);
+
+    --lh-tight: 1.06;
+    --lh-snug: 1.25;
+    --lh-body: 1.6;
+    --lh-loose: 1.75;
+
+    --track-display: -0.035em;
+    --track-tight: -0.015em;
+    --track-label: 0.08em;
+    --track-mono: 0.02em;
+
+    /* Prose stays inside a comfortable measure wherever it is placed. */
+    --measure: 68ch;
+    --measure-narrow: 46ch;
+
+    /*
+     * Motion. Exponential ease-out only — nothing here bounces, because a
+     * technical instrument that springs reads as a toy.
+     */
+    --ease: cubic-bezier(0.23, 1, 0.32, 1);
+    --ease-snap: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+    --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+    /* Kept because components still name it; new work should not reach for it. */
+    --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+    --dur-1: 90ms;
+    --dur-2: 150ms;
+    --dur-3: 250ms;
+    --dur-4: 400ms;
+    --dur-5: 650ms;
+
+    --trans-fast: var(--dur-2) var(--ease);
+    --trans-norm: var(--dur-3) var(--ease);
+    --trans-slow: var(--dur-4) var(--ease);
+
+    /*
+     * Stacking order, named. Every layer that can overlap another has a step
+     * here, so nothing has to be guessed at and no rule needs a 9999.
+     */
+    --z-under: -1;
+    --z-base: 0;
+    --z-raised: 10;
+    --z-sticky: 100;
+    --z-header: 200;
+    --z-dropdown: 300;
+    --z-backdrop: 400;
+    --z-modal: 500;
+    --z-toast: 600;
+    --z-tooltip: 700;
+
+    /* The width of a drawn line. A rule is one device pixel wherever it lands. */
+    --rule: 1px;
+    --rule-heavy: 2px;
+}
+
+/* ── The accent, per page ─────────────────────────────────────────────────── */
+
+/*
+ * The six are the ones the link previews already use, so a page and its card
+ * in a feed are the same colour. `--counter-rgb` is the second signal: the
+ * colour for whatever is *not* the accent, so a green page does not report
+ * success in its own brand colour and lose the distinction.
+ *
+ * `--accent-ink-light` is measured against `#f6f6f7`, not chosen by eye —
+ * each clears 4.5:1.
+ */
+/*
+ * `--tint` is how much of the accent goes into the light ground, and the six
+ * numbers differ because the six accents do not. Amber is already a light
+ * colour, so a fifth of it barely moves white; purple is dark enough that the
+ * same share would produce a lilac page. These were solved for rather than
+ * chosen: each is the fraction that lands its ground at the same perceived
+ * lightness, so no page reads heavier than the one next to it.
+ */
+:root,
+[data-accent="amber"] {
+    --tint: 20%;
+    --accent-rgb: 232 168 64;
+    --accent-lift-rgb: 245 192 96;
+    --accent-deep-rgb: 196 133 32;
+    --accent-ink-light: #7a5000;
+    --counter-rgb: 92 184 122;
+}
+
+[data-accent="gold"] {
+    --tint: 24%;
+    --accent-rgb: 240 184 96;
+    --accent-lift-rgb: 255 208 138;
+    --accent-deep-rgb: 201 154 70;
+    --accent-ink-light: #7a5400;
+    --counter-rgb: 92 184 122;
+}
+
+[data-accent="teal"] {
+    --tint: 22%;
+    --accent-rgb: 79 179 201;
+    --accent-lift-rgb: 127 214 232;
+    --accent-deep-rgb: 60 138 156;
+    --accent-ink-light: #0d5a68;
+    --counter-rgb: 232 168 64;
+}
+
+[data-accent="green"] {
+    --tint: 20%;
+    --accent-rgb: 95 191 127;
+    --accent-lift-rgb: 142 224 166;
+    --accent-deep-rgb: 70 148 98;
+    --accent-ink-light: #176438;
+    --counter-rgb: 232 168 64;
+}
+
+[data-accent="blue"] {
+    --tint: 19%;
+    --accent-rgb: 91 155 213;
+    --accent-lift-rgb: 141 192 240;
+    --accent-deep-rgb: 66 118 165;
+    --accent-ink-light: #1a5490;
+    --counter-rgb: 92 184 122;
+}
+
+[data-accent="purple"] {
+    --tint: 15%;
+    --accent-rgb: 157 123 240;
+    --accent-lift-rgb: 192 166 255;
+    --accent-deep-rgb: 114 85 187;
+    --accent-ink-light: #533aa8;
+    --counter-rgb: 92 184 122;
+}
+
+/* ── The scheme ───────────────────────────────────────────────────────────── */
+
+/*
+ * `light-dark()` reads `color-scheme`, so the whole kit is written once and
+ * the toggle only changes which side of each pair is live. Writing the light
+ * values out again under a `[data-theme="light"]` selector — the usual way —
+ * means every future colour has to be added in two places, and one of them
+ * eventually gets forgotten.
+ */
+:root {
+    color-scheme: light dark;
+}
+
+:root[data-theme="light"] {
+    color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+    color-scheme: dark;
+}
+
+:root {
+    /*
+     * THE GROUND CARRIES THE ACCENT
+     *
+     * It did not, at first: the ground was a flat neutral and only the borders
+     * and glows moved when the page changed. That reads as one grey app with
+     * six coloured outlines rather than six rooms, and the accent — the whole
+     * point of the per-page colour — barely registers on the largest surface
+     * on screen.
+     *
+     * So every ground is mixed from the accent itself. `color-mix` in oklab
+     * mixes by perceived lightness rather than by raw channel values, which is
+     * why a 10% purple and a 10% amber land at the same weight instead of the
+     * purple reading twice as dark.
+     *
+     * Light is deliberately pastel — the accent diluted into white, not a
+     * neutral grey. That is a real position rather than a safe one: pastel is
+     * what makes the page recognisably the FAQ's or MergeKeys' at a glance,
+     * and the panels stay pure white so the content still sits *on* something.
+     *
+     * The one thing pastel must not cost is legibility. Every text tier below
+     * is checked against its own ground on every accent, not against an
+     * average, because the amber ground is much lighter than the purple one.
+     */
+    --ground: light-dark(
+        color-mix(in oklab, rgb(var(--accent-rgb)) var(--tint), #fbfbfd),
+        color-mix(in oklab, rgb(var(--accent-rgb)) 4%, #030304)
+    );
+    /* Panels: pure white on the pastel page, lifted from black in the dark. */
+    --ground-2: light-dark(
+        #ffffff,
+        color-mix(in oklab, rgb(var(--accent-rgb)) 5%, #0a090c)
+    );
+    /*
+     * The elevated tiers deepen the page rather than being mixed from white
+     * again, so a hover state on the amber page and one on the teal page are
+     * the same step darker instead of the same distance from white — which,
+     * given how differently the two tint, is not the same thing at all.
+     */
+    --ground-3: light-dark(
+        color-mix(in oklab, rgb(var(--accent-deep-rgb)) 5%, var(--ground)),
+        color-mix(in oklab, rgb(var(--accent-rgb)) 6%, #100f14)
+    );
+    --ground-4: light-dark(
+        color-mix(in oklab, rgb(var(--accent-deep-rgb)) 10%, var(--ground)),
+        color-mix(in oklab, rgb(var(--accent-rgb)) 7%, #17161c)
+    );
+    --ground-5: light-dark(
+        color-mix(in oklab, rgb(var(--accent-deep-rgb)) 16%, var(--ground)),
+        color-mix(in oklab, rgb(var(--accent-rgb)) 8%, #1e1d25)
+    );
+
+    /*
+     * Every tier that carries text clears 4.5:1 on its own ground, measured
+     * rather than judged. The muted tiers were the ones that did not: the
+     * placeholder colour was 1.54:1 on a dark input — a hint nobody could
+     * read — and 3.44:1 on a light one.
+     *
+     * The text is tinted from the accent too, by a little. Neutral grey on a
+     * pastel ground looks like grey that was left behind when the page was
+     * recoloured; the same grey pulled a few percent toward the accent looks
+     * chosen. It is a small enough share not to move the contrast.
+     *
+     * The consequence of measuring is that "muted" is a narrower band than it
+     * looks. A fourth tier dim enough to be decorative cannot also be text, so
+     * the decorative one is named separately and used only where nothing is
+     * read.
+     */
+    --ink: light-dark(
+        color-mix(in oklab, rgb(var(--accent-deep-rgb)) 8%, #131318),
+        color-mix(in oklab, rgb(var(--accent-rgb)) 13%, #f1efeb)
+    );
+    --ink-2: light-dark(
+        color-mix(in oklab, rgb(var(--accent-deep-rgb)) 12%, #3c3a44),
+        color-mix(in oklab, rgb(var(--accent-rgb)) 22%, #a8a49d)
+    );
+    --ink-3: light-dark(
+        color-mix(in oklab, rgb(var(--accent-deep-rgb)) 12%, #55535d),
+        color-mix(in oklab, rgb(var(--accent-rgb)) 22%, #97938c)
+    );
+    --ink-4: var(--ink-3);
+
+    /* Scrollbar thumbs and the like. Never text. */
+    --ink-faint: light-dark(
+        color-mix(in oklab, rgb(var(--accent-deep-rgb)) 22%, #c4c3ca),
+        color-mix(in oklab, rgb(var(--accent-rgb)) 16%, #35343c)
+    );
+
+    /*
+     * The accent, in its readable form.
+     *
+     * `--accent` is the brand colour and belongs on surfaces — a fill, a
+     * border, a glow. Set as text on the pastel ground it measures about 1.9:1,
+     * which is not a contrast problem so much as an invisible label. So every
+     * `color:` in the app points here instead, and only here: the same hue,
+     * taken down until it can be read, and left exactly as it was in the dark
+     * scheme where it always could be.
+     *
+     * The lift is the hover step. In the dark scheme it is the brighter accent,
+     * as before; in the light one brighter is the wrong direction, so it goes
+     * deeper instead.
+     */
+    --accent-ink: light-dark(var(--accent-ink-light), rgb(var(--accent-rgb)));
+    --accent-ink-lift: light-dark(
+        color-mix(in oklab, black 22%, var(--accent-ink-light)),
+        rgb(var(--accent-lift-rgb))
+    );
+
+    /*
+     * The opaque tier.
+     *
+     * `--surface` and its friends are accent at low alpha, which is right when
+     * they sit on a panel and wrong when they sit on the page: the page has a
+     * grid on it, and a six-percent wash lets every square through. Anything
+     * that can stand on its own gets one of these instead — the same tint,
+     * already composited onto a ground, so it covers.
+     */
+    --surface-solid: color-mix(in oklab, rgb(var(--accent-rgb)) 6%, var(--ground-2));
+    --surface-solid-2: color-mix(in oklab, rgb(var(--accent-rgb)) 11%, var(--ground-2));
+    --surface-solid-3: color-mix(in oklab, rgb(var(--accent-rgb)) 17%, var(--ground-2));
+
+    /* A wash on white has to be stronger to register at all. */
+    --surface: light-dark(
+        rgb(var(--accent-rgb) / 0.06),
+        rgb(var(--accent-rgb) / 0.03)
+    );
+    --surface-hover: light-dark(
+        rgb(var(--accent-rgb) / 0.11),
+        rgb(var(--accent-rgb) / 0.06)
+    );
+    --surface-active: light-dark(
+        rgb(var(--accent-rgb) / 0.16),
+        rgb(var(--accent-rgb) / 0.09)
+    );
+
+    --line: light-dark(
+        rgb(var(--accent-deep-rgb) / 0.34),
+        rgb(var(--accent-rgb) / 0.14)
+    );
+    --line-soft: light-dark(
+        rgb(var(--accent-deep-rgb) / 0.18),
+        rgb(var(--accent-rgb) / 0.07)
+    );
+    --line-faint: light-dark(
+        rgb(var(--accent-deep-rgb) / 0.1),
+        rgb(var(--accent-rgb) / 0.03)
+    );
+
+    /*
+     * Glow is a dark-scheme idea.
+     *
+     * Light emitted around an object reads on a dark ground and does nothing
+     * on a white one — an amber halo on paper is a smudge, not a highlight.
+     * So the light scheme gets the same emphasis by the means a light
+     * interface actually has: a ring of the deep accent and a real shadow.
+     *
+     * Every pulsing or glowing thing in the kit takes these two, so the effect
+     * is chosen once rather than per component.
+     */
+    --glow-ring: light-dark(
+        rgb(var(--accent-deep-rgb) / 0.38),
+        rgb(var(--accent-rgb) / 0.35)
+    );
+    --glow-halo: light-dark(
+        rgb(var(--accent-deep-rgb) / 0.16),
+        rgb(var(--accent-rgb) / 0.18)
+    );
+
+    --glow: rgb(var(--accent-rgb) / 0.12);
+    --glow-soft: rgb(var(--accent-rgb) / 0.06);
+    --glow-faint: rgb(var(--accent-rgb) / 0.03);
+
+    /*
+     * What goes on top of an accent fill.
+     *
+     * Near-black in both schemes, which is the whole point: the accent is a
+     * mid-light colour either way, so the readable text on it does not change
+     * when the scheme does. Filled buttons used `var(--bg)` — correct in dark,
+     * where the ground is nearly black, and white-on-amber at 1.9:1 in light,
+     * which is how every primary button in the app became unreadable the
+     * moment there was a light scheme.
+     */
+    --on-accent: color-mix(in oklab, black 84%, rgb(var(--accent-deep-rgb)));
+
+    --accent: rgb(var(--accent-rgb));
+    --accent-lift: rgb(var(--accent-lift-rgb));
+    --accent-deep: rgb(var(--accent-deep-rgb));
+    --counter: rgb(var(--counter-rgb));
+}
+
+/* ── The names the app already uses ───────────────────────────────────────── */
+
+/*
+ * Redefined rather than replaced. Twenty-nine components read `--bg2` and
+ * `--border`; rewriting them all to say `--ground-2` would be a large diff
+ * that changes nothing on screen. Pointing the old names at the new ones
+ * themes the whole application at once, and the rename can happen later, or
+ * never.
+ */
+:root {
+    --bg: var(--ground);
+    --bg2: var(--ground-2);
+    --bg3: var(--ground-3);
+    --bg4: var(--ground-4);
+    --bg5: var(--ground-5);
+
+    --text: var(--ink);
+    --text2: var(--ink-2);
+    --text3: var(--ink-3);
+    --text4: var(--ink-4);
+
+    --border: var(--line);
+    --border2: var(--line-soft);
+    --border3: var(--line-faint);
+
+    --amber: var(--accent);
+    --amber2: var(--accent-lift);
+    --amber3: var(--accent-lift);
+    --amber-dim: rgb(var(--accent-deep-rgb) / 0.55);
+    --amber-deep: var(--accent-deep);
+
+    --ag: var(--glow);
+    --ag2: var(--glow-soft);
+    --ag3: var(--glow-faint);
+
+    --accent-glow: var(--glow);
+    --panel: var(--ground-2);
+    --panel-2: var(--ground-3);
+    --muted: var(--ink-3);
+
+    /* Dark needs depth from black; light needs it from a hairline and a hint. */
+    --shadow-sm: 0 1px 2px light-dark(rgb(0 0 0 / 0.06), rgb(0 0 0 / 0.3)),
+        0 1px 3px light-dark(rgb(0 0 0 / 0.04), rgb(0 0 0 / 0.15));
+    --shadow-md: 0 4px 12px light-dark(rgb(0 0 0 / 0.08), rgb(0 0 0 / 0.4)),
+        0 1px 4px light-dark(rgb(0 0 0 / 0.05), rgb(0 0 0 / 0.2));
+    --shadow-lg: 0 8px 32px light-dark(rgb(0 0 0 / 0.1), rgb(0 0 0 / 0.5)),
+        0 2px 8px light-dark(rgb(0 0 0 / 0.06), rgb(0 0 0 / 0.3));
+    /* In dark a halo; in light a shadow with a trace of the accent in it. */
+    --shadow-glow: light-dark(
+        0 2px 6px rgb(0 0 0 / 0.06),
+        0 0 20px rgb(var(--accent-rgb) / 0.08)
+    ),
+    light-dark(
+        0 10px 28px rgb(var(--accent-deep-rgb) / 0.16),
+        0 0 60px rgb(var(--accent-rgb) / 0.04)
+    );
+}
+
+/*
+ * The semantic three keep their meaning in both schemes. On white they have to
+ * be taken down or they cannot be read; the dark values are the ones the app
+ * was built with.
+ */
+:root {
+    /*
+     * The light green is measured against its own wash, not against white.
+     * `#2f7d4c` clears 4.5:1 on a plain background and lands at 3.96–4.17 on
+     * the pale green pill it is always actually used on — which is where the
+     * "100% локально" line and the MergeKeys success banner live.
+     */
+    --green: light-dark(#256640, #5cb87a);
+    --green2: light-dark(#24693e, #7dd99a);
+    --red: light-dark(#b03a26, #d4604a);
+    --red2: light-dark(#8f2c1b, #ff8f7d);
+    --blue: light-dark(#1f5f9c, #5b9bd5);
+    /* The `.conf`/compat cyan, which was `#64d4e0` inline in two components. */
+    --cyan: light-dark(#0e6472, #64d4e0);
+    --cyan-bg: light-dark(rgb(14 100 114 / 0.08), rgb(100 212 224 / 0.07));
+    --cyan-line: light-dark(rgb(14 100 114 / 0.28), rgb(100 212 224 / 0.3));
+
+    --green-bg: rgb(var(--counter-rgb) / 0.08);
+    --gd: rgb(var(--counter-rgb) / 0.15);
+    --red-bg: light-dark(rgb(176 58 38 / 0.1), rgb(212 96 74 / 0.08));
+    --rd: light-dark(rgb(176 58 38 / 0.16), rgb(212 96 74 / 0.12));
+    --blue-bg: light-dark(rgb(31 95 156 / 0.1), rgb(91 155 213 / 0.08));
+}
+
+/* ── Code ─────────────────────────────────────────────────────────────────── */
+
+/*
+ * A syntax palette is a theme, so it lives here rather than inside the editor
+ * component — which is where it was, as nine fixed hex values chosen against
+ * black. On a pastel page that produced a large void with pale text in it, and
+ * `#080604` is not a colour any light design can absorb.
+ *
+ * Keeping the code surface dark in both schemes was the cheaper answer and a
+ * defensible one, but the app is not a documentation site with one snippet per
+ * page: the config preview, the editor and the readonly output are most of
+ * what is on screen, and three black slabs is not a light theme.
+ */
+:root {
+    --code-bg: light-dark(
+        color-mix(in oklab, rgb(var(--accent-deep-rgb)) 4%, #f8f8fa),
+        #0d0b08
+    );
+    --code-bg-2: light-dark(
+        color-mix(in oklab, rgb(var(--accent-deep-rgb)) 8%, #f1f1f4),
+        #0a0806
+    );
+
+    --code-section: light-dark(#0f6470, #64d4e0);
+    --code-key: light-dark(#6b5a34, #9a8a68);
+    --code-num: var(--accent-ink);
+    --code-range: light-dark(#78338f, #c98fd8);
+    --code-ip: var(--blue);
+    --code-cps: light-dark(#9c4415, #e8956b);
+    --code-str: var(--green2);
+    --code-kw: var(--red2);
+    --code-comment: var(--ink-3);
+}
+
+/* ── The drawing ──────────────────────────────────────────────────────────── */
+
+/*
+ * The house style is a working drawing, and these are its materials.
+ *
+ * The rule that keeps this from being costume: every motif carries data. A
+ * dimension line is how a parameter range is drawn, because a range is what a
+ * range is. Hatching marks what a client does not support. A revision letter
+ * is a protocol version. A motif that is only there to look technical does not
+ * get a token.
+ */
+:root {
+    /* Graphite: the colour a line is drawn in, distinct from the ink of text. */
+    --draw: light-dark(
+        rgb(var(--accent-deep-rgb) / 0.55),
+        rgb(var(--accent-rgb) / 0.42)
+    );
+    --draw-soft: light-dark(
+        rgb(var(--accent-deep-rgb) / 0.26),
+        rgb(var(--accent-rgb) / 0.2)
+    );
+
+    /* 45°, for an area that is unavailable rather than merely inactive. */
+    --hatch: repeating-linear-gradient(
+        45deg,
+        var(--draw-soft) 0 1px,
+        transparent 1px 7px
+    );
+
+    /* The sheet grid. Two densities: minor squares inside a major one. */
+    --grid-minor: light-dark(
+        rgb(var(--accent-deep-rgb) / 0.055),
+        rgb(var(--accent-rgb) / 0.045)
+    );
+    --grid-major: light-dark(
+        rgb(var(--accent-deep-rgb) / 0.11),
+        rgb(var(--accent-rgb) / 0.09)
+    );
+
+    /*
+     * The focus ring is two rings: the ground first, so it stays visible on a
+     * control whose own background is already the accent.
+     */
+    --focus-ring: 0 0 0 2px var(--ground), 0 0 0 4px rgb(var(--accent-rgb) / 0.7);
+    --focus-ring-tight: 0 0 0 2px rgb(var(--accent-rgb) / 0.7);
+}
+
+/* ── The background layer ─────────────────────────────────────────────────── */
+
+/*
+ * The aurora behind the app was four fixed rgba amber and teal blobs and a
+ * near-black vignette. It stayed amber on the teal page, and in the light
+ * scheme the vignette painted `rgb(10 8 6 / 0.7)` over a white one — the
+ * single worst thing in the app the first time it was shown in daylight.
+ *
+ * These are the alphas the layer needs at each scheme, so the effect can be
+ * written once. Light needs more of the colour and less of the darkening: a
+ * wash that reads on black disappears on white, and a vignette on white is a
+ * tint of the accent rather than a shadow.
+ */
+:root {
+    --fx-aurora-core: light-dark(
+        rgb(var(--accent-rgb) / 0.3),
+        rgb(var(--accent-rgb) / 0.1)
+    );
+    --fx-aurora-mid: light-dark(
+        rgb(var(--accent-rgb) / 0.14),
+        rgb(var(--accent-rgb) / 0.04)
+    );
+    --fx-aurora-edge: light-dark(
+        rgb(var(--accent-deep-rgb) / 0.05),
+        rgb(var(--accent-deep-rgb) / 0.01)
+    );
+
+    --fx-counter-core: light-dark(
+        rgb(var(--counter-rgb) / 0.2),
+        rgb(var(--counter-rgb) / 0.06)
+    );
+    --fx-counter-mid: light-dark(
+        rgb(var(--counter-rgb) / 0.09),
+        rgb(var(--counter-rgb) / 0.03)
+    );
+
+    --fx-grid: light-dark(
+        rgb(var(--accent-deep-rgb) / 0.06),
+        rgb(var(--accent-rgb) / 0.018)
+    );
+    --fx-horizon: light-dark(
+        rgb(var(--accent-deep-rgb) / 0.16),
+        rgb(var(--accent-rgb) / 0.08)
+    );
+    --fx-vignette: light-dark(
+        rgb(var(--accent-deep-rgb) / 0.09),
+        rgb(0 0 0 / 0.42)
+    );
+    --fx-vignette-edge: light-dark(
+        rgb(var(--accent-deep-rgb) / 0.17),
+        rgb(0 0 0 / 0.7)
+    );
+
+    /*
+     * The grain is painted rather than overlaid: the noise texture became a
+     * mask and this is the colour poured through it. A fixed-opacity black
+     * texture can only be tuned per scheme with a second rule, and on white it
+     * reads as dirt — masked, the same effect lightens the dark ground and
+     * tints the light one with the accent.
+     */
+    --fx-noise: light-dark(
+        rgb(var(--accent-deep-rgb) / 0.035),
+        rgb(255 255 255 / 0.03)
+    );
+}
+
+/* ── Switching without a smear ────────────────────────────────────────────── */
+
+/*
+ * Changing the scheme or the accent repaints every colour in the app at once,
+ * but each element eases to its new value at whatever duration its own rule
+ * happens to declare — 150ms here, 400ms there, and `transition: all` in a
+ * dozen places. The result is not a fade, it is a wave passing across the page
+ * with the borders arriving after the backgrounds.
+ *
+ * So the change is instantaneous, and the smoothing — when the browser can do
+ * it — is a view transition, which crossfades one snapshot of the whole page
+ * into another and cannot arrive out of order.
+ */
+:root[data-switching] *,
+:root[data-switching] *::before,
+:root[data-switching] *::after {
+    transition: none !important;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+    animation-duration: 260ms;
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    ::view-transition-old(root),
+    ::view-transition-new(root) {
+        animation: none;
+    }
+}
+

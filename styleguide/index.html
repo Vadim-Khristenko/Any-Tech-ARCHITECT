@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="ru">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <!--
+            Never indexed and never built. This page exists only under
+            `bun run kit`, which uses its own Vite root; the production build's
+            single input is the index.html at the repository root, so nothing
+            here can reach dist/.
+        -->
+        <meta name="robots" content="noindex, nofollow" />
+        <title>Any Tech ARCHITECT — kit</title>
+    </head>
+    <body>
+        <div id="kit"></div>
+        <script type="module" src="./main.ts"></script>
+    </body>
+</html>

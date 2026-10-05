@@ -1,0 +1,500 @@
+/**
+ * Any Tech ARCHITECT — parameter zones.
+ *
+ * A generator page is a form, and a form drawn as a form is a list of labelled
+ * boxes that tells you nothing about what you are setting. These are the
+ * pieces for drawing each group of parameters *as the thing it controls*: the
+ * junk train as a train, the packet sizes as bars to scale, the header ranges
+ * as spans on one shared axis so you can see they do not overlap, which is the
+ * single rule those four values have to obey.
+ *
+ * Part of the kit; see kit/index.css for the load order.
+ */
+
+/* ══════════════════════════════════════════════════════════════════════════
+   THE ZONE
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/*
+ * One group of parameters, framed as a figure on the sheet. Head, body, and a
+ * help drawer that opens *inside* the zone — the reason the explanation goes
+ * there and not in a floating layer is that a panel which grows downward can
+ * never cover the control you were reading about.
+ */
+.zone {
+    display: flex;
+    flex-direction: column;
+    background: var(--ground-2);
+    border: var(--rule) solid var(--line-soft);
+    border-radius: var(--r-3);
+}
+
+.zone-head {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+    padding: var(--sp-4) var(--sp-5);
+    border-bottom: var(--rule) solid var(--line-faint);
+}
+
+.zone-title {
+    font-family: var(--fu);
+    font-size: var(--t-xs);
+    font-weight: 700;
+    letter-spacing: var(--track-label);
+    text-transform: uppercase;
+    color: var(--accent-ink);
+}
+
+.zone-aside {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+}
+
+/*
+ * What the zone carries, in one line under its title.
+ *
+ * A title names a group; it does not say why the group exists or what you are
+ * looking at. Every zone on the generator page earns this line — the reader
+ * arrives at a drawing of numbers they did not choose, and the caption is the
+ * difference between a diagram and a decoration.
+ */
+.zone-note {
+    padding: 0 var(--sp-5) var(--sp-4);
+    margin: calc(var(--sp-4) * -1) 0 0;
+    font-size: var(--t-sm);
+    line-height: var(--lh-body);
+    color: var(--ink-3);
+    max-width: 78ch;
+}
+
+.zone-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-4);
+    padding: var(--sp-5);
+}
+
+.zone-foot {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    padding: var(--sp-3) var(--sp-5);
+    border-top: var(--rule) solid var(--line-faint);
+}
+
+/*
+ * The help drawer. Opened by the question mark, closed by it again, and it
+ * pushes the zone taller rather than covering anything.
+ */
+.zone-help {
+    padding: 0 var(--sp-5) var(--sp-5);
+    font-size: var(--t-sm);
+    line-height: var(--lh-body);
+    color: var(--ink-2);
+}
+
+.zone-help-item {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: var(--sp-3);
+    padding: var(--sp-2) 0;
+    border-bottom: var(--rule) solid var(--line-faint);
+}
+
+.zone-help-item:last-child {
+    border-bottom: none;
+}
+
+.zone-help-key {
+    font-family: var(--fm);
+    font-size: var(--t-xs);
+    color: var(--accent-ink);
+    white-space: nowrap;
+}
+
+/*
+ * The question mark.
+ *
+ * Small, quiet and always in the same place, so it reads as punctuation rather
+ * than as another control competing with the ones that change values.
+ */
+.help-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    padding: 0;
+    border: var(--rule) solid var(--line-soft);
+    border-radius: 50%;
+    background: transparent;
+    color: var(--ink-3);
+    font-family: var(--fm);
+    font-size: var(--t-2xs);
+    line-height: 1;
+    cursor: help;
+    transition:
+        color var(--dur-2) var(--ease-out-quart),
+        border-color var(--dur-2) var(--ease-out-quart),
+        background-color var(--dur-2) var(--ease-out-quart);
+}
+
+.help-btn:hover,
+.help-btn.is-on {
+    color: var(--accent-ink);
+    border-color: var(--accent);
+    background: var(--surface-solid);
+}
+
+.help-btn:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   THE JUNK TRAIN
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/*
+ * Jc cars at widths drawn from Jmin–Jmax, then the handshake they hide. Three
+ * numbers that are hard to picture, pictured.
+ */
+.train {
+    display: flex;
+    align-items: flex-end;
+    gap: 5px;
+    min-height: 44px;
+}
+
+.train-car {
+    position: relative;
+    height: 26px;
+    border-radius: 2px;
+    background: var(--surface-solid-2);
+    border: var(--rule) solid var(--line-soft);
+    transition:
+        width var(--dur-3) var(--ease-out-quart),
+        background-color var(--dur-2) var(--ease-out-quart);
+}
+
+.train-car-size {
+    position: absolute;
+    bottom: -15px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-family: var(--fm);
+    font-size: 9px;
+    color: var(--ink-3);
+}
+
+.train-real {
+    display: flex;
+    align-items: center;
+    height: 26px;
+    padding: 0 var(--sp-3);
+    border-radius: 2px;
+    background: var(--accent);
+    color: var(--on-accent);
+    font-family: var(--fm);
+    font-size: var(--t-2xs);
+    letter-spacing: var(--track-label);
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+/* Nothing in front of the handshake at all: the train is switched off. */
+.train-none {
+    display: flex;
+    align-items: center;
+    height: 26px;
+    padding: 0 var(--sp-3);
+    border: var(--rule) dashed var(--line-soft);
+    border-radius: 2px;
+    background-image: var(--hatch);
+    color: var(--ink-3);
+    font-family: var(--fm);
+    font-size: var(--t-2xs);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   SIZE BARS
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* S1–S4, drawn against each other rather than listed as four numbers. */
+.bars {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-3);
+}
+
+.bar {
+    display: grid;
+    grid-template-columns: 34px 1fr auto;
+    align-items: center;
+    gap: var(--sp-3);
+}
+
+.bar-key {
+    font-family: var(--fm);
+    font-size: var(--t-xs);
+    color: var(--ink-3);
+}
+
+.bar-track {
+    height: 14px;
+    border-radius: 2px;
+    background: var(--ground-3);
+    border: var(--rule) solid var(--line-faint);
+    overflow: hidden;
+}
+
+/*
+ * Blockified explicitly.
+ *
+ * It is a span, and width and height do not apply to a non-replaced inline
+ * element — so every bar rendered as an empty track and the zone drew four
+ * values it never showed. The track escaped this only because a grid item is
+ * blockified for free, which is exactly why the bug was hard to see: half of
+ * the component worked.
+ *
+ * The minimum width is for the small end of the scale: S4 against S2 is two
+ * bytes against a hundred and forty, and a fill under a pixel wide is a value
+ * reported as nothing.
+ */
+.bar-fill {
+    display: block;
+    height: 100%;
+    min-width: 3px;
+    background: var(--accent);
+    transition: width var(--dur-3) var(--ease-out-quart);
+}
+
+/* The floor a value cannot go under, drawn on the track it applies to. */
+.bar-floor {
+    position: relative;
+}
+
+.bar-floor::after {
+    content: "";
+    position: absolute;
+    top: -3px;
+    bottom: -3px;
+    width: var(--rule);
+    left: var(--floor, 0%);
+    background: var(--red);
+}
+
+.bar-value {
+    font-family: var(--fm);
+    font-size: var(--t-xs);
+    font-variant-numeric: tabular-nums;
+    color: var(--accent-ink);
+    min-width: 44px;
+    text-align: right;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   THE HEADER AXIS
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/*
+ * H1–H4 on one axis.
+ *
+ * The rule those four values have to obey is that their ranges must not
+ * overlap, and four pairs of ten-digit numbers in a list make that impossible
+ * to check by eye. On a shared axis it is the only thing you can see.
+ *
+ * Spans are given a minimum width because a real range is a few thousand wide
+ * against a scale of four billion, which is a hundredth of a pixel. The
+ * position is true; the width is legible.
+ */
+.axis {
+    position: relative;
+    height: 62px;
+    padding-top: 22px;
+    border-bottom: var(--rule) solid var(--draw);
+}
+
+.axis-span {
+    position: absolute;
+    top: 22px;
+    height: 22px;
+    min-width: 3px;
+    border-radius: 2px;
+    background: var(--accent);
+    border: var(--rule) solid var(--accent-deep);
+}
+
+.axis-span.is-clash {
+    background: var(--red);
+    border-color: var(--red);
+}
+
+.axis-label {
+    position: absolute;
+    top: 0;
+    transform: translateX(-50%);
+    font-family: var(--fm);
+    font-size: var(--t-2xs);
+    color: var(--accent-ink);
+    white-space: nowrap;
+}
+
+/* The ends of the space the values live in. */
+.axis-end {
+    position: absolute;
+    bottom: -18px;
+    font-family: var(--fm);
+    font-size: 9px;
+    color: var(--ink-3);
+}
+
+.axis-end--min {
+    left: 0;
+}
+
+.axis-end--max {
+    right: 0;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   THE CPS CHAIN
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.chain {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+}
+
+.chain-row {
+    display: grid;
+    grid-template-columns: 30px 1fr;
+    align-items: baseline;
+    gap: var(--sp-3);
+    padding: var(--sp-2) var(--sp-3);
+    background: var(--code-bg);
+    border: var(--rule) solid var(--line-faint);
+    border-radius: var(--r-1);
+}
+
+.chain-key {
+    font-family: var(--fm);
+    font-size: var(--t-xs);
+    color: var(--accent-ink);
+}
+
+.chain-val {
+    font-family: var(--fm);
+    font-size: var(--t-2xs);
+    line-height: 1.5;
+    color: var(--ink-2);
+    overflow-wrap: anywhere;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   A ROW THAT ENDS TOGETHER
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/*
+ * Setup zones share a bottom edge.
+ *
+ * `align-items: start` was right for the parameter grid, where a collapsible
+ * has to be able to shrink, and wrong for a row of settings: three cards of
+ * different heights leave ragged white space under the short ones and read as
+ * an unfinished layout rather than a deliberate one.
+ *
+ * The body grows to fill, so the controls sit where they were and only the
+ * card gets taller.
+ */
+.zone-row {
+    align-items: stretch;
+}
+
+.zone-row > .zone {
+    height: 100%;
+}
+
+/*
+ * The body fills the card, and its contents stay at the top.
+ *
+ * Without the second rule the fields inherit the extra height: a grid stretches
+ * its rows and a column flex spreads its children, so making the cards level
+ * pulled the controls apart inside them. The spare space belongs at the
+ * bottom, which is where the sheet mark goes.
+ */
+.zone-row > .zone > .zone-body {
+    flex: 1;
+    align-content: start;
+}
+
+.zone-row > .zone > .zone-body > * {
+    align-self: start;
+}
+
+/* A field is a column of its own; it must still fill the cell it sits in. */
+.zone-row > .zone > .zone-body > .field,
+.zone-row > .zone > .zone-body > label {
+    width: 100%;
+}
+
+/*
+ * The mark left in the space a short card cannot fill.
+ *
+ * A sheet designation rather than a decorative bracket: on a real drawing the
+ * corner carries which sheet you are holding, and here it carries which engine
+ * and which version produced what is above it. That makes it furniture that
+ * says something — the same rule every other motif in this kit obeys.
+ *
+ * Drawn with a corner rule instead of typed box characters, which never line
+ * up across fonts and cannot be sized.
+ */
+.zone-filler {
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-end;
+    flex: 1;
+    min-height: 40px;
+    padding: var(--sp-4) 0 2px var(--sp-4);
+    font-family: var(--fm);
+    font-size: 9px;
+    line-height: 1.35;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    pointer-events: none;
+    user-select: none;
+}
+
+/* The corner: two rules meeting, as a title block is ruled off. */
+.zone-filler::before {
+    content: "";
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 26px;
+    height: 26px;
+    border-right: var(--rule) solid var(--line-faint);
+    border-bottom: var(--rule) solid var(--line-faint);
+}
+
+.zone-filler-tick {
+    position: absolute;
+    right: 30px;
+    bottom: 0;
+    width: 5px;
+    height: var(--rule);
+    background: var(--line-faint);
+}
+
+@media (max-width: 900px) {
+    .zone-filler {
+        display: none;
+    }
+}

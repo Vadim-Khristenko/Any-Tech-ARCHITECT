@@ -1,0 +1,22 @@
+blank_issues_enabled: false
+
+contact_links:
+  - name: Вопрос по параметрам · Question about parameters
+    url: https://architect.vai-rice.space/faq
+    about: >
+      Разбор Jc, S1–S4, H1–H4, I1–I5 и параметров 3.0, различия версий и
+      типичные проблемы — скорее всего, ответ уже там.
+      · Parameters, version differences and common failure modes are probably
+      already answered in the FAQ.
+
+  - name: Не открывается GitHub · GitHub unreachable
+    url: https://git.vai-rice.space/amnezia-vpn
+    about: >
+      Зеркало репозиториев Amnezia. Сверяйте подписи релизов — это независимое
+      зеркало. · A mirror of the Amnezia repositories; verify release signatures.
+
+  - name: Проблема в самом AmneziaWG · Issue in AmneziaWG itself
+    url: https://github.com/amnezia-vpn/amneziawg-go/issues
+    about: >
+      Если проблема в протоколе или клиенте, а не в генераторе — заводите issue
+      у Amnezia. · Report protocol or client issues upstream.

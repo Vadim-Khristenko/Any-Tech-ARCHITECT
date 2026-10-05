@@ -1,171 +1,332 @@
 <script setup lang="ts">
-import { AlertTriangle, Home, ArrowLeft } from "lucide-vue-next";
-import { useRouter } from "vue-router";
+/**
+ * 404.
+ *
+ * Styled as a dropped packet rather than a system error: nothing broke on the
+ * visitor's side, so the page uses the product's own amber rather than alarm
+ * red, and it carries the corner-bracket framing the OG images use.
+ */
+import { computed } from "vue";
+import { Home, ArrowLeft, ArrowRight, Layers, HelpCircle, GitMerge } from "lucide-vue-next";
+import { useRoute, useRouter } from "vue-router";
+import { localizePath, useI18n } from "@/i18n";
 
 const router = useRouter();
+const route = useRoute();
+const { locale, t } = useI18n();
 
 function goHome() {
-    router.push("/");
+    router.push(localizePath("/", locale.value));
 }
 
+/**
+ * `router.back()` walks out of the app entirely when the 404 was the first
+ * page of the session, so fall back to the home route in that case.
+ */
 function goBack() {
-    router.back();
+    if (window.history.length > 1) router.back();
+    else goHome();
 }
+
+/** Shown verbatim so a mistyped address is obvious at a glance. */
+const requestedPath = computed(() => route.fullPath);
+
+const suggestions = computed(() => [
+    { to: localizePath("/amneziawg", locale.value), icon: Layers, label: t("nf.link.generator") },
+    { to: localizePath("/faq", locale.value), icon: HelpCircle, label: t("nf.link.faq") },
+    {
+        to: localizePath("/mergekeys", locale.value),
+        icon: GitMerge,
+        label: t("nf.link.mergekeys"),
+    },
+]);
 </script>
 
 <template>
-    <div class="nf-wrap fade-in">
-        <div class="nf-content">
-            <div class="nf-icon-wrap">
-                <AlertTriangle :size="48" class="nf-icon" />
+    <div class="notfound-wrap fade-in">
+        <div class="notfound-card">
+            <!-- Corner brackets, matching the link-preview artwork -->
+            <span class="notfound-bracket notfound-bracket-tl"></span>
+            <span class="notfound-bracket notfound-bracket-br"></span>
+
+            <div class="notfound-badge">{{ t("nf.badge") }}</div>
+
+            <div class="notfound-code" aria-hidden="true">404</div>
+
+            <!-- A junk train with a gap where the packet should have been -->
+            <div class="notfound-train" aria-hidden="true">
+                <i style="--w: 14px"></i>
+                <i style="--w: 22px"></i>
+                <i style="--w: 11px"></i>
+                <i class="notfound-gap"></i>
+                <i style="--w: 26px"></i>
+                <i style="--w: 17px"></i>
+                <i style="--w: 30px"></i>
             </div>
 
-            <h1 class="nf-title">404</h1>
-            <h2 class="nf-subtitle">Страница не найдена</h2>
+            <h1 class="notfound-title">{{ t("nf.title") }}</h1>
+            <p class="notfound-desc">{{ t("nf.desc") }}</p>
 
-            <p class="nf-desc">
-                Кажется, вы перешли по неверной ссылке или эта страница была
-                удалена. Не переживайте, главное — ключи в безопасности.
-            </p>
+            <div class="notfound-path">
+                <span class="notfound-path-label">{{ t("nf.requested") }}</span>
+                <code>{{ requestedPath }}</code>
+            </div>
 
-            <div class="nf-actions">
+            <div class="notfound-actions">
                 <button class="btn btn-primary" @click="goHome">
                     <Home :size="16" />
-                    На главную
+                    {{ t("nf.home") }}
                 </button>
                 <button class="btn btn-secondary" @click="goBack">
                     <ArrowLeft :size="16" />
-                    Вернуться назад
+                    {{ t("nf.back") }}
                 </button>
+            </div>
+
+            <div class="notfound-suggest">
+                <span class="notfound-suggest-label">{{ t("nf.elsewhere") }}</span>
+                <router-link
+                    v-for="s in suggestions"
+                    :key="s.to"
+                    :to="s.to"
+                    class="notfound-suggest-link"
+                >
+                    <component :is="s.icon" :size="15" />
+                    <span>{{ s.label }}</span>
+                    <ArrowRight :size="14" class="notfound-suggest-arrow" />
+                </router-link>
             </div>
         </div>
     </div>
 </template>
 
 <style scoped>
-.nf-wrap {
-    min-height: calc(100vh - 80px - 200px); /* App header + footer approx */
+.notfound-wrap {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 40px 20px;
+    min-height: calc(100vh - 280px);
+    padding: 48px 20px;
 }
 
-.nf-content {
-    max-width: 500px;
-    width: 100%;
-    text-align: center;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-xl);
-    padding: 60px 40px;
-    box-shadow: var(--shadow-lg);
+.notfound-card {
     position: relative;
-    overflow: hidden;
+    width: 100%;
+    max-width: 560px;
+    padding: 44px 36px 36px;
+    text-align: center;
+    background:
+        radial-gradient(
+            120% 80% at 50% 0%,
+            rgb(var(--accent-rgb) / 0.09),
+            transparent 70%
+        ),
+        var(--bg2);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-lg);
 }
 
-.nf-content::before {
-    content: "";
+/* ── Corner brackets ──────────────────────────────────────────────────── */
+.notfound-bracket {
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 4px;
-    background: linear-gradient(90deg, transparent, var(--red), transparent);
-    opacity: 0.8;
+    width: 34px;
+    height: 34px;
+    border-color: var(--amber);
+    opacity: 0.4;
+    pointer-events: none;
 }
 
-.nf-icon-wrap {
-    width: 90px;
-    height: 90px;
-    margin: 0 auto 24px;
-    background: var(--red-bg);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--red);
-    box-shadow: 0 0 40px var(--red-bg);
-    animation: pulse 3s infinite alternate;
+.notfound-bracket-tl {
+    top: 14px;
+    left: 14px;
+    border-top: 2px solid;
+    border-left: 2px solid;
+    border-top-left-radius: 4px;
 }
 
-.nf-title {
+.notfound-bracket-br {
+    right: 14px;
+    bottom: 14px;
+    border-right: 2px solid;
+    border-bottom: 2px solid;
+    border-bottom-right-radius: 4px;
+}
+
+/* ── Head ─────────────────────────────────────────────────────────────── */
+.notfound-badge {
+    display: inline-block;
+    margin-bottom: 18px;
+    padding: 6px 14px;
+    border: 1px solid var(--amber-dim);
+    border-radius: 100px;
+    background: rgb(var(--accent-rgb) / 0.1);
+    color: var(--accent-ink-lift);
+    font-family: var(--fm);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+}
+
+.notfound-code {
     font-family: var(--fu);
-    font-size: 5rem;
+    font-size: clamp(4rem, 16vw, 6rem);
     font-weight: 900;
-    margin: 0;
-    line-height: 1;
-    background: linear-gradient(135deg, var(--red2), var(--red));
+    line-height: 0.95;
+    letter-spacing: -0.03em;
+    background: linear-gradient(135deg, var(--amber2), var(--amber-deep));
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
-    text-shadow: 0 4px 20px rgba(212, 96, 74, 0.2);
 }
 
-.nf-subtitle {
-    font-family: var(--fu);
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: var(--text);
-    margin: 10px 0 20px;
-}
-
-.nf-desc {
-    color: var(--text2);
-    font-size: 1.1rem;
-    line-height: 1.6;
-    margin-bottom: 30px;
-}
-
-.nf-actions {
+/* ── Junk train with a hole in it ─────────────────────────────────────── */
+.notfound-train {
     display: flex;
-    gap: 16px;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    margin: 18px 0 26px;
+}
+
+.notfound-train i {
+    width: var(--w, 20px);
+    height: 10px;
+    border-radius: 3px;
+    background: var(--amber);
+    opacity: 0.32;
+}
+
+/* The dropped one: outline only, so the absence reads as deliberate. */
+.notfound-train .notfound-gap {
+    width: 30px;
+    height: 10px;
+    background: transparent;
+    border: 1px dashed var(--amber);
+    opacity: 0.55;
+}
+
+/* ── Body ─────────────────────────────────────────────────────────────── */
+.notfound-title {
+    margin: 0 0 12px;
+    font-family: var(--fu);
+    font-size: clamp(1.25rem, 4.5vw, 1.6rem);
+    font-weight: 800;
+    color: var(--text);
+}
+
+.notfound-desc {
+    margin: 0 auto 22px;
+    max-width: 44ch;
+    font-size: 0.92rem;
+    line-height: 1.65;
+    color: var(--text2);
+    text-wrap: pretty;
+}
+
+.notfound-path {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-bottom: 26px;
+    padding: 11px 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg);
+    text-align: left;
+}
+
+.notfound-path-label {
+    font-size: 0.68rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text3);
+}
+
+.notfound-path code {
+    font-family: var(--fm);
+    font-size: 0.82rem;
+    color: var(--accent-ink-lift);
+    word-break: break-all;
+}
+
+.notfound-actions {
+    display: flex;
+    gap: 12px;
     justify-content: center;
     flex-wrap: wrap;
 }
 
-.btn {
-    display: inline-flex;
+/* ── Suggestions ──────────────────────────────────────────────────────── */
+.notfound-suggest {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 28px;
+    padding-top: 22px;
+    border-top: 1px solid var(--border);
+    text-align: left;
+}
+
+.notfound-suggest-label {
+    margin-bottom: 6px;
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text3);
+}
+
+.notfound-suggest-link {
+    display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 12px 24px;
-    font-size: 1rem;
-    font-weight: 600;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: var(--radius);
+    color: var(--text2);
+    font-size: 0.87rem;
+    text-decoration: none;
+    transition: all var(--trans-fast);
 }
 
-.btn-primary {
-    background: linear-gradient(180deg, var(--red2), var(--red));
-    color: #fff;
-    border-color: rgba(255, 143, 125, 0.6);
-    box-shadow: 0 6px 20px rgba(212, 96, 74, 0.25);
+.notfound-suggest-link:hover {
+    background: var(--bg4);
+    color: var(--text);
 }
 
-.btn-primary:hover {
-    box-shadow: 0 8px 25px rgba(212, 96, 74, 0.4);
+.notfound-suggest-link svg:first-child {
+    flex-shrink: 0;
+    color: var(--accent-ink);
 }
 
-@keyframes pulse {
-    0% {
-        box-shadow: 0 0 20px rgba(212, 96, 74, 0.1);
-        transform: scale(0.98);
-    }
-    100% {
-        box-shadow: 0 0 40px rgba(212, 96, 74, 0.25);
-        transform: scale(1.02);
+.notfound-suggest-arrow {
+    margin-left: auto;
+    flex-shrink: 0;
+    opacity: 0;
+    transform: translateX(-4px);
+    transition: all var(--trans-fast);
+}
+
+.notfound-suggest-link:hover .notfound-suggest-arrow {
+    opacity: 0.7;
+    transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .notfound-suggest-arrow {
+        transition: none;
     }
 }
 
 @media (max-width: 480px) {
-    .nf-content {
-        padding: 40px 24px;
+    .notfound-card {
+        padding: 34px 20px 26px;
     }
-    .nf-title {
-        font-size: 4rem;
-    }
-    .nf-actions {
+
+    .notfound-actions {
         flex-direction: column;
     }
-    .btn {
+
+    .notfound-actions .btn {
         width: 100%;
         justify-content: center;
     }

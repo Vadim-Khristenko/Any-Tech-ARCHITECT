@@ -1,0 +1,107 @@
+/**
+ * Any Tech ARCHITECT — Type and layout helpers.
+ *
+ * Part of the kit; see kit/index.css for the load order and kit/tokens.css
+ * for the values everything here is built from.
+ */
+
+.display {
+    font-family: var(--fu);
+    font-size: var(--t-display);
+    font-weight: 800;
+    line-height: var(--lh-tight);
+    letter-spacing: var(--track-display);
+    text-wrap: balance;
+}
+
+.display--lg {
+    font-size: var(--t-display-lg);
+}
+
+.display--sm {
+    font-size: var(--t-display-sm);
+}
+
+.h2 {
+    font-family: var(--fu);
+    font-size: var(--t-xl);
+    font-weight: 700;
+    line-height: var(--lh-snug);
+    letter-spacing: var(--track-tight);
+    text-wrap: balance;
+}
+
+.h3 {
+    font-family: var(--fw);
+    font-size: var(--t-md);
+    font-weight: 800;
+    line-height: var(--lh-snug);
+    text-wrap: balance;
+}
+
+.lede {
+    max-width: var(--measure);
+    font-size: var(--t-md);
+    line-height: var(--lh-body);
+    color: var(--ink-2);
+    text-wrap: pretty;
+}
+
+.prose {
+    max-width: var(--measure);
+    font-size: var(--t-base);
+    line-height: var(--lh-body);
+    color: var(--ink-2);
+    text-wrap: pretty;
+}
+
+/* A short label in the mono face: the annotation voice of the drawing. */
+.note-label {
+    font-family: var(--fm);
+    font-size: var(--t-2xs);
+    letter-spacing: var(--track-label);
+    text-transform: uppercase;
+    color: var(--ink-3);
+}
+
+.mono {
+    font-family: var(--fm);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: var(--track-mono);
+}
+
+.stack {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-4);
+}
+
+.row {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+    flex-wrap: wrap;
+}
+
+/* Breakpoint-free: the columns decide for themselves when to wrap. */
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: var(--sp-4);
+}
+
+.grid--wide {
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+}
+
+/*
+ * A grid whose items keep their own height.
+ *
+ * By default grid items stretch to the tallest in the row, which is right for
+ * cards and wrong for anything that collapses: the panel keeps the height its
+ * neighbours set and the disclosure appears not to have closed at all. The
+ * content moved; the box could not.
+ */
+.grid--top {
+    align-items: start;
+}

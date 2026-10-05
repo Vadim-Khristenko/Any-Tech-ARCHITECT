@@ -1,0 +1,229 @@
+/**
+ * Any Tech ARCHITECT — base: the reset, the faces, the bare elements.
+ *
+ * What an unstyled tag looks like before any primitive touches it. Everything
+ * in the kit assumes this file has run, which is why it loads second, straight
+ * after the tokens.
+ *
+ * Part of the kit; see kit/index.css for the load order.
+ */
+
+/* ── Metric-matched fallback faces ────────────────────────────────────────────
+   Synthesised from @capsizecss/metrics so the system fallback occupies exactly
+   the same box as the web font (xWidthAvg-normalised against Arial). The font
+   swap is therefore dimensionally invisible and costs no layout shift. The
+   local() chain covers Arial (Windows, macOS) and Liberation Sans (Linux). */
+@font-face {
+    font-family: "Manrope Fallback";
+    src:
+        local("Arial"),
+        local("Liberation Sans");
+    size-adjust: 103.19%;
+    ascent-override: 103.31%;
+    descent-override: 29.07%;
+    line-gap-override: 0%;
+}
+
+@font-face {
+    font-family: "Unbounded Fallback";
+    src:
+        local("Arial"),
+        local("Liberation Sans");
+    size-adjust: 134.59%;
+    ascent-override: 73.93%;
+    descent-override: 18.2%;
+    line-gap-override: 0%;
+}
+
+/* ── Reset ────────────────────────────────────────────────────────────────── */
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html {
+    scroll-behavior: smooth;
+    background-color: var(--ground);
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    hanging-punctuation: first last;
+}
+
+body {
+    font-family: var(--fw);
+    background-color: var(--ground);
+    color: var(--ink);
+    font-size: 16px;
+    line-height: var(--lh-body);
+    min-height: 100vh;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+}
+
+::selection {
+    background: rgb(var(--accent-rgb) / 0.3);
+    color: var(--accent-ink-lift);
+}
+
+/* ── Elements ─────────────────────────────────────────────────────────────── */
+
+/*
+ * Headings get the display face and the scale's own steps. A bare `<h2>` and a
+ * `.h2` should be the same object — otherwise the kit is a second opinion
+ * rather than the design.
+ */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    font-family: var(--fu);
+    color: var(--ink);
+    font-weight: 700;
+    line-height: var(--lh-snug);
+    letter-spacing: var(--track-tight);
+    margin-bottom: 0.5em;
+    text-wrap: balance;
+}
+
+h1 {
+    font-size: var(--t-display-sm);
+    line-height: var(--lh-tight);
+    letter-spacing: var(--track-display);
+}
+
+h2 {
+    font-size: var(--t-xl);
+}
+
+h3 {
+    font-size: var(--t-md);
+}
+
+h4,
+h5,
+h6 {
+    font-size: var(--t-base);
+}
+
+p {
+    margin-bottom: 1em;
+    color: var(--ink-2);
+    text-wrap: pretty;
+}
+
+a {
+    color: inherit;
+    text-decoration: none;
+    cursor: pointer;
+    transition: color var(--trans-fast);
+}
+
+a:hover {
+    color: var(--accent-ink);
+}
+
+img,
+svg {
+    max-width: 100%;
+}
+
+img {
+    display: block;
+}
+
+code,
+pre,
+.mono {
+    font-family: var(--fm);
+}
+
+/* Inline code, but not the code inside a block — that is the block's job. */
+code:not(pre code) {
+    padding: 2px 6px;
+    border: var(--rule) solid var(--line-faint);
+    border-radius: var(--r-1);
+    background: var(--code-bg);
+    color: var(--accent-ink);
+    font-size: 0.88em;
+}
+
+pre {
+    padding: var(--sp-4);
+    border: var(--rule) solid var(--line-soft);
+    border-radius: var(--r-2);
+    background: var(--code-bg);
+    color: var(--ink-2);
+    font-size: var(--t-sm);
+    line-height: var(--lh-body);
+    overflow-x: auto;
+}
+
+/*
+ * Number fields lose their spinners everywhere. Every numeric input in this
+ * app is a protocol value typed by hand, and a pair of half-pixel arrows that
+ * step it by one is not a way anyone sets an MTU.
+ */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+input[type="number"] {
+    appearance: textfield;
+    -moz-appearance: textfield;
+}
+
+/* ── Scrollbars ───────────────────────────────────────────────────────────── */
+
+::-webkit-scrollbar {
+    width: 9px;
+    height: 9px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--ink-faint);
+    border-radius: var(--r-pill);
+    border: 2px solid transparent;
+    background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-deep);
+    background-clip: content-box;
+}
+
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--ink-faint) transparent;
+}
+
+/* ── Reduced motion ───────────────────────────────────────────────────────── */
+
+/*
+ * The blanket rule. Individual components still declare their own alternative
+ * where a crossfade reads better than an instant cut; this is the floor under
+ * all of them, including anything a view adds later without thinking about it.
+ */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}

@@ -1,0 +1,214 @@
+/**
+ * Any Tech ARCHITECT — Buttons.
+ *
+ * Part of the kit; see kit/index.css for the load order and kit/tokens.css
+ * for the values everything here is built from.
+ */
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--sp-2);
+    padding: 0 var(--sp-4);
+    height: 38px;
+    border: var(--rule) solid transparent;
+    border-radius: var(--r-2);
+    background: transparent;
+    color: var(--ink-2);
+    font-family: var(--fw);
+    font-size: var(--t-sm);
+    font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+    transition:
+        background-color var(--dur-2) var(--ease-out-quart),
+        border-color var(--dur-2) var(--ease-out-quart),
+        color var(--dur-2) var(--ease-out-quart);
+}
+
+.btn:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+/* Primary: the accent as a fill, so its text is the on-accent ink, always. */
+.btn--primary,
+.btn-primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--on-accent);
+}
+
+.btn--primary:hover:not(:disabled),
+.btn-primary:hover:not(:disabled) {
+    background: var(--accent-lift);
+    border-color: var(--accent-lift);
+}
+
+.btn--secondary,
+.btn-secondary {
+    background: var(--ground-2);
+    border-color: var(--line);
+    color: var(--ink);
+}
+
+.btn--secondary:hover:not(:disabled),
+.btn-secondary:hover:not(:disabled) {
+    background: var(--ground-3);
+    border-color: var(--accent-deep);
+}
+
+.btn--ghost,
+.btn-ghost {
+    color: var(--ink-2);
+}
+
+.btn--ghost:hover:not(:disabled),
+.btn-ghost:hover:not(:disabled) {
+    background: var(--surface-hover);
+    color: var(--accent-ink);
+}
+
+.btn--danger,
+.btn-danger {
+    background: var(--red-bg);
+    border-color: var(--rd);
+    color: var(--red);
+}
+
+.btn--danger:hover:not(:disabled),
+.btn-danger:hover:not(:disabled) {
+    background: var(--rd);
+}
+
+.btn--sm {
+    height: 30px;
+    padding: 0 var(--sp-3);
+    font-size: var(--t-xs);
+}
+
+.btn--lg {
+    height: 46px;
+    padding: 0 var(--sp-5);
+    font-size: var(--t-base);
+}
+
+.btn--icon,
+.btn-icon {
+    width: 38px;
+    padding: 0;
+}
+
+.btn--icon.btn--sm,
+.btn-icon.btn--sm {
+    width: 30px;
+}
+
+.btn--icon.btn--lg,
+.btn-icon.btn--lg {
+    width: 46px;
+}
+
+/* Full width in a stack; the common mobile case. */
+.btn--block {
+    display: flex;
+    width: 100%;
+}
+
+/*
+ * Disabled is hatched rather than faded. A faded control asks whether it is
+ * disabled or just low-contrast; a hatched one is unambiguous, and it is the
+ * same mark the kit uses everywhere else for "not available".
+ */
+.btn:disabled,
+.btn.is-disabled,
+.btn:disabled,
+.btn.is-disabled {
+    cursor: not-allowed;
+    color: var(--ink-3);
+    background-color: var(--ground-3);
+    background-image: var(--hatch);
+    border-color: var(--line-faint);
+}
+
+.btn.is-loading {
+    position: relative;
+    color: transparent;
+    pointer-events: none;
+}
+
+.btn.is-loading::after {
+    content: "";
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    border: 2px solid currentcolor;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 620ms linear infinite;
+    /* The label is transparent, so the spinner borrows the button's own ink. */
+    color: var(--ink-2);
+}
+
+.btn--primary.is-loading::after,
+.btn-primary.is-loading::after {
+    color: var(--on-accent);
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(1turn);
+    }
+}
+
+/* A row of buttons welded into one control. */
+.btngroup {
+    display: inline-flex;
+    padding: 3px;
+    gap: 2px;
+    background: var(--ground-3);
+    border: var(--rule) solid var(--line-soft);
+    border-radius: var(--r-2);
+}
+
+.btngroup .btn {
+    height: 30px;
+    padding: 0 var(--sp-3);
+    font-size: var(--t-xs);
+    border-radius: var(--r-1);
+}
+
+.btngroup .btn.is-active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--on-accent);
+}
+
+/* ── When the button is a link ────────────────────────────────────────────── */
+
+/*
+ * `a:hover` in base.css recolours any anchor to the accent, and it wins on
+ * specificity over `.btn--primary`, which is a class. So every link styled as
+ * a filled button turned its own label the colour of its fill on hover — amber
+ * text on amber, which reads as the button going soft rather than as text.
+ *
+ * Stated per variant rather than with a blanket `color: inherit`, because each
+ * one has a different right answer.
+ */
+a.btn--primary:hover {
+    color: var(--on-accent);
+}
+
+a.btn--secondary:hover {
+    color: var(--ink);
+}
+
+a.btn--ghost:hover {
+    color: var(--accent-ink);
+}
+
+a.btn--danger:hover {
+    color: var(--red);
+}

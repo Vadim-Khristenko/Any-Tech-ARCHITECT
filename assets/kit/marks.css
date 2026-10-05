@@ -1,0 +1,211 @@
+/**
+ * Any Tech ARCHITECT — Marks — badges, revisions, keys, dots.
+ *
+ * Part of the kit; see kit/index.css for the load order and kit/tokens.css
+ * for the values everything here is built from.
+ */
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-1);
+    padding: 3px var(--sp-2);
+    border: var(--rule) solid var(--line-soft);
+    border-radius: var(--r-1);
+    background: var(--surface-solid);
+    color: var(--accent-ink);
+    font-family: var(--fm);
+    font-size: var(--t-2xs);
+    font-weight: 700;
+    letter-spacing: var(--track-label);
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.badge--ok {
+    background: var(--green-bg);
+    border-color: var(--gd);
+    color: var(--green);
+}
+
+.badge--warn {
+    background: var(--surface);
+    border-color: var(--line);
+    color: var(--accent-ink);
+}
+
+.badge--bad {
+    background: var(--red-bg);
+    border-color: var(--rd);
+    color: var(--red);
+}
+
+.badge--info {
+    background: var(--cyan-bg);
+    border-color: var(--cyan-line);
+    color: var(--cyan);
+}
+
+.badge--quiet {
+    background: transparent;
+    border-color: var(--line-faint);
+    color: var(--ink-3);
+}
+
+/*
+ * A revision letter, from the corner of a drawing. Used for a protocol
+ * version, which is exactly what a revision is: the same object, later.
+ */
+.rev {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 var(--sp-1);
+    border: var(--rule) solid var(--draw);
+    border-radius: var(--r-1);
+    background: var(--ground);
+    color: var(--accent-ink);
+    font-family: var(--fm);
+    font-size: var(--t-2xs);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.rev.is-active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--on-accent);
+}
+
+/* A keyboard key. Physical, because that is what it is describing. */
+.kbd {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px var(--sp-2);
+    border: var(--rule) solid var(--line);
+    border-bottom-width: var(--rule-heavy);
+    border-radius: var(--r-1);
+    background: var(--ground-3);
+    color: var(--ink-2);
+    font-family: var(--fm);
+    font-size: var(--t-2xs);
+    line-height: 1.4;
+}
+
+.code {
+    padding: 2px 5px;
+    border-radius: var(--r-1);
+    background: var(--code-bg);
+    border: var(--rule) solid var(--line-faint);
+    color: var(--accent-ink);
+    font-family: var(--fm);
+    font-size: 0.9em;
+}
+
+.dot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--ink-3);
+    flex-shrink: 0;
+}
+
+.dot--ok {
+    background: var(--green);
+}
+
+.dot--bad {
+    background: var(--red);
+}
+
+/*
+ * A live dot, and the ring that leaves it.
+ *
+ * The ring used to be an animated `box-shadow` on the dot itself. A
+ * box-shadow is a paint, not a property the compositor can interpolate, so
+ * every frame of a 2.4 second loop asked the main thread to repaint the
+ * element — forever, on the two pages that show one. The same trick
+ * `.badge-glow` below uses: put the halo on a pseudo-element and animate
+ * `transform` and `opacity`, which cost nothing to composite.
+ */
+.dot--live {
+    position: relative;
+    background: var(--accent);
+}
+
+.dot--live::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: var(--glow-ring);
+    pointer-events: none;
+    animation: pulse 2.4s var(--ease-out-quart) infinite;
+}
+
+@keyframes pulse {
+    from {
+        transform: scale(1);
+        opacity: 0.5;
+    }
+    70%,
+    100% {
+        /* Three times a 7px dot is the 7px ring the old shadow drew. */
+        transform: scale(3);
+        opacity: 0;
+    }
+}
+
+/* ── The chevron ──────────────────────────────────────────────────────────── */
+
+/*
+ * The arrow that turns when something opens. Three components drew it
+ * identically before it was one rule; rotating it is the container's business,
+ * because only the container knows what "open" means.
+ */
+.chevron {
+    flex-shrink: 0;
+    color: var(--ink-3);
+    transition: transform var(--trans-fast);
+}
+
+/* ── The badge glow ───────────────────────────────────────────────────────── */
+
+/*
+ * On a pseudo-element so the animation is opacity, which the compositor
+ * handles, rather than box-shadow, which forces a main-thread repaint every
+ * frame — and did so during the critical load window.
+ */
+.badge-glow {
+    position: relative;
+}
+
+.badge-glow::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    box-shadow: 0 0 16px 3px var(--glow-halo);
+    opacity: 0;
+    pointer-events: none;
+    animation: badge-pulse 3s ease-in-out infinite;
+}
+
+@keyframes badge-pulse {
+    0%,
+    100% {
+        opacity: 0;
+    }
+    50% {
+        opacity: 1;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .badge-glow::after {
+        animation: none;
+    }
+}

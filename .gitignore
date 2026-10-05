@@ -29,6 +29,7 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 .pnpm-store/
+package-lock.json
 .pnp.cjs
 .pnp.js
 
@@ -43,12 +44,14 @@ venv/
 
 # <==| Build / Output |==>
 dist/
+dist-lite/
 build/
 out/
 site/
 coverage/
 *.tgz
 *.zip
+.*/
 
 # <==| Static site / Pages artifacts |==>
 .surge/
@@ -117,6 +120,7 @@ pip-log.txt
 .github/workflows/*.secret.yml
 pages/
 gh-pages/
+docs/
 .deploy/
 .ssh/
 
@@ -142,4 +146,19 @@ temp_*
 *.iso
 *.img
 
+# <==| Git | ==>
+!.github
+!.gitlab-ci
+!.codeberg
+!.gitea
+
 # <==| End of file |==>
+
+# OG generator font cache (fetched on demand)
+scripts/og/.fonts/
+
+# Remotion animation project — work in progress, kept out of the repo for now
+video/
+
+# Rust build output for the bundled awg-serve tool
+tools/awg-serve/target/

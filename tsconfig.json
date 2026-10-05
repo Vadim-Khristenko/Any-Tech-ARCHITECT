@@ -16,7 +16,7 @@
     "paths": {
       "@/*": ["./src/*"],
     },
-    "types": ["node", "vite/client"],
+    "types": ["node", "vite/client", "bun-types"],
   },
   "include": [
     "src/**/*.ts",

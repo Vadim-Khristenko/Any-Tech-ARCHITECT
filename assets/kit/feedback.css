@@ -1,0 +1,178 @@
+/**
+ * Any Tech ARCHITECT — Feedback — notes, empty states, progress.
+ *
+ * Part of the kit; see kit/index.css for the load order and kit/tokens.css
+ * for the values everything here is built from.
+ */
+
+/*
+ * A note is bordered on all four sides, not striped down one. A coloured bar
+ * on the left edge is the single most common way an alert is drawn and it
+ * carries no information the background tint does not already carry.
+ */
+.note,
+.alert {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--sp-3);
+    padding: var(--sp-4);
+    border: var(--rule) solid var(--line-soft);
+    border-radius: var(--r-2);
+    background: var(--surface-solid);
+    font-size: var(--t-sm);
+    line-height: var(--lh-body);
+    color: var(--ink-2);
+}
+
+.note-icon,
+.alert-icon {
+    flex-shrink: 0;
+    margin-top: 2px;
+    color: var(--accent-ink);
+}
+
+.note-title {
+    display: block;
+    margin-bottom: 2px;
+    font-weight: 700;
+    color: var(--ink);
+}
+
+.note--ok,
+.alert-success {
+    background: var(--green-bg);
+    border-color: var(--gd);
+}
+
+.note--ok .note-icon,
+.alert-success .alert-icon {
+    color: var(--green);
+}
+
+.note--bad,
+.alert-error {
+    background: var(--red-bg);
+    border-color: var(--rd);
+}
+
+.note--bad .note-icon,
+.alert-error .alert-icon {
+    color: var(--red);
+}
+
+.note--info,
+.alert-info {
+    background: var(--cyan-bg);
+    border-color: var(--cyan-line);
+}
+
+.note--info .note-icon,
+.alert-info .alert-icon {
+    color: var(--cyan);
+}
+
+/*
+ * An empty state says what would be here and how to make it appear. A drawn
+ * frame rather than an illustration: this is a sheet with nothing on it yet.
+ */
+.empty {
+    /*
+     * Opaque under the hatch. The hatch is a background *image*, so without a
+     * colour beneath it the page's grid shows through the gaps and the two
+     * rulings cross each other.
+     */
+    background-color: var(--ground-2);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--sp-3);
+    padding: var(--sp-8) var(--sp-5);
+    border: var(--rule) dashed var(--line-soft);
+    border-radius: var(--r-3);
+    background-image: var(--hatch);
+    text-align: center;
+}
+
+.empty-title {
+    font-family: var(--fu);
+    font-size: var(--t-md);
+    font-weight: 700;
+    color: var(--ink);
+}
+
+.empty-desc {
+    max-width: var(--measure-narrow);
+    font-size: var(--t-sm);
+    line-height: var(--lh-body);
+    color: var(--ink-3);
+    text-wrap: pretty;
+}
+
+.progress {
+    height: 6px;
+    border-radius: var(--r-pill);
+    background: var(--ground-4);
+    overflow: hidden;
+}
+
+.progress-bar {
+    height: 100%;
+    background: var(--accent);
+    border-radius: inherit;
+    transition: width var(--dur-3) var(--ease-out-quart);
+}
+
+.progress--indeterminate .progress-bar {
+    width: 35%;
+    animation: slide 1.3s var(--ease-out-quart) infinite;
+}
+
+@keyframes slide {
+    from {
+        transform: translateX(-100%);
+    }
+    to {
+        transform: translateX(340%);
+    }
+}
+
+/*
+ * A skeleton is a shape, not a shimmer. The sweep is a single translated
+ * gradient so it composites; animating background-position does not.
+ */
+.skeleton {
+    position: relative;
+    overflow: hidden;
+    background: var(--ground-3);
+    border-radius: var(--r-1);
+}
+
+.skeleton::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgb(var(--accent-rgb) / 0.09),
+        transparent
+    );
+    transform: translateX(-100%);
+    animation: sweep 1.4s var(--ease-out-quart) infinite;
+}
+
+@keyframes sweep {
+    to {
+        transform: translateX(100%);
+    }
+}
+
+.spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--line);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 620ms linear infinite;
+}

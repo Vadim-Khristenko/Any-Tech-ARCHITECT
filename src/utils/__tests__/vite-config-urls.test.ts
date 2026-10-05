@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "bun:test";
 import fs from "node:fs";
 import {
   detectHostPlatform,
@@ -20,7 +20,6 @@ describe("vite.config.ts URL and CI helpers", () => {
   const originalEnv = process.env;
 
   beforeEach(() => {
-    vi.resetModules();
     process.env = { ...originalEnv };
 
     // Clear CI/CD specific environment variables

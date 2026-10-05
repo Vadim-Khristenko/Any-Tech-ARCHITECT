@@ -1,0 +1,20 @@
+[package]
+name = "awg-serve"
+version = "1.0.0"
+edition = "2024"
+rust-version = "1.85"
+description = "Tiny static server for the AmneziaWG Architect release archive"
+license = "MIT"
+# No dependencies on purpose: this ships inside a release archive, so it has to
+# build from a bare toolchain and produce a small self-contained binary.
+
+[[bin]]
+name = "awg-serve"
+path = "src/main.rs"
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

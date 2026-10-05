@@ -1,0 +1,91 @@
+name: "Конфиг не работает · Config does not work"
+description: "Туннель не поднимается или рвётся с конфигом из генератора · The tunnel will not come up, or drops"
+title: "[CONFIG] "
+labels: ["bug", "config"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Спасибо, что сообщаете. Пара минут на заполнение почти всегда экономят
+        несколько раундов уточнений.
+
+        > **Никогда не вставляйте сюда приватные ключи.** `PrivateKey`,
+        > `PresharedKey` и `HeaderProtectionKey` из конфига нужно удалить —
+        > для воспроизведения они не нужны.
+
+        *Thanks for reporting. Please never paste private keys — remove
+        `PrivateKey`, `PresharedKey` and `HeaderProtectionKey`; they are not
+        needed to reproduce anything.*
+
+  - type: dropdown
+    id: version
+    attributes:
+      label: Версия AmneziaWG · AmneziaWG version
+      options:
+        - "3.0"
+        - "2.0"
+        - "1.5"
+        - "1.0"
+    validations:
+      required: true
+
+  - type: input
+    id: client
+    attributes:
+      label: Клиент и его версия · Client and version
+      description: >
+        Например: Amnezia VPN 4.8.2, AmneziaWG Android 1.2.3, amneziawg-go
+        v3.0.1, OpenWrt-пакет, Keenetic.
+      placeholder: "Amnezia VPN 4.8.2 (Android 14)"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: symptom
+    attributes:
+      label: Что именно происходит · What actually happens
+      options:
+        - "Хендшейк не проходит вообще · Handshake never completes"
+        - "Подключается, но очень медленно · Connects, but very slowly"
+        - "Работало, потом перестало · Worked, then stopped"
+        - "Рвётся через равные промежутки · Drops at regular intervals"
+        - "Клиент отклоняет конфиг с ошибкой · Client rejects the config"
+        - "Другое · Something else"
+    validations:
+      required: true
+
+  - type: textarea
+    id: config
+    attributes:
+      label: Параметры обфускации · Obfuscation parameters
+      description: >
+        Секция `[Interface]` **без приватных ключей**: Jc, Jmin, Jmax, S1–S4,
+        H1–H4, I1–I5 и параметры 3.0.
+      render: ini
+      placeholder: |
+        H1 = 594205845-594223980
+        S1 = 57
+        Jc = 6
+        I1 = <b 0xc000...><t><r 72>
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checked
+    attributes:
+      label: Что уже проверено · Already checked
+      description: >
+        Большинство случаев — это первый пункт. Отметьте то, что проверяли.
+      options:
+        - label: "H1–H4, S1–S4 и параметры 3.0 совпадают на клиенте и сервере · Parameters match on both ends"
+        - label: "Сервер доступен по сети (пинг, порт) · The server is reachable at all"
+        - label: "Клиент точно поддерживает выбранную версию · The client supports this version"
+        - label: "Пробовал(а) уменьшить Jc · Tried lowering Jc"
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Логи и что-то ещё · Logs and anything else
+      description: >
+        Вывод клиента, `wg show`, скриншоты — что угодно, что может помочь.
+        Сетевое окружение (мобильный оператор, провайдер, страна) тоже полезно.

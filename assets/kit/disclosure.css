@@ -1,0 +1,97 @@
+/**
+ * Any Tech ARCHITECT — Disclosure — tabs and accordions.
+ *
+ * Part of the kit; see kit/index.css for the load order and kit/tokens.css
+ * for the values everything here is built from.
+ */
+
+.tabs {
+    background: var(--ground-2);
+    display: flex;
+    gap: var(--sp-1);
+    border-bottom: var(--rule) solid var(--line-soft);
+}
+
+.tab {
+    position: relative;
+    padding: var(--sp-3) var(--sp-4);
+    border: none;
+    background: transparent;
+    color: var(--ink-3);
+    font-family: var(--fw);
+    font-size: var(--t-sm);
+    font-weight: 700;
+    cursor: pointer;
+    transition: color var(--dur-2) var(--ease-out-quart);
+}
+
+.tab:hover {
+    color: var(--ink);
+}
+
+.tab.is-active {
+    color: var(--accent-ink);
+}
+
+/* The underline is a drawn rule that lands on the section boundary. */
+.tab.is-active::after {
+    content: "";
+    position: absolute;
+    left: var(--sp-3);
+    right: var(--sp-3);
+    bottom: calc(var(--rule) * -1);
+    height: var(--rule-heavy);
+    background: var(--accent);
+}
+
+.tab:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring-tight);
+}
+
+.accordion {
+    background: var(--ground-2);
+    border: var(--rule) solid var(--line-soft);
+    border-radius: var(--r-2);
+    overflow: hidden;
+}
+
+.accordion-item {
+    border-bottom: var(--rule) solid var(--line-faint);
+}
+
+.accordion-item:last-child {
+    border-bottom: none;
+}
+
+.accordion-head {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+    width: 100%;
+    padding: var(--sp-3) var(--sp-4);
+    border: none;
+    background: transparent;
+    color: var(--ink);
+    font-family: var(--fw);
+    font-size: var(--t-base);
+    font-weight: 700;
+    text-align: left;
+    cursor: pointer;
+}
+
+.accordion-head:hover {
+    background: var(--surface-solid);
+}
+
+.accordion-head:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring-tight);
+}
+
+.accordion-body {
+    padding: 0 var(--sp-4) var(--sp-4);
+    font-size: var(--t-sm);
+    line-height: var(--lh-body);
+    color: var(--ink-2);
+}

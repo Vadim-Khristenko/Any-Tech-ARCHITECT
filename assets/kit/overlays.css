@@ -1,0 +1,218 @@
+/**
+ * Any Tech ARCHITECT — Overlays — menus, dialogs, toasts.
+ *
+ * Part of the kit; see kit/index.css for the load order and kit/tokens.css
+ * for the values everything here is built from.
+ */
+
+.menu {
+    min-width: 180px;
+    padding: var(--sp-1);
+    margin: 0;
+    list-style: none;
+    background: var(--ground-2);
+    border: var(--rule) solid var(--line-soft);
+    border-radius: var(--r-2);
+    box-shadow: var(--shadow-lg);
+    z-index: var(--z-dropdown);
+}
+
+.menu-item {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+    width: 100%;
+    padding: var(--sp-2) var(--sp-3);
+    border: none;
+    border-radius: var(--r-1);
+    background: transparent;
+    color: var(--ink-2);
+    font-family: var(--fw);
+    font-size: var(--t-sm);
+    text-align: left;
+    cursor: pointer;
+}
+
+.menu-item:hover {
+    background: var(--ground-4);
+    color: var(--ink);
+}
+
+.menu-item.is-on {
+    color: var(--accent-ink);
+}
+
+.menu-sep {
+    height: var(--rule);
+    margin: var(--sp-1) 0;
+    background: var(--line-faint);
+}
+
+/*
+ * The dialog is the native element, so the top layer, the backdrop, focus
+ * trapping and Escape are the browser's job rather than a div's imitation of
+ * them — and it cannot be clipped by an ancestor's overflow.
+ */
+.dialog {
+    width: min(560px, calc(100vw - var(--sp-6)));
+    padding: 0;
+    border: var(--rule) solid var(--line-soft);
+    border-radius: var(--r-4);
+    background: var(--ground-2);
+    color: var(--ink);
+    box-shadow: var(--shadow-lg);
+}
+
+.dialog::backdrop {
+    background: light-dark(rgb(30 28 24 / 0.34), rgb(0 0 0 / 0.62));
+    backdrop-filter: blur(2px);
+}
+
+.dialog-head {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+    padding: var(--sp-4) var(--sp-5);
+    border-bottom: var(--rule) solid var(--line-faint);
+}
+
+.dialog-title {
+    font-family: var(--fu);
+    font-size: var(--t-md);
+    font-weight: 700;
+    letter-spacing: var(--track-tight);
+}
+
+.dialog-body {
+    padding: var(--sp-5);
+    font-size: var(--t-base);
+    line-height: var(--lh-body);
+    color: var(--ink-2);
+}
+
+.dialog-foot {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--sp-2);
+    padding: var(--sp-4) var(--sp-5);
+    border-top: var(--rule) solid var(--line-faint);
+}
+
+.toast {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--sp-3);
+    padding: var(--sp-3) var(--sp-4);
+    background: var(--ground-2);
+    border: var(--rule) solid var(--line);
+    border-radius: var(--r-2);
+    box-shadow: var(--shadow-lg);
+    font-size: var(--t-sm);
+    color: var(--ink);
+    z-index: var(--z-toast);
+}
+
+/* ── Tooltip ──────────────────────────────────────────────────────────────── */
+
+/*
+ * One element on the body, positioned by utils/tooltip.ts.
+ *
+ * It used to be an `::after` on each trigger, which cannot escape an ancestor
+ * that scrolls: the history panel clipped every tooltip inside it, and the
+ * longer ones ran off the panel entirely. Fixed positioning on a single node
+ * has no ancestor to be clipped by.
+ */
+.tooltip-layer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: var(--z-tooltip);
+    max-width: min(280px, calc(100vw - 32px));
+    padding: var(--sp-2) var(--sp-3);
+    background: var(--ground-4);
+    border: var(--rule) solid var(--line);
+    border-radius: var(--r-2);
+    box-shadow: var(--shadow-md);
+    color: var(--ink);
+    font-family: var(--fw);
+    font-size: var(--t-xs);
+    line-height: 1.4;
+    /* Long labels wrap. `nowrap` is what pushed them off the edge. */
+    white-space: normal;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(2px) scale(0.96);
+    transition:
+        opacity var(--dur-2) var(--ease-out-quart),
+        transform var(--dur-2) var(--ease-out-quart);
+}
+
+.tooltip-layer.is-visible {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+}
+
+.tooltip-layer.below {
+    transform: translateY(-2px) scale(0.96);
+}
+
+.tooltip-layer.below.is-visible {
+    transform: translateY(0) scale(1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tooltip-layer,
+    .tooltip-layer.is-visible,
+    .tooltip-layer.below,
+    .tooltip-layer.below.is-visible {
+        transition: none;
+        transform: none;
+    }
+}
+
+/*
+ * A toast pinned to the foot of the screen.
+ *
+ * The tooltip layer answers a pointer that rests on something, and a phone has
+ * no pointer to rest — so a label whose meaning is only in a tooltip has no
+ * meaning at all on a touch screen. This is the same text, brought up by a tap
+ * and put where a thumb is not covering it.
+ */
+.toast-dock {
+    position: fixed;
+    left: 50%;
+    bottom: max(var(--sp-5), env(safe-area-inset-bottom));
+    transform: translateX(-50%);
+    z-index: var(--z-toast);
+    width: min(420px, calc(100vw - 2 * var(--sp-4)));
+    pointer-events: none;
+}
+
+.toast-dock .toast {
+    pointer-events: auto;
+}
+
+.toast-enter-active,
+.toast-leave-active {
+    transition:
+        opacity var(--dur-3) var(--ease-out-quart),
+        transform var(--dur-3) var(--ease-out-quart);
+}
+
+.toast-enter-from,
+.toast-leave-to {
+    opacity: 0;
+    transform: translateY(12px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .toast-enter-active,
+    .toast-leave-active {
+        transition: none;
+    }
+
+    .toast-enter-from,
+    .toast-leave-to {
+        transform: none;
+    }
+}

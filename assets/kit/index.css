@@ -1,0 +1,62 @@
+/**
+ * Any Tech ARCHITECT — the kit.
+ *
+ * Every primitive the interface is built from, so a new page is assembled
+ * rather than invented. This file is the only entry point: import it and you
+ * have the whole design system, in the one order the cascade needs.
+ *
+ * THE HOUSE STYLE
+ *
+ * A working drawing of a packet. Hairline rules, dimension lines with tick
+ * terminators, leader lines, hatch for what is unavailable, revision letters,
+ * a title block. The name of the product is the brief.
+ *
+ * The rule that stops this being a costume: every motif carries data. A range
+ * is drawn as a dimension line because that is what a dimension line is for.
+ * Hatching means a client does not support the thing under it. A revision chip
+ * is a protocol version. Anything that exists only to look technical is not in
+ * here.
+ *
+ * NAMING
+ *
+ *   .block            a primitive              .btn, .field
+ *   .block-element    a part of one            .panel-head
+ *   .block--variant   a variant of one         .btn--ghost
+ *   .is-* / .has-*    a state                  .is-active, .is-loading
+ *
+ * THE OLD NAMES
+ *
+ * Rules that have a pre-kit equivalent carry the old class as an extra
+ * selector — `.note, .alert { … }` — so views that have not been rewritten
+ * yet pick up the new design without a second definition existing anywhere.
+ * They come out as each view migrates; when the last one goes, `assets/main.css`
+ * is empty and this directory is the stylesheet.
+ *
+ * ORDER
+ *
+ * Tokens first: nothing can use a value defined after it. Base next, because
+ * every primitive assumes the reset and the element defaults. Then the
+ * primitives, in no particular order among themselves — they do not overlap.
+ * The shell last: it is the only layer allowed to position anything.
+ *
+ * Everything here is checked on all six accents in both schemes by the
+ * styleguide (`bun run kit`), which is not part of the production build.
+ */
+
+@import "./tokens.css";
+@import "./base.css";
+
+@import "./surfaces.css";
+@import "./buttons.css";
+@import "./forms.css";
+@import "./marks.css";
+@import "./drawing.css";
+@import "./data.css";
+@import "./feedback.css";
+@import "./disclosure.css";
+@import "./zones.css";
+@import "./overlays.css";
+@import "./type.css";
+@import "./motion.css";
+
+@import "./shell.css";

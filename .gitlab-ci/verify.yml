@@ -11,7 +11,7 @@
 
 verify:typecheck:
   stage: verify
-  image: oven/bun:1
+  image: oven/bun:1.4.0
   rules:
     # Skip if explicitly requested
     - if: '$SKIP_VERIFY == "true"'
@@ -37,7 +37,7 @@ verify:typecheck:
 
 verify:test:
   stage: verify
-  image: oven/bun:1
+  image: oven/bun:1.4.0
   needs: []
   rules:
     # Skip if explicitly requested

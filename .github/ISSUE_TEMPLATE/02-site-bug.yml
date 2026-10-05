@@ -1,0 +1,78 @@
+name: "Баг на сайте · Site bug"
+description: "Что-то сломано в интерфейсе, генераторе, MergeKeys или симуляторе · Something is broken in the UI"
+title: "[BUG] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Баг в самом инструменте — вёрстка, кнопка, перевод, поведение.
+        Если проблема в том, что *сгенерированный конфиг* не подключается,
+        лучше подойдёт шаблон «Конфиг не работает».
+
+        *A bug in the tool itself. If a generated config fails to connect, use
+        the "Config does not work" template instead.*
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Где · Where
+      options:
+        - "Генератор · Generator"
+        - "MergeKeys"
+        - "Симулятор пакетов · Packet simulator"
+        - "FAQ"
+        - "О проекте · About"
+        - "Навигация, шапка, футер · Navigation, header, footer"
+        - "Перевод или текст · Translation or wording"
+        - "Другое · Something else"
+    validations:
+      required: true
+
+  - type: textarea
+    id: what
+    attributes:
+      label: Что происходит · What happens
+      description: И что вы ожидали вместо этого.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Шаги для воспроизведения · Steps to reproduce
+      placeholder: |
+        1. Открыть /faq
+        2. Ввести в поиск «nonce»
+        3. …
+    validations:
+      required: true
+
+  - type: input
+    id: env
+    attributes:
+      label: Браузер и устройство · Browser and device
+      placeholder: "Firefox 141, Windows 11 · Safari, iPhone 13"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: locale
+    attributes:
+      label: Язык интерфейса · Interface language
+      options:
+        - "Русский"
+        - "English"
+
+  - type: textarea
+    id: console
+    attributes:
+      label: Ошибки в консоли · Console errors
+      description: >
+        F12 → Console. Если там пусто — так и напишите, это тоже информация.
+      render: text
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Скриншоты и что-то ещё · Screenshots and anything else

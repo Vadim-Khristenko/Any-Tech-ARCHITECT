@@ -1,1587 +1,764 @@
 <script setup lang="ts">
-import { ref } from "vue";
+/**
+ * About — what this is, who made it, and what it will not do.
+ *
+ * Rebuilt on the kit. The page it replaces had grown a section per idea over a
+ * year and read like a changelog of its own intentions; this one answers, in
+ * order, the questions somebody actually arrives with: am I allowed to use
+ * this, how big is it, what is it, how did it get here, what does it know
+ * about me, where is the source, and who is behind it.
+ *
+ * Every number on it is checked against the code rather than typed once and
+ * left. The parameter count comes from the two catalogues, the client count
+ * from the client registry, the FAQ count from the FAQ, and the days from a
+ * date — so none of them can quietly go stale.
+ */
+
+import { computed, ref, type Component } from "vue";
 import {
-    Info,
-    HelpCircle,
-    Server,
-    Combine,
-    Lock,
-    CheckCircle,
-    Zap,
-    RefreshCw,
-    Code,
-    Shield,
-    Cpu,
-    EyeOff,
-    ArrowRight,
-    GitMerge,
+    Scale,
     ShieldCheck,
-    Heart,
-    Coffee,
-    Github,
-    MessageCircle,
     Sparkles,
-    History,
-    Rocket,
-    Eye,
-    Globe,
+    History as HistoryIcon,
+    EyeOff,
+    Github,
+    GitBranch,
     Bug,
-    Users,
-    FileCode,
-    Layers,
+    Heart,
     ChevronDown,
-    ExternalLink,
-    Paintbrush,
-    Wrench,
-    Star,
-    Terminal,
-    CircleDot,
+    ArrowUpRight,
+    Ruler,
+    FlaskConical,
+    WifiOff,
+    BookOpen,
 } from "lucide-vue-next";
 
-const activeTimeline = ref<number | null>(null);
+import SupportSection from "@/components/SupportSection.vue";
+import RichText from "@/components/RichText";
+import { localizePath, useI18n, pick } from "@/i18n";
+import { TIMELINE } from "@/data/changelog";
+import { FAQ_ENTRIES } from "@/data/faq";
+import { OTHER_PROJECTS } from "@/data/support";
+import { AWG_PARAMETERS } from "@/engines/awg/generator/params";
+import { XRAY_PARAMETERS } from "@/engines/xray/params";
+import { AWG_CLIENT_PROFILES } from "@/engines/awg/generator/clients";
 
-function toggleTimeline(idx: number) {
-    activeTimeline.value = activeTimeline.value === idx ? null : idx;
-}
+const { locale, t } = useI18n();
+const at = (path: string) => localizePath(path, locale.value);
 
-const timelineEvents = [
+const SOURCE_URL = "https://github.com/Vadim-Khristenko/Any-Tech-ARCHITECT";
+const MIRROR_URL = "https://git.vai-rice.space/vai_prog/Any-Tech-ARCHITECT";
+const LICENSE_URL = "https://opensource.org/license/mit";
+
+/* ── The numbers, counted rather than remembered ─────────────────────────── */
+
+/**
+ * Distinct parameters across both engines.
+ *
+ * By key, not by catalogue entry: AmneziaWG describes `H1` twice, once as a
+ * single value for 1.x and once as a range for 2.0+, and counting the entries
+ * would claim four parameters that are two.
+ */
+/* Counted, not typed: the text used to say "forty-four" and went stale. */
+const faqCount = FAQ_ENTRIES.length;
+
+const awgParamCount = new Set(AWG_PARAMETERS.map((p) => p.key)).size;
+const xrayParamCount = new Set(XRAY_PARAMETERS.map((p) => p.key)).size;
+const paramCount = computed(() => awgParamCount + xrayParamCount);
+
+const clientCount = AWG_CLIENT_PROFILES.length;
+
+/**
+ * How long this has been going, in days.
+ *
+ * Counted from the start date every time the page renders. A number typed into
+ * a string is right on the day it is written and wrong every day after.
+ */
+const START = Date.UTC(2026, 2, 1);
+const dayCount = computed(() =>
+    Math.max(1, Math.floor((Date.now() - START) / 86_400_000)),
+);
+
+/**
+ * The test count is the one figure here that cannot be derived at runtime —
+ * the suite does not exist in the bundle — so it is written as a floor rather
+ * than an exact number, and a floor stays true as the suite grows.
+ * 4.1.1: 1015 tests — bump floor to 1000+.
+ * 4.1.2: 1154 tests — bump floor to 1100+.
+ * 4.2.0: 1169 tests — floor holds.
+ * 4.2.1: 1181 tests — floor holds.
+ * 4.3.0: 1200 tests — floor holds.
+ * 4.3.1: 1208 tests — floor holds.
+ * 4.4.0: 1268 tests, bump floor to 1200+.
+ */
+const TEST_FLOOR = "1200+";
+
+const chips = computed(() => [
     {
-        version: "0.1",
-        date: "Начало",
-        title: "Первый прототип",
-        icon: Rocket,
-        color: "amber",
-        desc: "Чистый HTML/CSS/JS, один файл, базовая генерация параметров Jc, Jmin, Jmax и случайных H/S. Работающий PoC без дизайна.",
+        id: "protocols",
+        value: t("about.chip.protocols.value"),
+        label: t("about.chip.protocols.label"),
+        hint: "",
+        span: 2,
     },
     {
-        version: "0.2",
-        date: "Фикс",
-        title: "Исправление HEX-генерации",
-        icon: Bug,
-        color: "red",
-        desc: "Критическая ошибка: невалидный HEX в script.js вызывал краш клиента. Исправлено, добавлена валидация assertEvenHex.",
+        id: "params",
+        value: String(paramCount.value),
+        label: t("about.chip.params.label"),
+        // Counted like the total: the hint said 23 for AmneziaWG after 3.1
+        // had made it 25.
+        hint: t("about.chip.params.hint", { awg: awgParamCount, xray: xrayParamCount }),
+        span: 1,
     },
     {
-        version: "0.3",
-        date: "CPS-теги",
-        title: "Селективные CPS-теги",
-        icon: Code,
-        color: "green",
-        desc: "Поддержка <c>, <t>, <r>, <rc>, <rd> тегов с возможностью включения/выключения каждого. Синхронизация I1-генераторов с тегами пользователя.",
+        id: "tests",
+        value: TEST_FLOOR,
+        label: t("about.chip.tests.label"),
+        hint: t("about.chip.tests.hint"),
+        span: 1,
     },
     {
-        version: "0.4",
-        date: "AWG 1.0",
-        title: "Оптимизация Junk для AWG 1.0",
-        icon: Wrench,
-        color: "amber",
-        desc: "Требования официального клиента: Jc ≥ 4, Jmax > 81 для AWG 1.0. Корректировка генератора под ограничения протокола.",
+        id: "clients",
+        value: `${clientCount}`,
+        label: t("about.chip.clients.label"),
+        hint: t("about.chip.clients.hint"),
+        span: 1,
     },
     {
-        version: "0.5",
-        date: "Эволюция",
-        title: "MergeKeys и vpn://",
-        icon: GitMerge,
-        color: "green",
-        desc: "Модуль MergeKeys — декодирование, патчинг и объединение vpn://-ключей в браузере. Поддержка pako/zlib, base64url кодек с 4-байт заголовком.",
+        id: "people",
+        value: t("about.chip.people.value"),
+        label: t("about.chip.people.label"),
+        hint: t("about.chip.people.hint"),
+        span: 2,
     },
     {
-        version: "0.6",
-        date: "Browser FP",
-        title: "Browser Fingerprint и QUIC/HTTP3",
-        icon: Eye,
-        color: "amber",
-        desc: "Профильные таблицы размеров пакетов по браузерам (Chrome, Firefox, Safari, Yandex). Адаптивный padding для QUIC Initial, 0-RTT, HTTP/3.",
+        id: "days",
+        value: String(dayCount.value),
+        label: t("about.chip.days.label"),
+        hint: t("about.chip.days.hint"),
+        span: 1,
     },
-    {
-        version: "0.7",
-        date: "Дизайн",
-        title: "Глобальный редизайн UI",
-        icon: Paintbrush,
-        color: "green",
-        desc: "Полная переработка интерфейса, MergeKeys в стиле основного генератора. Мобильная адаптивность, исправление overflow CPS при MTU.",
-    },
-    {
-        version: "1.0",
-        date: "Перерождение",
-        title: "Vue 3 + TypeScript + SPA",
-        icon: Sparkles,
-        color: "amber",
-        desc: "Миграция на Vue 3, Vite, TypeScript. Компонентная архитектура (utils/composables/views), SPA-роутинг, GitHub Pages с pre-render stubs. UI полностью с нуля — тёмная тема, amber-акценты, анимации.",
-    },
-    {
-        version: "1.1",
-        date: "Расширение",
-        title: "AWG 2.0, CPS, 7+ профилей",
-        icon: Layers,
-        color: "green",
-        desc: "AWG 2.0 с диапазонами H1–H4, S3/S4, полная CPS-цепочка I1–I5. 7 профилей мимикрии (QUIC, TLS, DTLS, SIP, HTTP/3, Noise_IK). Feedback-система с автоусилением, история генераций.",
-    },
-    {
-        version: "1.2",
-        date: "Инфра",
-        title: "SPA-роутинг, донаты, деплой",
-        icon: Globe,
-        color: "amber",
-        desc: "Относительные пути для file://, runtime-определение base path, pre-render stubs для SEO-ботов. CI/CD: build → deploy → release. Переход на Yoomoney.",
-    },
-    {
-        version: "2.0",
-        date: "Релиз 2.0",
-        title: "Router Mode, Inspector, композитные профили",
-        icon: Star,
-        color: "green",
-        desc: "Режим роутера для NanoPi/Keenetic/OpenWrt. Инспектор и редактор vpn://-ключей. Композитные профили TLS→QUIC и QUIC Burst. Проверка доступности доменов. 133+ автотестов (vitest). Обновлённая IAA-страница. Скрипты запуска для Win/Linux/macOS.",
-    },
-    {
-        version: "2.1",
-        date: "Сейчас",
-        title: "Инцидент с роутингом и CI/CD",
-        icon: Bug,
-        color: "red",
-        desc: "Инцидент с маршрутизацией: из-за конфликта SPA-редиректов пользователи получали белый экран по прямым ссылкам. Починено! Добавлена умная 404-заглушка с ручным fallback'ом, продвинутый мульти-хостинг (GitLab/GitHub/Cloudflare) и новые автотесты резолва URL, чтобы больше ничего не сломалось.",
-    },
+]);
+
+/* ── What it is ──────────────────────────────────────────────────────────── */
+
+const WHAT: { icon: Component; n: 1 | 2 | 3 | 4 }[] = [
+    { icon: Ruler, n: 1 },
+    { icon: FlaskConical, n: 2 },
+    { icon: WifiOff, n: 3 },
+    { icon: BookOpen, n: 4 },
 ];
 
-const statCards = [
-    { label: "Профили мимикрии", value: "9+", icon: Eye },
-    { label: "Параметров генерации", value: "18+", icon: FileCode },
-    { label: "Автотестов", value: "150+", icon: Terminal },
-    { label: "Серверов и трекеров", value: "0", icon: ShieldCheck },
-];
+/* ── Timeline ────────────────────────────────────────────────────────────── */
+
+const TIMELINE_ICONS: Record<string, Component> = {
+    Rocket: Sparkles,
+    Bug,
+    Code: Ruler,
+    Wrench: Ruler,
+    GitMerge: GitBranch,
+    Eye: EyeOff,
+    Paintbrush: Sparkles,
+    Sparkles,
+    Layers: Ruler,
+    Globe: ShieldCheck,
+    Star: Sparkles,
+    Cpu: Ruler,
+    ShieldCheck,
+};
+
+/** Newest first: the entry a returning reader came for is the last one. */
+const entries = computed(() =>
+    [...TIMELINE].reverse().map((e) => ({
+        version: e.version,
+        date: pick(e.date, locale.value),
+        title: pick(e.title, locale.value),
+        desc: pick(e.desc, locale.value),
+        icon: TIMELINE_ICONS[e.icon] ?? Sparkles,
+        color: e.color,
+    })),
+);
+
+/**
+ * The newest is open on arrival.
+ *
+ * It was a list of closed rows, so the thing most people came to read took a
+ * click to find, and which row it was took reading the version numbers.
+ */
+const openEntry = ref(0);
+const toggleEntry = (i: number) => (openEntry.value = openEntry.value === i ? -1 : i);
+
+/* ── Privacy ─────────────────────────────────────────────────────────────── */
+
+const PRIVACY = [1, 2, 3, 4, 5] as const;
+
+const projects = computed(() =>
+    OTHER_PROJECTS.map((p) => ({
+        id: p.id,
+        title: pick(p.title, locale.value),
+        desc: pick(p.desc, locale.value),
+        url: p.url,
+        external: p.url.startsWith("http"),
+    })),
+);
 </script>
 
 <template>
-    <div class="about-wrap">
-        <!-- ── Hero ────────────────────────────────────────────────────── -->
-        <header class="about-hero a-stagger-1">
-            <div class="hero-badge badge badge-amber">
-                <Info :size="12" /> О ПРОЕКТЕ
+    <div class="about">
+        <!-- ══ Hero ════════════════════════════════════════════════════ -->
+        <header class="about-hero rise">
+            <div class="about-lockup">
+                <span class="about-pre">{{ t("brand.pre") }}</span>
+                <h1 class="about-name">{{ t("brand.main") }}</h1>
             </div>
-            <h1 class="hero-title">
-                <span class="hero-line-1">AmneziaWG</span>
-                <span class="hero-line-2">Architect</span>
-            </h1>
-            <p class="hero-subtitle">
-                Генератор обфускации нового поколения.<br />
-                <b>Твой протокол — твои правила.</b><br />
-                <i>Невидимость по стандарту.</i>
-            </p>
+            <p class="about-tagline">{{ t("about.hero.tagline") }}</p>
+            <p class="about-motto">{{ t("about.hero.motto") }}</p>
         </header>
 
-        <!-- ── Legal Disclaimer ─────────────────────────────────────────── -->
-        <section class="about-section legal-section a-stagger-0">
-            <div class="legal-card">
-                <div class="legal-icon">
-                    <Shield :size="28" />
-                </div>
-                <h2>⚠️ Юридическая информация</h2>
-                <div class="legal-content">
-                    <p class="legal-warning">
-                        <strong>Этот проект создан исключительно в ознакомительных и исследовательских целях.</strong>
-                    </p>
-                    <p>
-                        <strong>Проект никогда не создавался для использования в России или странах СНГ.</strong>
-                        Автор не несёт ответственности за любое использование данного программного обеспечения.
-                    </p>
-                    <div class="legal-allowed">
-                        <p><strong>Разрешённое использование:</strong></p>
-                        <ul>
-                            <li>Pentesting и security research</li>
-                            <li>CTF-соревнования</li>
-                            <li>Научные исследования</li>
-                            <li>Тестирование собственных сетей</li>
+        <!-- ══ Legal ═══════════════════════════════════════════════════ -->
+        <section class="zone about-legal">
+            <div class="zone-head">
+                <Scale :size="15" class="about-icon" />
+                <span class="zone-title">{{ t("about.legal.title") }}</span>
+            </div>
+
+            <div class="zone-body">
+                <p class="prose">{{ t("about.legal.lede") }}</p>
+                <p class="prose">
+                    {{ t("about.legal.asis") }}
+                    <a
+                        :href="LICENSE_URL"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="about-link"
+                    >
+                        {{ t("about.legal.licenseLink") }}
+                        <ArrowUpRight :size="13" />
+                    </a>
+                </p>
+
+                <div class="about-legal-split">
+                    <div>
+                        <h3 class="about-h3">{{ t("about.legal.forTitle") }}</h3>
+                        <ul class="list about-uses">
+                            <li v-for="n in 4" :key="n" class="list-item">
+                                <ShieldCheck :size="15" class="about-use-icon" />
+                                <span>{{ t(`about.legal.for.${n}` as never) }}</span>
+                            </li>
                         </ul>
                     </div>
-                    <p class="legal-disclaimer">
-                        Использование инструментов обфускации трафика может нарушать законодательство вашей страны.
-                        <strong>Никакие материалы этого проекта не являются призывом к нарушению законов.</strong>
-                    </p>
+
+                    <!--
+                        The warning is a note rather than a heading in red: it
+                        is the one paragraph on the page a reader must not skim,
+                        and a shouted heading is exactly what gets skimmed.
+                    -->
+                    <div class="note note--warn about-warn">
+                        <span class="note-body">
+                            <span class="note-label">{{ t("about.legal.warnTitle") }}</span>
+                            <span>{{ t("about.legal.warn") }}</span>
+                        </span>
+                    </div>
                 </div>
             </div>
         </section>
 
-        <!-- ── Stats Strip ─────────────────────────────────────────────── -->
-        <div class="stats-strip a-stagger-2">
-            <div v-for="(s, i) in statCards" :key="i" class="stat-card">
-                <component :is="s.icon" :size="18" class="stat-icon" />
-                <span class="stat-value">{{ s.value }}</span>
-                <span class="stat-label">{{ s.label }}</span>
+        <!-- ══ Chips ═══════════════════════════════════════════════════ -->
+        <!--
+            Two rows of three, 2·1·1 over 1·2·1, so the two that need a
+            sentence get the room and the four that are one number do not.
+        -->
+        <div class="about-chips">
+            <div
+                v-for="c in chips"
+                :key="c.id"
+                class="about-chip"
+                :class="`about-chip--${c.span}`"
+            >
+                <span class="about-chip-value">{{ c.value }}</span>
+                <span class="about-chip-label">{{ c.label }}</span>
+                <span v-if="c.hint" class="about-chip-hint">{{ c.hint }}</span>
             </div>
         </div>
 
-        <!-- ── What is this? ───────────────────────────────────────────── -->
-        <section class="about-section a-stagger-3">
-            <div class="section-icon-wrap">
-                <Sparkles :size="22" />
-            </div>
-            <h2>Что такое AmneziaWG Architect?</h2>
-            <p>
-                <span class="hl">AmneziaWG Architect</span> — это продвинутый
-                веб-инструмент для создания уникальных профилей обфускации
-                протокола <b>AmneziaWG</b>, а также для работы с ключами Amnezia
-                VPN.
-            </p>
-            <p>
-                Если обычный VPN просто шифрует данные, то Architect помогает
-                «замаскировать» сам факт использования VPN. Системы DPI
-                анализируют структуру пакетов и умеют определять WireGuard по
-                фиксированным заголовкам и размерам. Architect генерирует
-                параметры, которые делают ваш трафик похожим на QUIC, TLS, SIP
-                или другие протоколы — неотличимым от обычного интернет-трафика.
-            </p>
-            <div class="feature-grid">
-                <div class="feature-card">
-                    <CheckCircle :size="18" class="fc-icon" />
-                    <div>
-                        <b>Простая интеграция</b>
-                        <span
-                            >Параметры H1–H4, S1–S4, I1–I5 точно соответствуют
-                            полям в приложении AmneziaVPN.</span
-                        >
-                    </div>
-                </div>
-                <div class="feature-card">
-                    <Zap :size="18" class="fc-icon" />
-                    <div>
-                        <b>Умная генерация</b>
-                        <span
-                            >Не случайные числа, а структуры реальных сетевых
-                            пакетов для максимальной правдоподобности.</span
-                        >
-                    </div>
-                </div>
-                <div class="feature-card">
-                    <RefreshCw :size="18" class="fc-icon" />
-                    <div>
-                        <b>Режим «Не работает»</b>
-                        <span
-                            >Конфиг заблокировали? Один клик — генератор усилит
-                            параметры и выдаст новую итерацию.</span
-                        >
-                    </div>
-                </div>
-                <div class="feature-card">
-                    <Code :size="18" class="fc-icon" />
-                    <div>
-                        <b>Для продвинутых</b>
-                        <span
-                            >Ручное управление CPS-тегами, MTU, профилями
-                            мимикрии, Browser Fingerprint.</span
-                        >
-                    </div>
+        <!-- ══ What it is ══════════════════════════════════════════════ -->
+        <section class="about-section">
+            <h2 class="about-h2">{{ t("about.what.title") }}</h2>
+            <p class="lede">{{ t("about.what.lede") }}</p>
+            <p class="prose">{{ t("about.what.p1") }}</p>
+            <p class="prose">{{ t("about.what.p2") }}</p>
+
+            <div class="grid grid--wide about-cards">
+                <div v-for="w in WHAT" :key="w.n" class="card about-card">
+                    <component :is="w.icon" :size="18" class="about-card-icon" />
+                    <h3 class="about-h3">
+                        {{ t(`about.what.card.${w.n}.title` as never) }}
+                    </h3>
+                    <p class="prose">{{ t(`about.what.card.${w.n}.desc` as never, { n: faqCount }) }}</p>
                 </div>
             </div>
         </section>
 
-        <!-- ── Evolution Timeline ──────────────────────────────────────── -->
-        <section class="about-section timeline-section a-stagger-4">
-            <div class="section-icon-wrap">
-                <History :size="22" />
-            </div>
-            <h2>Эволюция проекта</h2>
-            <p>
-                За свою короткую жизнь Architect пережил несколько кардинальных
-                трансформаций — от одного HTML-файла до полноценного SPA на Vue
-                3. Каждое обновление делало его удобнее, функциональнее и
-                красивее.
-            </p>
+        <!-- ══ Timeline ════════════════════════════════════════════════ -->
+        <section class="about-section">
+            <h2 class="about-h2">{{ t("about.timeline.title") }}</h2>
+            <p class="lede">{{ t("about.timeline.lede") }}</p>
 
-            <div class="timeline">
-                <div
-                    v-for="(ev, idx) in timelineEvents"
-                    :key="idx"
-                    class="timeline-item"
-                    :class="{ open: activeTimeline === idx }"
-                    :style="{ animationDelay: `${idx * 80 + 200}ms` }"
+            <!-- What a number means here, said once beside the numbers. -->
+            <div class="about-scheme">
+                <span class="about-scheme-item">
+                    {{ t("about.timeline.scheme.major") }}
+                </span>
+                <span class="about-scheme-item">
+                    {{ t("about.timeline.scheme.minor") }}
+                </span>
+                <span class="about-scheme-item">
+                    {{ t("about.timeline.scheme.patch") }}
+                </span>
+            </div>
+
+            <div class="about-timeline">
+                <article
+                    v-for="(e, i) in entries"
+                    :key="e.version"
+                    class="about-entry"
+                    :class="{ 'is-open': openEntry === i }"
                 >
-                    <div class="tl-dot" :class="`tl-dot-${ev.color}`">
-                        <component :is="ev.icon" :size="14" />
-                    </div>
-                    <div class="tl-content" @click="toggleTimeline(idx)">
-                        <div class="tl-head">
-                            <span class="tl-version">v{{ ev.version }}</span>
-                            <span class="tl-date">{{ ev.date }}</span>
-                            <span class="tl-title">{{ ev.title }}</span>
-                            <ChevronDown
-                                :size="14"
-                                class="tl-arrow"
-                                :class="{ rotated: activeTimeline === idx }"
-                            />
-                        </div>
-                        <transition name="expand">
-                            <div v-if="activeTimeline === idx" class="tl-body">
-                                <p>{{ ev.desc }}</p>
+                    <button class="about-entry-head" @click="toggleEntry(i)">
+                        <span class="rev about-entry-ver">v{{ e.version }}</span>
+                        <span class="about-entry-title">{{ e.title }}</span>
+                        <span class="about-entry-date">{{ e.date }}</span>
+                        <ChevronDown
+                            :size="15"
+                            class="chevron about-entry-arrow"
+                            :style="{
+                                transform: openEntry === i ? 'rotate(180deg)' : 'none',
+                            }"
+                        />
+                    </button>
+
+                    <div class="disclose" :class="{ 'is-open': openEntry === i }">
+                        <div>
+                            <div class="about-entry-body">
+                                <RichText :text="e.desc" />
                             </div>
-                        </transition>
+                        </div>
                     </div>
+                </article>
+            </div>
+        </section>
+
+        <!-- ══ Privacy ═════════════════════════════════════════════════ -->
+        <section class="about-section">
+            <h2 class="about-h2">{{ t("about.privacy.title") }}</h2>
+            <p class="lede">{{ t("about.privacy.lede") }}</p>
+
+            <div class="grid grid--wide about-cards">
+                <div v-for="n in PRIVACY" :key="n" class="card about-card">
+                    <EyeOff :size="18" class="about-card-icon" />
+                    <h3 class="about-h3">
+                        {{ t(`about.privacy.${n}.title` as never) }}
+                    </h3>
+                    <p class="prose">{{ t(`about.privacy.${n}.desc` as never) }}</p>
                 </div>
             </div>
         </section>
 
-        <!-- ── MergeKeys ───────────────────────────────────────────────── -->
-        <section class="about-section a-stagger-5">
-            <div class="section-icon-wrap section-icon-green">
-                <Combine :size="22" />
-            </div>
-            <h2>MergeKeys — управление ключами</h2>
-            <p>
-                Помимо генератора обфускации, Architect включает модуль
-                <span class="hl">MergeKeys</span> — мощный инструмент для работы
-                с ключами Amnezia VPN формата <code>vpn://</code>.
-            </p>
-            <div class="feature-grid">
-                <div class="feature-card">
-                    <Zap :size="18" class="fc-icon" />
-                    <div>
-                        <b>Обновление обфускации</b>
-                        <span
-                            >Применить новые Jc, Jmin, Jmax, I1–I5 к
-                            существующему ключу без пересоздания. Серверные
-                            параметры не тронуты.</span
-                        >
-                    </div>
-                </div>
-                <div class="feature-card">
-                    <GitMerge :size="18" class="fc-icon" />
-                    <div>
-                        <b>Объединение ключей</b>
-                        <span
-                            >Собрать контейнеры из нескольких vpn:// ключей в
-                            один мастер-ключ. Дубликаты обнаруживаются
-                            автоматически.</span
-                        >
-                    </div>
-                </div>
-            </div>
-            <div class="cta-row">
-                <router-link to="/mergekeys" class="cta-btn cta-primary">
-                    <ArrowRight :size="14" />
-                    Перейти к MergeKeys
-                </router-link>
-                <router-link
-                    :to="{ path: '/mergekeys', query: { tab: 'merge' } }"
-                    class="cta-btn cta-secondary"
-                >
-                    <GitMerge :size="14" />
-                    Объединить ключи
-                </router-link>
-            </div>
-        </section>
+        <!-- ══ Source ══════════════════════════════════════════════════ -->
+        <section class="about-section">
+            <h2 class="about-h2">{{ t("about.source.title") }}</h2>
+            <p class="lede">{{ t("about.source.lede") }}</p>
 
-        <!-- ── Privacy & Security ──────────────────────────────────────── -->
-        <section class="about-section privacy-section a-stagger-6">
-            <div class="section-icon-wrap section-icon-green">
-                <Lock :size="22" />
-            </div>
-            <h2>Полная приватность и безопасность</h2>
-
-            <div class="privacy-grid">
-                <div class="privacy-card">
-                    <div class="priv-icon-wrap">
-                        <Cpu :size="24" />
-                    </div>
-                    <h3>100% Client-Side</h3>
-                    <p>
-                        Весь код выполняется в вашем браузере. Генерация
-                        обфускации, декодирование vpn://-ключей, патчинг
-                        параметров — всё происходит
-                        <b>локально</b>. Мы физически не можем видеть ваши
-                        данные.
-                    </p>
-                </div>
-                <div class="privacy-card">
-                    <div class="priv-icon-wrap">
-                        <EyeOff :size="24" />
-                    </div>
-                    <h3>Ноль метрик и трекеров</h3>
-                    <p>
-                        Нет аналитики. Нет серверов. Нет баз данных. Нет
-                        cookies. Нет Google Analytics, Yandex.Metrika или
-                        чего-то подобного. Мы ничего не собираем и не храним —
-                        ни для себя, ни для каких-либо контор.
-                    </p>
-                </div>
-                <div class="privacy-card">
-                    <div class="priv-icon-wrap">
-                        <Globe :size="24" />
-                    </div>
-                    <h3>Offline Ready</h3>
-                    <p>
-                        Сохраните страницу — и пользуйтесь без интернета. Вся
-                        логика генерации и работы с ключами работает оффлайн.
-                        Никаких внешних API-запросов.
-                    </p>
-                </div>
-            </div>
-        </section>
-
-        <!-- ── Open Source ──────────────────────────────────────────────── -->
-        <section class="about-section a-stagger-7">
-            <div class="section-icon-wrap">
-                <FileCode :size="22" />
-            </div>
-            <h2>Открытый исходный код</h2>
-            <p>
-                Все исходники проекта полностью открыты. Кто угодно может
-                прочитать код, убедиться в безопасности, предложить улучшения,
-                форкнуть и задеплоить свою версию.
-            </p>
-            <div class="feature-grid">
-                <div class="feature-card">
-                    <Github :size="18" class="fc-icon" />
-                    <div>
-                        <b>GitHub</b>
-                        <span
-                            >Исходный код доступен на GitHub. Vue 3, TypeScript,
-                            Vite — современный стек без магии.</span
-                        >
-                    </div>
-                </div>
-                <div class="feature-card">
-                    <Shield :size="18" class="fc-icon" />
-                    <div>
-                        <b>Аудит приветствуется</b>
-                        <span
-                            >Весь код генерации и работы с ключами открыт для
-                            аудита. Никаких обфусцированных бандлов — только
-                            чистый TypeScript.</span
-                        >
-                    </div>
-                </div>
-            </div>
-            <div class="cta-row">
+            <div class="grid about-cards">
                 <a
-                    href="https://github.com/Vadim-Khristenko/AmneziaWG-Architect"
+                    :href="SOURCE_URL"
                     target="_blank"
                     rel="noopener noreferrer"
-                    class="cta-btn cta-secondary"
+                    class="card lift press about-card"
                 >
-                    <Github :size="14" />
-                    Исходники на GitHub
-                    <ExternalLink :size="12" />
+                    <Github :size="18" class="about-card-icon" />
+                    <h3 class="about-h3">{{ t("about.source.github") }}</h3>
+                    <p class="prose">{{ t("about.source.githubDesc") }}</p>
+                </a>
+
+                <a
+                    :href="MIRROR_URL"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="card lift press about-card"
+                >
+                    <GitBranch :size="18" class="about-card-icon" />
+                    <h3 class="about-h3">{{ t("about.source.mirror") }}</h3>
+                    <p class="prose">{{ t("about.source.mirrorDesc") }}</p>
+                </a>
+
+                <a
+                    :href="`${SOURCE_URL}/issues`"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="card lift press about-card"
+                >
+                    <Bug :size="18" class="about-card-icon" />
+                    <h3 class="about-h3">{{ t("about.source.bugs") }}</h3>
+                    <p class="prose">{{ t("about.source.bugsDesc") }}</p>
+                    <span class="about-card-go">
+                        {{ t("about.source.bugsGo") }}
+                        <ArrowUpRight :size="14" />
+                    </span>
                 </a>
             </div>
         </section>
 
-        <!-- ── Developer & Contact ─────────────────────────────────────── -->
-        <section class="about-section dev-section a-stagger-8">
-            <div class="section-icon-wrap section-icon-blue">
-                <Users :size="22" />
-            </div>
-            <h2>Разработчик и обратная связь</h2>
+        <!-- ══ Donations ═══════════════════════════════════════════════ -->
+        <SupportSection id="support" />
 
-            <div class="dev-card">
-                <div class="dev-avatar">
-                    <span class="dev-avatar-letter">V</span>
-                </div>
-                <div class="dev-info">
-                    <h3>Единственный разработчик</h3>
-                    <p>
-                        Architect создаётся и поддерживается одним человеком.
-                        Баги устраняются оперативно — часто в тот же день.
-                        Проект живёт благодаря энтузиазму и свободному времени.
-                    </p>
-                    <div class="dev-badges">
-                        <span class="dev-badge">Vue 3</span>
-                        <span class="dev-badge">TypeScript</span>
-                        <span class="dev-badge">Vite</span>
-                        <span class="dev-badge">AmneziaWG</span>
-                    </div>
-                </div>
+        <!-- ══ Who ═════════════════════════════════════════════════════ -->
+        <section class="zone about-author">
+            <div class="zone-head">
+                <Heart :size="15" class="about-icon" />
+                <span class="zone-title">{{ t("about.author.title") }}</span>
             </div>
 
-            <div class="contact-card">
-                <Bug :size="18" class="fc-icon" />
-                <div>
-                    <b>Нашли баг? Есть идея?</b>
-                    <p>
-                        Приглашаю всех желающих ловить баги, если таковые
-                        находятся! Пишите во <b>Флудильне в Amnezia VPN</b> по
-                        юзернейму <code>@VAI_Programmer</code><br />
-                        Или на Github в разделе ISSUE!
-                    </p>
-                    <p class="contact-note">
-                        <MessageCircle :size="13" />
-                        Пожалуйста, не спамьте мне в ЛС — заблочу 😅 Только
-                        через Флудильню!
-                    </p>
-                </div>
-            </div>
-        </section>
+            <div class="zone-body">
+                <p class="prose">{{ t("about.author.p1") }}</p>
+                <p class="prose">{{ t("about.author.p2") }}</p>
 
-        <!-- ── Support / Donation ──────────────────────────────────────── -->
-        <section class="about-section donation-section a-stagger-9">
-            <div class="donation-glow"></div>
-            <div class="donation-content">
-                <div class="donation-icon">
-                    <Coffee :size="32" />
-                </div>
-                <h2>Поддержать проект</h2>
-                <p>
-                    Этот проект живёт только благодаря тому, что у меня есть
-                    свободное время и огромный интерес к теме. Здесь нет
-                    рекламы, спонсоров или монетизации.
-                </p>
-                <p>
-                    Но если Architect вам помог — я буду рад, если вы закинете
-                    монетку на кофе. Это лучшая мотивация продолжать развивать
-                    проект.<br />
-                    <b>Спасибо!</b>
-                </p>
-                <div class="donation-actions">
-                    <a
-                        href="https://yoomoney.ru/fundraise/1GA2JV51324.260304"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="cta-btn cta-donate"
+                <h3 class="about-h3">{{ t("about.author.projects") }}</h3>
+                <div class="grid about-projects">
+                    <component
+                        :is="p.external ? 'a' : 'router-link'"
+                        v-for="p in projects"
+                        :key="p.id"
+                        v-bind="
+                            p.external
+                                ? { href: p.url, target: '_blank', rel: 'noopener noreferrer' }
+                                : { to: at(p.url) }
+                        "
+                        class="card lift press about-card"
                     >
-                        <Heart :size="15" />
-                        Поддержать автора
-                        <ExternalLink :size="12" />
-                    </a>
+                        <h3 class="about-h3">{{ p.title }}</h3>
+                        <p class="prose">{{ p.desc }}</p>
+                    </component>
                 </div>
-                <p class="donation-thanks">
-                    <Star :size="14" />
-                    Каждый донат — это ещё одна фича, фикс или улучшение.<br />
-                    Спасибо, что пользуетесь Architect!
-                    <Star :size="14" />
-                </p>
+
+                <p class="prose about-author-donate">{{ t("about.author.donate") }}</p>
             </div>
         </section>
     </div>
 </template>
 
 <style scoped>
-/* ═══════════════════════════════════════════════════════════════════════════
-   AboutView — Redesigned v2
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-.about-wrap {
-    position: relative;
-    z-index: 10;
-    flex: 1;
-    max-width: 920px;
+.about {
+    max-width: 1000px;
     margin: 0 auto;
-    padding: 50px 20px 40px;
+    padding: var(--sp-8) var(--sp-gutter) var(--sp-10);
     display: flex;
     flex-direction: column;
-    gap: 28px;
+    gap: var(--sp-8);
 }
 
-/* ── Hero ──────────────────────────────────────────────────────────────── */
+/* ── Hero ─────────────────────────────────────────────────────────────── */
+
 .about-hero {
-    text-align: center;
-    padding: 20px 0 10px;
-}
-
-.hero-badge {
-    margin-bottom: 1rem;
-    animation: badgePulse 3s ease-in-out infinite;
-}
-
-@keyframes badgePulse {
-    0%,
-    100% {
-        box-shadow: 0 0 0 0 rgba(232, 168, 64, 0);
-    }
-    50% {
-        box-shadow: 0 0 16px 2px rgba(232, 168, 64, 0.15);
-    }
-}
-
-.hero-title {
-    font-size: clamp(2rem, 5vw, 3.2rem);
-    font-weight: 900;
-    line-height: 1.05;
-    letter-spacing: -0.03em;
-    margin-bottom: 1rem;
-}
-
-.hero-line-1 {
-    display: block;
-    color: var(--text);
-}
-
-.hero-line-2 {
-    display: block;
-    background: linear-gradient(
-        135deg,
-        var(--amber2) 0%,
-        var(--amber) 50%,
-        var(--amber3) 100%
-    );
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-}
-
-.hero-subtitle {
-    max-width: 520px;
-    margin: 0 auto;
-    font-size: 0.95rem;
-    color: var(--text2);
-    line-height: 1.7;
-}
-
-.hero-outline {
-    display: block;
-    margin-top: 6px;
-    font-family: var(--fu);
-    font-weight: 900;
-    font-size: 1.1em;
-    color: transparent;
-    -webkit-text-stroke: 1.2px var(--amber);
-    letter-spacing: 0.02em;
-}
-
-/* ── Stats Strip ──────────────────────────────────────────────────────── */
-.stats-strip {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 12px;
-}
-
-.stat-card {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 4px;
-    padding: 18px 10px;
-    background: var(--bg2);
-    border: 1px solid var(--border2);
-    border-radius: var(--radius-lg);
-    transition: all 0.3s var(--ease);
+    gap: var(--sp-2);
 }
 
-.stat-card:hover {
-    border-color: var(--border);
-    transform: translateY(-3px);
-    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.2);
-}
-
-.stat-icon {
-    color: var(--accent);
-    opacity: 0.8;
-}
-
-.stat-value {
-    font-family: var(--fm);
-    font-size: 1.4rem;
-    font-weight: 800;
-    color: var(--accent);
+.about-lockup {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-1);
     line-height: 1;
 }
 
-.stat-label {
-    font-size: 0.65rem;
-    color: var(--text3);
-    text-align: center;
-    line-height: 1.3;
-    font-family: var(--fu);
+.about-pre {
+    font-family: var(--fm);
+    font-size: var(--t-xs);
+    letter-spacing: 0.32em;
     text-transform: uppercase;
-    letter-spacing: 0.03em;
+    color: var(--ink-3);
 }
 
-/* ── Section (shared) ─────────────────────────────────────────────────── */
+.about-name {
+    margin: 0;
+    font-family: var(--fu);
+    font-size: clamp(2.2rem, 6vw, 4rem);
+    font-weight: 800;
+    letter-spacing: var(--track-display);
+    color: var(--accent-ink);
+}
+
+.about-tagline {
+    margin: var(--sp-2) 0 0;
+    font-family: var(--fu);
+    font-size: var(--t-lg);
+    color: var(--ink);
+}
+
+.about-motto {
+    margin: 0;
+    font-family: var(--fm);
+    font-size: var(--t-sm);
+    letter-spacing: var(--track-label);
+    color: var(--ink-3);
+}
+
+/* ── Shared type ──────────────────────────────────────────────────────── */
+
+.about-h2 {
+    margin: 0;
+    font-family: var(--fu);
+    font-size: var(--t-xl);
+    font-weight: 700;
+    letter-spacing: var(--track-tight);
+    color: var(--ink);
+}
+
+.about-h3 {
+    margin: 0;
+    font-family: var(--fu);
+    font-size: var(--t-base);
+    font-weight: 700;
+    color: var(--ink);
+}
+
+.about-icon {
+    color: var(--accent-ink);
+    flex-shrink: 0;
+}
+
 .about-section {
-    background: var(--bg2);
-    border: 1px solid var(--border2);
-    border-radius: var(--radius-xl);
-    padding: 36px 36px 32px;
-    position: relative;
-    overflow: hidden;
-    transition: all 0.4s var(--ease);
-}
-
-.about-section::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 1px;
-    background: linear-gradient(
-        90deg,
-        transparent 0%,
-        rgba(232, 168, 64, 0.08) 50%,
-        transparent 100%
-    );
-    pointer-events: none;
-}
-
-.about-section:hover {
-    border-color: var(--border);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-}
-
-.section-icon-wrap {
-    width: 44px;
-    height: 44px;
     display: flex;
+    flex-direction: column;
+    gap: var(--sp-4);
+}
+
+.about-link {
+    display: inline-flex;
     align-items: center;
-    justify-content: center;
-    background: rgba(232, 168, 64, 0.08);
-    border: 1px solid rgba(232, 168, 64, 0.12);
-    border-radius: var(--radius);
-    color: var(--amber);
-    margin-bottom: 18px;
-    transition: transform 0.3s var(--ease);
+    gap: 4px;
+    color: var(--accent-ink);
+    text-decoration: underline;
+    text-decoration-color: var(--line);
+    text-underline-offset: 3px;
 }
 
-.about-section:hover .section-icon-wrap {
-    transform: scale(1.08) rotate(-3deg);
+.about-link:hover {
+    text-decoration-color: currentcolor;
 }
 
-.section-icon-green {
-    background: rgba(92, 184, 122, 0.08);
-    border-color: rgba(92, 184, 122, 0.12);
+/* ── Legal ────────────────────────────────────────────────────────────── */
+
+.about-legal-split {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    align-items: start;
+    gap: var(--sp-5);
+    margin-top: var(--sp-2);
+}
+
+.about-uses {
+    margin-top: var(--sp-3);
+    border: var(--rule) solid var(--line-faint);
+    border-radius: var(--r-2);
+    overflow: hidden;
+}
+
+.about-use-icon {
+    flex-shrink: 0;
     color: var(--green);
 }
 
-.section-icon-blue {
-    background: rgba(91, 155, 213, 0.08);
-    border-color: rgba(91, 155, 213, 0.12);
-    color: var(--blue);
-}
-
-.about-section h2 {
-    font-family: var(--fu);
-    font-size: 1.3rem;
-    font-weight: 800;
-    margin-bottom: 16px;
-    color: var(--text);
-    line-height: 1.3;
-}
-
-.about-section p {
-    font-size: 0.95rem;
-    color: var(--text2);
-    line-height: 1.75;
-    margin-bottom: 16px;
-}
-
-.about-section p:last-child {
-    margin-bottom: 0;
-}
-
-.hl {
-    color: var(--accent);
-    font-weight: 700;
-}
-
-.about-section code {
-    background: rgba(232, 168, 64, 0.08);
-    border: 1px solid rgba(232, 168, 64, 0.12);
-    border-radius: 6px;
-    padding: 2px 7px;
-    font-family: var(--fm);
-    font-size: 0.85em;
-    color: var(--amber2);
-}
-
-/* ── Feature Grid ─────────────────────────────────────────────────────── */
-.feature-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-    margin-top: 20px;
-}
-
-.feature-card {
-    display: flex;
-    gap: 14px;
-    padding: 16px;
-    background: var(--bg3);
-    border: 1px solid var(--border3);
-    border-radius: var(--radius);
-    transition: all 0.25s var(--ease);
-    cursor: default;
-}
-
-.feature-card:hover {
-    border-color: var(--border);
-    background: var(--surface);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-}
-
-.fc-icon {
-    color: var(--accent);
-    flex-shrink: 0;
-    margin-top: 2px;
-}
-
-.feature-card div {
+.about-warn .note-body {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--sp-2);
 }
 
-.feature-card b {
-    color: var(--text);
-    font-size: 0.88rem;
+/* ── Chips ────────────────────────────────────────────────────────────── */
+
+/*
+ * Four columns, so a chip can take two of them. The two that need a sentence
+ * — the two protocols and where the visitor count comes from — get the width;
+ * the four that are one number do not need it.
+ */
+.about-chips {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--sp-3);
 }
 
-.feature-card span {
-    color: var(--text2);
-    font-size: 0.82rem;
-    line-height: 1.5;
+.about-chip {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: var(--sp-4) var(--sp-5);
+    background: var(--ground-2);
+    border: var(--rule) solid var(--line-soft);
+    border-radius: var(--r-3);
+}
+
+.about-chip--2 {
+    grid-column: span 2;
+}
+
+.about-chip-value {
+    font-family: var(--fu);
+    font-size: var(--t-lg);
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: var(--track-tight);
+    color: var(--accent-ink);
+}
+
+.about-chip-label {
+    font-size: var(--t-sm);
+    color: var(--ink-2);
+}
+
+.about-chip-hint {
+    margin-top: var(--sp-1);
+    font-size: var(--t-2xs);
+    line-height: 1.45;
+    color: var(--ink-3);
+}
+
+/* ── Cards ────────────────────────────────────────────────────────────── */
+
+.about-cards {
+    margin-top: var(--sp-2);
+}
+
+.about-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+}
+
+.about-card-icon {
+    color: var(--accent-ink);
+}
+
+.about-card-go {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: auto;
+    padding-top: var(--sp-2);
+    font-family: var(--fm);
+    font-size: var(--t-2xs);
+    letter-spacing: var(--track-label);
+    text-transform: uppercase;
+    color: var(--accent-ink);
 }
 
 /* ── Timeline ─────────────────────────────────────────────────────────── */
-.timeline {
-    position: relative;
-    margin-top: 24px;
-    padding-left: 40px;
-}
 
-.timeline-item {
-    position: relative;
-    margin-bottom: 12px;
-    animation: tlFadeIn 0.4s var(--ease-snap) both;
-}
-
-/* Соединительная линия МЕЖДУ точками (не через них) */
-.timeline-item::before {
-    content: "";
-    position: absolute;
-    left: -27px;
-    top: 42px; /* ниже точки */
-    bottom: -12px; /* до следующего элемента */
-    width: 2px;
-    background: linear-gradient(
-        180deg,
-        rgba(232, 168, 64, 0.3) 0%,
-        rgba(232, 168, 64, 0.08) 100%
-    );
-    border-radius: 2px;
-}
-
-/* Последний элемент — без линии вниз */
-.timeline-item:last-child::before {
-    display: none;
-}
-
-@keyframes tlFadeIn {
-    0% {
-        opacity: 0;
-        transform: translateX(-10px);
-    }
-    100% {
-        opacity: 1;
-        transform: translateX(0);
-    }
-}
-
-.tl-dot {
-    position: absolute;
-    left: -40px;
-    top: 12px;
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
+.about-scheme {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 2;
-    transition: all 0.3s var(--ease);
-}
-
-.tl-dot-amber {
-    background: var(--bg2);
-    border: 2px solid var(--amber);
-    color: var(--amber);
-}
-
-.tl-dot-green {
-    background: var(--bg2);
-    border: 2px solid var(--green);
-    color: var(--green);
-}
-
-.tl-dot-red {
-    background: var(--bg2);
-    border: 2px solid var(--red);
-    color: var(--red);
-}
-
-.timeline-item.open .tl-dot {
-    transform: scale(1.15);
-    box-shadow: 0 0 14px rgba(232, 168, 64, 0.25);
-}
-
-.tl-content {
-    background: var(--bg3);
-    border: 1px solid var(--border3);
-    border-radius: var(--radius);
-    overflow: hidden;
-    cursor: pointer;
-    transition: all 0.25s var(--ease);
-}
-
-.tl-content:hover {
-    border-color: var(--border);
-}
-
-.timeline-item.open .tl-content {
-    border-color: rgba(232, 168, 64, 0.25);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-}
-
-.tl-head {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 12px 16px;
-}
-
-.tl-version {
-    font-family: var(--fm);
-    font-size: 0.7rem;
-    font-weight: 800;
-    padding: 2px 8px;
-    background: rgba(232, 168, 64, 0.1);
-    color: var(--amber);
-    border-radius: 100px;
-    border: 1px solid rgba(232, 168, 64, 0.15);
-    flex-shrink: 0;
-}
-
-.tl-date {
-    font-size: 0.7rem;
-    color: var(--text3);
-    font-family: var(--fm);
-    flex-shrink: 0;
-}
-
-.tl-title {
-    font-size: 0.88rem;
-    font-weight: 600;
-    color: var(--text);
-    flex: 1;
-}
-
-.tl-arrow {
-    color: var(--text3);
-    transition: transform 0.25s var(--ease);
-    flex-shrink: 0;
-}
-
-.tl-arrow.rotated {
-    transform: rotate(180deg);
-}
-
-.tl-body {
-    padding: 0 16px 14px;
-}
-
-.tl-body p {
-    font-size: 0.85rem;
-    line-height: 1.65;
-    margin: 0;
-}
-
-/* ── Privacy Grid ─────────────────────────────────────────────────────── */
-.privacy-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 14px;
-    margin-top: 20px;
-}
-
-.privacy-card {
-    padding: 24px 20px;
-    background: var(--bg3);
-    border: 1px solid var(--border3);
-    border-radius: var(--radius-lg);
-    text-align: center;
-    transition: all 0.3s var(--ease);
-}
-
-.privacy-card:hover {
-    border-color: var(--border);
-    transform: translateY(-4px);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-}
-
-.priv-icon-wrap {
-    width: 48px;
-    height: 48px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(92, 184, 122, 0.08);
-    border: 1px solid rgba(92, 184, 122, 0.12);
-    border-radius: 50%;
-    color: var(--green);
-    margin: 0 auto 14px;
-    transition: transform 0.3s var(--ease);
-}
-
-.privacy-card:hover .priv-icon-wrap {
-    transform: scale(1.1) rotate(-5deg);
-}
-
-.privacy-card h3 {
-    font-size: 0.9rem;
-    font-weight: 700;
-    color: var(--text);
-    margin-bottom: 8px;
-}
-
-.privacy-card p {
-    font-size: 0.82rem;
-    color: var(--text2);
-    line-height: 1.6;
-    margin: 0;
-}
-
-/* ── Developer Section ────────────────────────────────────────────────── */
-.dev-card {
-    display: flex;
-    gap: 20px;
-    padding: 24px;
-    background: var(--bg3);
-    border: 1px solid var(--border3);
-    border-radius: var(--radius-lg);
-    margin-bottom: 16px;
-    transition: all 0.3s var(--ease);
-}
-
-.dev-card:hover {
-    border-color: var(--border);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-}
-
-.dev-avatar {
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
-    background: linear-gradient(
-        135deg,
-        var(--amber) 0%,
-        var(--amber-deep) 100%
-    );
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    transition: all 0.4s var(--ease);
-    box-shadow:
-        0 0 0 3px var(--bg2),
-        0 0 0 5px rgba(232, 168, 64, 0.25);
-    position: relative;
-}
-
-.dev-card:hover .dev-avatar {
-    transform: rotate(-6deg) scale(1.08);
-    box-shadow:
-        0 0 0 3px var(--bg2),
-        0 0 0 5px rgba(232, 168, 64, 0.4),
-        0 0 20px rgba(232, 168, 64, 0.15);
-}
-
-.dev-avatar-letter {
-    font-family: var(--fu);
-    font-size: 1.4rem;
-    font-weight: 800;
-    color: var(--bg);
-    line-height: 1;
-}
-
-.dev-info {
-    flex: 1;
-    min-width: 0;
-}
-
-.dev-info h3 {
-    font-size: 1rem;
-    font-weight: 700;
-    color: var(--text);
-    margin-bottom: 6px;
-}
-
-.dev-info p {
-    font-size: 0.88rem;
-    line-height: 1.6;
-    margin-bottom: 12px;
-}
-
-.dev-badges {
-    display: flex;
-    gap: 6px;
     flex-wrap: wrap;
+    gap: var(--sp-2);
 }
 
-.dev-badge {
-    font-size: 0.62rem;
+.about-scheme-item {
+    padding: 3px var(--sp-3);
+    border: var(--rule) solid var(--line-faint);
+    border-radius: var(--r-pill);
+    background: var(--ground-2);
     font-family: var(--fm);
-    font-weight: 700;
-    padding: 3px 10px;
-    background: rgba(232, 168, 64, 0.08);
-    color: var(--amber2);
-    border: 1px solid rgba(232, 168, 64, 0.12);
-    border-radius: 100px;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
+    font-size: var(--t-2xs);
+    color: var(--ink-3);
 }
 
-.contact-card {
-    display: flex;
-    gap: 14px;
-    padding: 18px 20px;
-    background: var(--bg3);
-    border: 1px solid var(--border3);
-    border-radius: var(--radius);
-    transition: all 0.25s var(--ease);
-}
-
-.contact-card:hover {
-    border-color: var(--border);
-}
-
-.contact-card div {
-    flex: 1;
-}
-
-.contact-card b {
-    color: var(--text);
-    font-size: 0.9rem;
-    display: block;
-    margin-bottom: 6px;
-}
-
-.contact-card p {
-    font-size: 0.85rem;
-    line-height: 1.6;
-    margin-bottom: 8px;
-}
-
-.contact-card p:last-child {
-    margin-bottom: 0;
-}
-
-.contact-note {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 0.8rem !important;
-    color: var(--text3) !important;
-    font-style: italic;
-}
-
-/* ── Legal Disclaimer Section ─────────────────────────────────────────── */
-.legal-section {
-    border-color: rgba(239, 68, 68, 0.15);
-    background: linear-gradient(
-        135deg,
-        rgba(239, 68, 68, 0.02) 0%,
-        var(--bg2) 50%,
-        rgba(239, 68, 68, 0.02) 100%
-    );
-}
-
-.legal-card {
+.about-timeline {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    text-align: center;
-    gap: 16px;
+    gap: var(--sp-2);
 }
 
-.legal-icon {
-    width: 56px;
-    height: 56px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(239, 68, 68, 0.08);
-    border: 1px solid rgba(239, 68, 68, 0.15);
-    border-radius: 50%;
-    color: #ef4444;
-    animation: badgePulse 3s ease-in-out infinite;
-}
-
-@keyframes badgePulse {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
-    50% { box-shadow: 0 0 20px 4px rgba(239, 68, 68, 0.1); }
-}
-
-.legal-section h2 {
-    font-size: 1.2rem;
-    font-weight: 700;
-    color: var(--text);
-    margin: 0;
-}
-
-.legal-content {
-    text-align: left;
-    max-width: 600px;
-}
-
-.legal-warning {
-    font-size: 0.95rem;
-    color: #fca5a5;
-    font-weight: 600;
-    margin-bottom: 12px;
-    padding: 12px;
-    background: rgba(239, 68, 68, 0.05);
-    border-left: 3px solid #ef4444;
-    border-radius: 0 var(--radius) var(--radius) 0;
-}
-
-.legal-content p {
-    font-size: 0.88rem;
-    color: var(--text2);
-    line-height: 1.7;
-    margin-bottom: 12px;
-}
-
-.legal-allowed {
-    padding: 14px 16px;
-    background: rgba(34, 197, 94, 0.03);
-    border: 1px solid rgba(34, 197, 94, 0.1);
-    border-radius: var(--radius);
-    margin: 14px 0;
-}
-
-.legal-allowed p {
-    font-weight: 600;
-    color: var(--text);
-    margin-bottom: 8px;
-}
-
-.legal-allowed ul {
-    margin: 0;
-    padding-left: 20px;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 6px 16px;
-}
-
-.legal-allowed li {
-    font-size: 0.82rem;
-    color: var(--text2);
-    line-height: 1.5;
-}
-
-.legal-disclaimer {
-    font-size: 0.8rem;
-    color: var(--text3);
-    font-style: italic;
-    margin-top: 12px;
-    padding-top: 12px;
-    border-top: 1px dashed var(--border);
-}
-
-/* ── Donation Section ─────────────────────────────────────────────────── */
-.donation-section {
-    text-align: center;
-    padding: 48px 36px;
-    position: relative;
+.about-entry {
+    background: var(--ground-2);
+    border: var(--rule) solid var(--line-soft);
+    border-radius: var(--r-2);
     overflow: hidden;
-    border-color: rgba(232, 168, 64, 0.15);
-    background: linear-gradient(
-        135deg,
-        rgba(232, 168, 64, 0.03) 0%,
-        var(--bg2) 50%,
-        rgba(92, 184, 122, 0.02) 100%
-    );
 }
 
-.donation-glow {
-    position: absolute;
-    top: -60px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 300px;
-    height: 300px;
-    background: radial-gradient(
-        circle,
-        rgba(232, 168, 64, 0.06) 0%,
-        transparent 70%
-    );
-    pointer-events: none;
-    animation: glowPulse 4s ease-in-out infinite;
+.about-entry.is-open {
+    border-color: var(--line);
 }
 
-@keyframes glowPulse {
-    0%,
-    100% {
-        opacity: 0.5;
-        transform: translateX(-50%) scale(1);
-    }
-    50% {
-        opacity: 1;
-        transform: translateX(-50%) scale(1.1);
-    }
-}
-
-.donation-content {
-    position: relative;
-    z-index: 1;
-}
-
-.donation-icon {
-    width: 64px;
-    height: 64px;
+.about-entry-head {
     display: flex;
     align-items: center;
-    justify-content: center;
-    background: rgba(232, 168, 64, 0.1);
-    border: 1px solid rgba(232, 168, 64, 0.2);
-    border-radius: 50%;
-    color: var(--amber);
-    margin: 0 auto 20px;
-    animation: iconFloat 3s ease-in-out infinite;
-}
-
-@keyframes iconFloat {
-    0%,
-    100% {
-        transform: translateY(0);
-    }
-    50% {
-        transform: translateY(-6px);
-    }
-}
-
-.donation-section h2 {
-    text-align: center;
-}
-
-.donation-section p {
-    max-width: 520px;
-    margin-left: auto;
-    margin-right: auto;
-}
-
-.donation-actions {
-    margin-top: 24px;
-    margin-bottom: 20px;
-    display: flex;
-    justify-content: center;
-}
-
-.cta-donate {
-    background: linear-gradient(135deg, #e85d75 0%, #c43a52 100%) !important;
-    color: #fff !important;
-    border: none !important;
-    box-shadow: 0 4px 20px rgba(232, 93, 117, 0.25);
-}
-
-.cta-donate:hover {
-    filter: brightness(1.1);
-    box-shadow: 0 6px 28px rgba(232, 93, 117, 0.35);
-    transform: translateY(-2px) !important;
-}
-
-.donation-thanks {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    font-size: 0.82rem !important;
-    color: var(--text3) !important;
-    margin-top: 4px;
-}
-
-.donation-thanks :deep(svg) {
-    color: var(--amber);
-}
-
-/* ── CTA Buttons ──────────────────────────────────────────────────────── */
-.cta-row {
-    margin-top: 20px;
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-}
-
-.cta-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 11px 20px;
-    border-radius: var(--radius);
-    font-family: var(--fu);
-    font-size: 0.78rem;
-    font-weight: 800;
-    text-decoration: none;
-    transition: all 0.3s var(--ease);
-    white-space: nowrap;
-    cursor: pointer;
+    gap: var(--sp-3);
+    width: 100%;
+    padding: var(--sp-4) var(--sp-5);
     border: none;
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
 }
 
-.cta-primary {
-    background: linear-gradient(
-        135deg,
-        var(--amber) 0%,
-        var(--amber-deep) 100%
-    );
-    color: var(--bg);
+.about-entry-head:hover {
+    background: var(--surface-solid);
 }
 
-.cta-primary:hover {
-    filter: brightness(1.12);
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(232, 168, 64, 0.25);
+.about-entry-ver {
+    flex-shrink: 0;
 }
 
-.cta-secondary {
-    background: rgba(232, 168, 64, 0.08);
-    border: 1px solid rgba(232, 168, 64, 0.2);
-    color: var(--amber2);
+.about-entry-title {
+    flex: 1;
+    min-width: 0;
+    font-family: var(--fw);
+    font-size: var(--t-base);
+    font-weight: 700;
+    color: var(--ink);
 }
 
-.cta-secondary:hover {
-    background: rgba(232, 168, 64, 0.14);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+.about-entry-date {
+    font-family: var(--fm);
+    font-size: var(--t-2xs);
+    letter-spacing: var(--track-label);
+    text-transform: uppercase;
+    color: var(--ink-3);
+    white-space: nowrap;
 }
 
-/* ── Stagger Animations ───────────────────────────────────────────────── */
-.a-stagger-1 {
-    animation: fadeSlideUp 0.5s var(--ease-snap) 0.05s both;
-}
-.a-stagger-2 {
-    animation: fadeSlideUp 0.5s var(--ease-snap) 0.1s both;
-}
-.a-stagger-3 {
-    animation: fadeSlideUp 0.5s var(--ease-snap) 0.15s both;
-}
-.a-stagger-4 {
-    animation: fadeSlideUp 0.5s var(--ease-snap) 0.2s both;
-}
-.a-stagger-5 {
-    animation: fadeSlideUp 0.5s var(--ease-snap) 0.25s both;
-}
-.a-stagger-6 {
-    animation: fadeSlideUp 0.5s var(--ease-snap) 0.3s both;
-}
-.a-stagger-7 {
-    animation: fadeSlideUp 0.5s var(--ease-snap) 0.35s both;
-}
-.a-stagger-8 {
-    animation: fadeSlideUp 0.5s var(--ease-snap) 0.4s both;
-}
-.a-stagger-9 {
-    animation: fadeSlideUp 0.5s var(--ease-snap) 0.45s both;
+.about-entry-arrow {
+    transition: transform var(--dur-2) var(--ease-out-quart);
 }
 
-@keyframes fadeSlideUp {
-    0% {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    100% {
-        opacity: 1;
-        transform: translateY(0);
-    }
+.about-entry-body {
+    padding: 0 var(--sp-5) var(--sp-5);
+    max-width: 74ch;
 }
 
-/* ── Responsive ───────────────────────────────────────────────────────── */
-@media (max-width: 768px) {
-    .about-wrap {
-        padding-top: 30px;
-        gap: 20px;
-    }
+/* ── Author ───────────────────────────────────────────────────────────── */
 
-    .about-section {
-        padding: 24px 20px;
-    }
-
-    .stats-strip {
-        grid-template-columns: repeat(2, 1fr);
-    }
-
-    .feature-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .privacy-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .dev-card {
-        flex-direction: column;
-        align-items: center;
-        text-align: center;
-    }
-
-    .dev-badges {
-        justify-content: center;
-    }
-
-    .about-section h2 {
-        font-size: 1.1rem;
-    }
-
-    .cta-btn {
-        width: 100%;
-        justify-content: center;
-    }
-
-    .cta-row {
-        flex-direction: column;
-    }
-
-    .timeline {
-        padding-left: 34px;
-    }
-
-    .tl-dot {
-        left: -34px;
-        width: 24px;
-        height: 24px;
-    }
-
-    .timeline-item::before {
-        left: -23px;
-    }
-
-    .tl-head {
-        flex-wrap: wrap;
-        gap: 6px;
-    }
-
-    .tl-title {
-        flex-basis: 100%;
-        font-size: 0.82rem;
-    }
-
-    .donation-section {
-        padding: 32px 20px;
-    }
+.about-projects {
+    margin-top: var(--sp-2);
 }
 
-@media (max-width: 480px) {
-    .hero-title {
-        font-size: 1.8rem;
-    }
-
-    .stats-strip {
-        grid-template-columns: 1fr 1fr;
-        gap: 8px;
-    }
-
-    .stat-card {
-        padding: 14px 8px;
-    }
-
-    .stat-value {
-        font-size: 1.1rem;
-    }
-
-    .contact-card {
-        flex-direction: column;
-    }
+.about-author-donate {
+    margin-top: var(--sp-3);
+    color: var(--ink-2);
 }
 
-/* ── Transition helpers (used by <transition name="expand">) ──────────── */
-.text-dim {
-    color: var(--text3);
+/* ── Narrow ───────────────────────────────────────────────────────────── */
+
+@media (max-width: 760px) {
+    .about-chips {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .about-chip--2 {
+        grid-column: 1 / -1;
+    }
+
+    .about-entry-date {
+        display: none;
+    }
 }
 </style>

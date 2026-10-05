@@ -9,19 +9,37 @@
  *   - feedback(ok) — подтверждение/отклонение конфига с автоусилением
  *   - setVersion / setIntensity — переключение режимов
  *   - addLog — журнал последних действий
- *   - hintMap / placeholderMap — подсказки по профилям
+ *   - hintMap / placeholderMap — help text for the custom-host field
  */
 
-import { ref, reactive, computed } from "vue";
+import { ref, reactive, computed, watch } from "vue";
 import {
   genCfg,
+  generateBatch,
+  CLIENTS,
+  DEFAULT_CLIENT_ID,
   type AWGConfig,
   type AWGVersion,
   type Intensity,
   type MimicProfile,
   type BrowserProfile,
   PROFILE_LABELS,
-} from "../utils/generator";
+  renderConf,
+  renderConfLines,
+  type RenderLabels,
+} from "@/engines/awg/generator";
+import { translate } from "@/i18n";
+import { hostsFor } from "@/shared/domains";
+import type { DomainRegion, DomainRole } from "@/types/domain";
+import { copyText } from "@/utils/clipboard";
+import { handOffToSimulator } from "@/shared/simHandoff";
+import { downloadText } from "@/utils/download";
+import { confToVpn, buildVpnConfig } from "@/engines/awg/awgFormat";
+import type { VpnConfig } from "@/engines/awg/awgFormat";
+import { renderMihomoProxy } from "@/engines/awg/mihomoFormat";
+import type { AwgContainer } from "@/engines/keys";
+import type { GeneratorInput } from "@/engines/awg/generator";
+import { AWG_VERSIONS, capsFor } from "@/engines/awg/generator/versions";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Типы
@@ -35,26 +53,60 @@ export interface LogEntry {
   ts: number;
 }
 
+import { useGeneratorWorker } from "./useGeneratorWorker";
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Composable
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function useGenerator() {
+  // Worker instance for large batches
+  const { isRunning: isWorkerRunning, generateInWorker } = useGeneratorWorker();
+
   // ── Версия и интенсивность ────────────────────────────────────────────────
 
-  const version = ref<AWGVersion>("2.0");
+  const VERSION_KEY = "awg-architect:version";
+  const VERSIONS: AWGVersion[] = AWG_VERSIONS.map((v) => v.id);
+
+  /**
+   * Remember the chosen protocol version across navigations. Without this,
+   * leaving for the simulator and coming back silently reset the generator to
+   * 2.0 and threw away the user's selection.
+   */
+  function loadVersion(): AWGVersion {
+    try {
+      const raw = localStorage.getItem(VERSION_KEY);
+      if (raw && (VERSIONS as string[]).includes(raw)) return raw as AWGVersion;
+    } catch {
+      // Storage blocked — fall through to the default.
+    }
+    return "2.0";
+  }
+
+  const version = ref<AWGVersion>(loadVersion());
   const intensity = ref<Intensity>("medium");
+
+  watch(version, (v) => {
+    try {
+      localStorage.setItem(VERSION_KEY, v);
+    } catch {
+      // Nothing to do; the in-memory value still drives this session.
+    }
+  });
 
   // ── Настройки генератора ──────────────────────────────────────────────────
 
   const config = reactive({
     profile: "quic_initial" as MimicProfile,
     customHost: "",
+    hostRegion: "any",
     mimicAll: false,
 
     // Теги CPS
-    useTagC: false, // <c> — счётчик пакетов. Отключён по умолчанию: старые версии AWG-go
-    // не реализуют этот тег и возвращают ErrorCode 1000.
+    useTagC: false, // <c> — счётчик пакетов.
+    // ⚠️ Не работает в старых версиях AWG-go (ErrorCode 1000).
+    // Разработчики Amnezia позднее отказались от него; он может
+    // перестать работать в новых релизах клиентов.
     useTagT: true,
     useTagR: true,
     useTagRC: true,
@@ -67,43 +119,63 @@ export function useGenerator() {
     // MTU (допустимый диапазон 576–9000; по умолчанию стандартный Ethernet)
     mtu: 1500,
 
+    /*
+     * Куда подключаться, как "host:port".
+     *
+     * Пусто по умолчанию, и тогда в файл ничего не добавляется: конфиг всегда
+     * был одним блоком обфускации, который вставляют в уже готовый. Заполнено —
+     * дописывается [Peer] с эндпоинтом и закомментированным ключом сервера.
+     */
+    endpoint: "",
+
     // Junk-train (0 = отключён, рекомендовано 3–7)
     junkLevel: 5,
 
     // Режим роутера (минимальные шумы для слабых устройств)
     routerMode: false,
 
-    // Экстремальные максимумы (Jc до 128, S3/S4 расширенные, H разброс 10M)
+    // Экстремальные максимумы (Jc до 128, S3 расширенный, H разброс 10M)
     useExtremeMax: false,
+
+    // Целевой клиент для фильтрации совместимости
+    clientId: DEFAULT_CLIENT_ID,
+
+    // Конкретная сборка клиента. null — текущая: у клиента лимиты не одни
+    // и те же навсегда, и генерировать надо под ту сборку, куда конфиг поедет.
+    clientRelease: null as string | null,
+
+    // ── AWG 3.0 ─────────────────────────────────────────────────────────────
+    // Защита заголовков ChaCha20. Поднимает S1–S4 до 12 байт: из паддинга
+    // берётся nonce шифра.
+    useHeaderProtection: true,
+    // Случайный паддинг транспортных пакетов (вместо выравнивания по 16).
+    useContentPadding: true,
+    // Рандомизация таймеров протокола вместо фиксированных констант.
+    useRandomTimings: true,
+
+    // ── AWG 3.1 ─────────────────────────────────────────────────────────────
+    // Случайный хвост каждому исходящему пакету. Выключено по умолчанию:
+    // фича свежая, а трафик растёт на каждый байт хвоста.
+    useRandomTrailers: false,
+    // Полный отказ от cookie-ответов. Выключено по умолчанию: без cookie
+    // ломается keepalive за NAT при нагрузке.
+    useDisableCookies: false,
+    // Узкие H1-H4 для 3.1: уменьшает разброс с ~100M до ~20k, фиксит баг
+    // amneziawg-go 3.1 (высокий CPU на классификации заголовков и возможный
+    // misclassify при header protection). Выкл. по умолчанию — меньше
+    // обфускации, но старые клиенты и так принимают любой разброс.
+    useNarrowH: false,
+    // Одинаковые S1–S4 (режим из рекомендаций). Выкл. по умолчанию и
+    // не рекомендуется: одно значение у всех, кто последовал совету, это
+    // общий отпечаток. Показывается только при защите заголовков и
+    // случайных хвостах, которые размывают длины пакетов и гасят урон.
+    useSameS: false,
   });
 
   // ── Состояние UI ──────────────────────────────────────────────────────────
 
-  /**
-   * Результат последней генерации.
-   * Инициализируем сразу, чтобы не было layout shift на первом рендере HomeView.
-   */
-  const currentAwg = ref<AWGConfig | null>(
-    genCfg({
-      version: version.value,
-      intensity: intensity.value,
-      profile: config.profile,
-      customHost: config.customHost,
-      mimicAll: config.mimicAll,
-      useTagC: config.useTagC,
-      useTagT: config.useTagT,
-      useTagR: config.useTagR,
-      useTagRC: config.useTagRC,
-      useTagRD: config.useTagRD,
-      useBrowserFp: config.useBrowserFp,
-      browserProfile: config.browserProfile,
-      mtu: config.mtu,
-      junkLevel: config.junkLevel,
-      iterCount: 0,
-      routerMode: config.routerMode,
-      useExtremeMax: config.useExtremeMax,
-    }),
-  );
+  /** Результат последней генерации */
+  const currentAwg = ref<AWGConfig | null>(null);
 
   /** Счётчик неудачных попыток (используется для автоусиления параметров) */
   const iterCount = ref(0);
@@ -114,25 +186,19 @@ export function useGenerator() {
   /** Флаг анимации кнопки генерации */
   const isGenerating = ref(false);
 
+  /** Batch generation state */
+  const batchCount = ref(10);
+  const batchResults = ref<AWGConfig[]>([]);
+
   // ── Генерация ─────────────────────────────────────────────────────────────
 
-  /**
-   * generate() — собирает GeneratorInput из текущего состояния и вызывает genCfg.
-   * Автоматически добавляет запись в лог.
-   */
-  function generate() {
-    isGenerating.value = true;
-
-    // Небольшой тайм-аут для shimmer-анимации
-    setTimeout(() => {
-      isGenerating.value = false;
-    }, 650);
-
-    currentAwg.value = genCfg({
+  function buildInput(): GeneratorInput {
+    return {
       version: version.value,
       intensity: intensity.value,
       profile: config.profile,
       customHost: config.customHost,
+      hostRegion: "any",
       mimicAll: config.mimicAll,
       useTagC: config.useTagC,
       useTagT: config.useTagT,
@@ -146,13 +212,120 @@ export function useGenerator() {
       iterCount: iterCount.value,
       routerMode: config.routerMode,
       useExtremeMax: config.useExtremeMax,
-    });
+      clientId: config.clientId,
+      clientRelease: config.clientRelease,
+      useHeaderProtection: config.useHeaderProtection,
+      useContentPadding: config.useContentPadding,
+      useRandomTimings: config.useRandomTimings,
+      useRandomTrailers: config.useRandomTrailers,
+      useDisableCookies: config.useDisableCookies,
+      useNarrowH: config.useNarrowH,
+      // Спрятанный переключатель действовать не должен: одинаковые S
+      // работают только на 3.1 в связке с защитой и хвостами, которая их
+      // и показывает. Иначе старый сохранённый флажок или смена версии
+      // с включённым флажком тихо меняли бы размеры.
+      useSameS:
+        config.useSameS &&
+        version.value === "3.1" &&
+        config.useHeaderProtection &&
+        config.useRandomTrailers,
+    };
+  }
+
+  /**
+   * generate() — главная точка входа.
+   */
+  function generate() {
+    isGenerating.value = true;
+
+    setTimeout(() => {
+      isGenerating.value = false;
+    }, 650);
+
+    // `genCfg` refuses a config it cannot make valid, and it refuses by
+    // throwing. Unhandled, that left the previous config on screen with no
+    // message: the user pressed Generate and nothing whatsoever happened.
+    // Rare, but a button that silently does nothing is worse than one that
+    // says why.
+    try {
+      currentAwg.value = genCfg(buildInput());
+    } catch (error) {
+      addLog(
+        translate("log.generateFailed", {
+          error: error instanceof Error ? error.message : String(error),
+        }),
+        "bad",
+      );
+      return;
+    }
 
     const label = PROFILE_LABELS[config.profile] ?? config.profile;
-    addLog(`✦ Сгенерирован — ${label}`, "info");
+    addLog(translate("log.generated", { profile: label }), "info");
+    // Park the fresh config where the FAQ client-fields form reads it.
+    // Without this the form only ever saw simulator hand-offs, and a config
+    // generated on the main page transcribed into the app by hand from the
+    // preview. The simulator button overwrites this envelope with its own
+    // caption and notes before navigating, so nothing goes stale.
+    // The switch state rides along because the emitted config cannot say
+    // it: a managed client leaves no key line with the cipher still on.
+    handOffToSimulator({
+      engine: "awg",
+      headerProtection: config.useHeaderProtection,
+      config: currentAwg.value,
+    });
     if (config.routerMode) {
-      addLog("⚡ Роутер-режим: минимальные шумы", "warn");
+      addLog(translate("log.routerMode"), "warn");
     }
+  }
+
+  /**
+   * runBatch — generate `batchCount` independent configs.
+   * Uses a Web Worker when count > 50 to keep the UI responsive.
+   */
+  async function runBatch() {
+    const count = batchCount.value;
+    if (count < 1 || count > 1000) {
+      addLog(translate("log.batchRange"), "bad");
+      return;
+    }
+
+    try {
+      batchResults.value =
+        count > 20
+          ? await generateInWorker(buildInput(), count)
+          : generateBatch(buildInput(), count);
+      addLog(translate("log.batchDone", { n: count }), "ok");
+    } catch (e) {
+      addLog(
+        translate("log.batchError", {
+          error: e instanceof Error ? e.message : String(e),
+        }),
+        "bad",
+      );
+    }
+  }
+
+  /**
+   * downloadBatch — download all batch configs as a single .txt file.
+   */
+  function downloadBatch() {
+    if (!batchResults.value.length) {
+      addLog(translate("log.batchFirst"), "bad");
+      return;
+    }
+
+    const blocks = batchResults.value.map((p, idx) =>
+      renderConf(p, {
+        caption: `config ${idx + 1}/${batchResults.value.length}`,
+        labels: confLabels.value,
+      }),
+    );
+
+    downloadBlob(
+      blocks.join("\n\n" + "=".repeat(40) + "\n\n"),
+      `amneziawg-batch-${batchResults.value.length}-${Date.now()}.txt`,
+      "text/plain",
+    );
   }
 
   // ── Переключение версии / интенсивности ───────────────────────────────────
@@ -160,6 +333,20 @@ export function useGenerator() {
   function setVersion(v: AWGVersion) {
     version.value = v;
     generate();
+  }
+
+  /**
+   * restoreConfig — put a previously generated config back on screen.
+   *
+   * Restores the version alongside it, because every downstream view (preview,
+   * export, parameter groups) keys off `version`. Without that a restored 3.0
+   * config would render through the 2.0 code path and quietly drop its
+   * HeaderProtectionKey and timers.
+   */
+  function restoreConfig(cfg: AWGConfig) {
+    version.value = cfg.version;
+    config.profile = cfg.profile;
+    currentAwg.value = cfg;
   }
 
   function setIntensity(level: Intensity) {
@@ -178,15 +365,15 @@ export function useGenerator() {
    */
   function feedback(ok: boolean) {
     if (ok) {
-      addLog("✓ Конфигурация подтверждена!", "ok");
+      addLog(translate("log.confirmed"), "ok");
       iterCount.value = 0;
     } else {
       iterCount.value++;
       generate();
       addLog(
         iterCount.value > 3
-          ? `✗ Попытка ${iterCount.value}: HIGH режим, максимальная обфускация...`
-          : `✗ Попытка ${iterCount.value}: перегенерация, усиленные параметры`,
+          ? translate("log.retryHigh", { n: iterCount.value })
+          : translate("log.retry", { n: iterCount.value }),
         "bad",
       );
     }
@@ -198,71 +385,47 @@ export function useGenerator() {
    * plainText — финальный текст конфигурационного файла .conf
    * Вычисляется по currentAwg и version.
    */
+  /** Localised `.conf` comment text for the renderer, which has no i18n itself. */
+  const confLabels = computed(
+    (): Partial<RenderLabels> => ({
+      privateKey: translate("conf.privateKey"),
+      address: translate("conf.address"),
+      cpsClientOnly: translate("conf.cpsClientOnly"),
+      noCps: translate("conf.noCps"),
+      noCpsClient: translate("conf.noCpsClient"),
+      awg3Hpk: translate("conf.awg3Hpk"),
+      awg3HpkManaged: translate("conf.awg3HpkManaged"),
+      awg3Cpa: translate("conf.awg3Cpa"),
+      awg3Timers: translate("conf.awg3Timers"),
+      blockHeaders: translate("conf.blockHeaders"),
+      blockSizes: translate("conf.blockSizes"),
+      blockJunk: translate("conf.blockJunk"),
+      blockCps: translate("conf.blockCps"),
+      peerKey: translate("conf.peerKey"),
+      endpoint: translate("conf.endpoint"),
+      mustMatch: translate("conf.mustMatch"),
+    }),
+  );
+
+  /**
+   * The key the file does not carry: Amnezia VPN manages it in-app, so the
+   * note goes out only while its switch is on — managed with protection off
+   * means no cipher and reads exactly like unmanaged with it off.
+   */
+  const hpkManagedNote = computed(
+    (): boolean =>
+      CLIENTS[config.clientId]?.managesHeaderProtection === true &&
+      config.useHeaderProtection,
+  );
+
   const plainText = computed((): string => {
     const p = currentAwg.value;
     if (!p) return "";
-    const v = version.value;
-
-    const lines: string[] = [
-      `# AmneziaWG ${v}`,
-      "[Interface]",
-      "# PrivateKey = <ключ>",
-      "# Address = 10.0.0.2/32",
-    ];
-
-    if (v === "2.0") {
-      lines.push(
-        `H1 = ${p.h1}`,
-        `H2 = ${p.h2}`,
-        `H3 = ${p.h3}`,
-        `H4 = ${p.h4}`,
-        `S1 = ${p.s1}`,
-        `S2 = ${p.s2}`,
-        `S3 = ${p.s3}`,
-        `S4 = ${p.s4}`,
-        `Jc = ${p.jc}`,
-        `Jmin = ${p.jmin}`,
-        `Jmax = ${p.jmax}`,
-        `I1 = ${p.i1}`,
-        `I2 = ${p.i2}`,
-        `I3 = ${p.i3}`,
-        `I4 = ${p.i4}`,
-        `I5 = ${p.i5}`,
-      );
-    } else if (v === "1.5") {
-      lines.push(
-        `H1 = ${p.h1s}`,
-        `H2 = ${p.h2s}`,
-        `H3 = ${p.h3s}`,
-        `H4 = ${p.h4s}`,
-        `S1 = ${p.s1}`,
-        `S2 = ${p.s2}`,
-        `Jc = ${p.jc}`,
-        `Jmin = ${p.jmin}`,
-        `Jmax = ${p.jmax}`,
-        "# I1-I5 только клиент (AWG 1.5):",
-        `I1 = ${p.i1}`,
-        `I2 = ${p.i2}`,
-        `I3 = ${p.i3}`,
-        `I4 = ${p.i4}`,
-        `I5 = ${p.i5}`,
-      );
-    } else {
-      // AWG 1.0 — нет CPS
-      lines.push(
-        `H1 = ${p.h1s}`,
-        `H2 = ${p.h2s}`,
-        `H3 = ${p.h3s}`,
-        `H4 = ${p.h4s}`,
-        `S1 = ${p.s1}`,
-        `S2 = ${p.s2}`,
-        `Jc = ${p.jc}`,
-        `Jmin = ${p.jmin}`,
-        `Jmax = ${p.jmax}`,
-      );
-    }
-
-    return lines.join("\n");
+    return renderConf(p, {
+      labels: confLabels.value,
+      endpoint: config.endpoint,
+      hpkManagedNote: hpkManagedNote.value,
+    });
   });
 
   /**
@@ -272,140 +435,116 @@ export function useGenerator() {
   const previewLines = computed(() => {
     const p = currentAwg.value;
     if (!p) return [];
-    const v = version.value;
-
-    type LineType = "comment" | "kv" | "section";
-    const lines: { key: string; value: string; type: LineType }[] = [];
-
-    const cm = (v: string) => ({
-      key: "",
-      value: v,
-      type: "comment" as LineType,
+    return renderConfLines(p, {
+      preview: true,
+      labels: confLabels.value,
+      endpoint: config.endpoint,
+      hpkManagedNote: hpkManagedNote.value,
     });
-    const kv = (k: string, val: string) => ({
-      key: k,
-      value: val,
-      type: "kv" as LineType,
-    });
-
-    lines.push(cm(`# AmneziaWG ${v}`));
-    lines.push(cm("[Interface]"));
-    lines.push(cm("# PrivateKey = <ключ>  Address = 10.0.0.2/32"));
-
-    if (v === "2.0") {
-      lines.push(
-        kv("H1", p.h1),
-        kv("H2", p.h2),
-        kv("H3", p.h3),
-        kv("H4", p.h4),
-      );
-      lines.push(
-        kv("S1", String(p.s1)),
-        kv("S2", String(p.s2)),
-        kv("S3", String(p.s3)),
-        kv("S4", String(p.s4)),
-      );
-      lines.push(
-        kv("Jc", String(p.jc)),
-        kv("Jmin", String(p.jmin)),
-        kv("Jmax", String(p.jmax)),
-      );
-      lines.push(
-        kv("I1", p.i1),
-        kv("I2", p.i2),
-        kv("I3", p.i3),
-        kv("I4", p.i4),
-        kv("I5", p.i5),
-      );
-    } else if (v === "1.5") {
-      lines.push(
-        kv("H1", String(p.h1s)),
-        kv("H2", String(p.h2s)),
-        kv("H3", String(p.h3s)),
-        kv("H4", String(p.h4s)),
-      );
-      lines.push(kv("S1", String(p.s1)), kv("S2", String(p.s2)));
-      lines.push(
-        kv("Jc", String(p.jc)),
-        kv("Jmin", String(p.jmin)),
-        kv("Jmax", String(p.jmax)),
-      );
-      lines.push(cm("# I1-I5 только клиент (AWG 1.5):"));
-      lines.push(
-        kv("I1", p.i1),
-        kv("I2", p.i2),
-        kv("I3", p.i3),
-        kv("I4", p.i4),
-        kv("I5", p.i5),
-      );
-    } else {
-      lines.push(
-        kv("H1", String(p.h1s)),
-        kv("H2", String(p.h2s)),
-        kv("H3", String(p.h3s)),
-        kv("H4", String(p.h4s)),
-      );
-      lines.push(kv("S1", String(p.s1)), kv("S2", String(p.s2)));
-      lines.push(
-        kv("Jc", String(p.jc)),
-        kv("Jmin", String(p.jmin)),
-        kv("Jmax", String(p.jmax)),
-      );
-      lines.push(cm("# I1-I5 не поддерживаются в AWG 1.0"));
-    }
-
-    return lines;
   });
+
+  /**
+   * jsonPayload — формальный Amnezia VpnConfig JSON (как в vpn://).
+   */
+  const jsonPayload = computed((): VpnConfig | null => {
+    const text = plainText.value;
+    if (!text) return null;
+    try {
+      return buildVpnConfig(text);
+    } catch {
+      return null;
+    }
+  });
+
+  const jsonText = computed(() =>
+    jsonPayload.value ? JSON.stringify(jsonPayload.value, null, 4) : "",
+  );
 
   /**
    * copyConfig — копирует plainText в буфер обмена.
    * Возвращает Promise<boolean>: true = успех, false = ошибка.
    */
   async function copyConfig(): Promise<boolean> {
-    const text = plainText.value;
-    if (!text) {
-      addLog("⚠ Сначала сгенерируйте конфиг", "bad");
-      return false;
-    }
-
-    try {
-      if (navigator.clipboard) {
-        await navigator.clipboard.writeText(text);
-      } else {
-        // Fallback для старых браузеров / HTTP-контекста
-        const ta = document.createElement("textarea");
-        ta.value = text;
-        ta.style.cssText = "position:fixed;left:-9999px;top:0";
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand("copy");
-        document.body.removeChild(ta);
-      }
-      addLog("✓ Конфиг скопирован в буфер", "ok");
-      return true;
-    } catch {
-      addLog("⚠ Не удалось скопировать в буфер", "bad");
-      return false;
-    }
+    return copyToClipboard(plainText.value, translate("log.copiedConf"));
   }
 
   /**
    * downloadConfig — скачивает конфиг как .conf файл.
    */
   function downloadConfig() {
-    const text = plainText.value;
+    downloadBlob(
+      plainText.value,
+      `amneziawg-${version.value}-${Date.now()}.conf`,
+      "text/plain",
+    );
+  }
+
+  /**
+   * copyJson — копирует JSON-представление конфигурации.
+   */
+  async function copyJson(): Promise<boolean> {
+    return copyToClipboard(jsonText.value, translate("log.copiedJson"));
+  }
+
+  /**
+   * downloadJson — скачивает JSON-представление конфигурации.
+   */
+  function downloadJson() {
+    downloadBlob(
+      jsonText.value,
+      `amneziawg-${version.value}-${Date.now()}.json`,
+      "application/json",
+    );
+  }
+
+  /**
+   * mihomoText — тот же параметр-сет, но в YAML-диалекте mihomo (Clash.Meta).
+   * Пустая строка, пока нечего экспортировать, как и у jsonText.
+   */
+  const mihomoText = computed(() =>
+    currentAwg.value ? renderMihomoProxy(currentAwg.value) : "",
+  );
+
+  /**
+   * copyMihomo — копирует mihomo-прокси в буфер обмена.
+   */
+  async function copyMihomo(): Promise<boolean> {
+    return copyToClipboard(mihomoText.value, translate("log.copiedYaml"));
+  }
+
+  /**
+   * downloadMihomo — скачивает mihomo-прокси как .yaml файл.
+   */
+  function downloadMihomo() {
+    downloadBlob(
+      mihomoText.value,
+      `amneziawg-${version.value}-${Date.now()}.yaml`,
+      "application/yaml",
+    );
+  }
+
+  async function copyToClipboard(text: string, okMsg: string): Promise<boolean> {
     if (!text) {
-      addLog("⚠ Сначала сгенерируйте конфиг", "bad");
+      addLog(translate("log.generateFirst"), "bad");
+      return false;
+    }
+    // The selection fallback lives in the shared helper, which reports
+    // whether it worked rather than swallowing a refusal.
+    const ok = await copyText(text);
+    addLog(ok ? okMsg : translate("log.copyFailed"), ok ? "ok" : "bad");
+    return ok;
+  }
+
+  function downloadBlob(text: string, filename: string, mime: string) {
+    if (!text) {
+      addLog(translate("log.generateFirst"), "bad");
       return;
     }
-    const blob = new Blob([text], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `amneziawg-${version.value}-${Date.now()}.conf`;
-    a.click();
-    URL.revokeObjectURL(url);
-    addLog("↓ Конфиг сохранён в файл", "info");
+    const saved = downloadText(text, filename, mime);
+    addLog(
+      saved ? translate("log.saved") : translate("log.copyFailed"),
+      saved ? "info" : "bad",
+    );
   }
 
   // ── Лог ───────────────────────────────────────────────────────────────────
@@ -428,7 +567,7 @@ export function useGenerator() {
     const { isKnownBlocked, checkDomain } = await import("../utils/domainCheck");
     const host = config.customHost.trim();
     if (!host) {
-      addLog("Укажите хост для проверки", "warn");
+      addLog(translate("log.hostRequired"), "warn");
       return;
     }
     domainStatus.value = "checking";
@@ -436,7 +575,7 @@ export function useGenerator() {
 
     if (isKnownBlocked(host)) {
       domainStatus.value = "blocked";
-      addLog(`⛔ ${host} — в списке заблокированных`, "bad");
+      addLog(translate("log.hostBlockedList", { host }), "bad");
       return;
     }
 
@@ -444,44 +583,134 @@ export function useGenerator() {
     domainStatus.value = result.accessible ? "ok" : "blocked";
     addLog(
       result.accessible
-        ? `✓ ${host} — доступен`
-        : `✗ ${host} — недоступен (${result.error ?? "blocked"})`,
+        ? translate("log.hostOk", { host })
+        : translate("log.hostUnreachable", {
+            host,
+            error: result.error ?? "blocked",
+          }),
       result.accessible ? "ok" : "bad",
     );
   }
 
-  // ── Подсказки по профилям ─────────────────────────────────────────────────
+  /* ── The custom-host field ─────────────────────────────────────────────── */
 
-  /** Подсказки под полем кастомного хоста */
-  const hintMap: Record<MimicProfile, string> = {
-    quic_initial: "QUIC-capable: fastly.net, cdn-apple.com, yastatic.net …",
-    quic_0rtt: "QUIC 0-RTT: fastly.net, s3.amazonaws.com, yastatic.net …",
-    tls_client_hello: "Любой HTTPS-хост: vk.com, github.com, ozon.ru …",
-    dtls: "STUN/TURN-сервер: stun.yandex.net, stun.jit.si …",
-    http3: "HTTP/3-хост: fastly.net, cdn.gcore.com, yandex.net …",
-    sip: "SIP-регистратор: sip.zadarma.com, sip.linphone.org …",
-    wireguard_noise: "WireGuard Noise_IK — хост не используется",
-    tls_to_quic: "TLS+QUIC: vk.com, yandex.ru, ozon.ru …",
-    quic_burst: "QUIC-burst: fastly.net, cdn-apple.com, yastatic.net …",
-    dns_query: "DNS-сервер: 8.8.8.8, 1.1.1.1, 77.88.8.8 (или оставьте пустым для пула)",
-    random:
-      "Пул выбирается по случайному профилю (опционально укажите свой хост)",
+  /**
+   * Which role each profile's host has to fill.
+   *
+   * The same table the generator draws by, so the hint and the draw cannot
+   * disagree — the previous version listed `vk.com` under DTLS and
+   * `stun.yandex.net` as a STUN example, neither of which was true of what
+   * the generator actually picked.
+   */
+  /** How many ranked examples to keep per role. Nothing asks for more. */
+  const EXAMPLES_KEPT = 3;
+
+  const PROFILE_ROLE: Record<MimicProfile, DomainRole | "none"> = {
+    quic_initial: "quic",
+    quic_0rtt: "quic",
+    http3: "quic",
+    quic_burst: "quic",
+    tls_client_hello: "tls",
+    tls_to_quic: "tls",
+    dtls_1_2: "dtls",
+    dtls_1_3: "dtls",
+    sip: "sip",
+    dns_query: "dns",
+    stun: "stun",
+    wireguard_noise: "none",
+    random: "none",
   };
 
-  /** Placeholder для поля кастомного хоста */
-  const placeholderMap: Record<MimicProfile, string> = {
-    quic_initial: "Хост с QUIC (напр., fastly.net)",
-    quic_0rtt: "Хост с QUIC 0-RTT (напр., cdn-apple.com)",
-    tls_client_hello: "Любой домен (напр., github.com)",
-    dtls: "STUN/TURN-хост (напр., stun.jit.si)",
-    http3: "HTTP/3-домен (напр., vk.com)",
-    sip: "SIP-сервер (напр., sip.zadarma.com)",
-    wireguard_noise: "Хост не используется для этого профиля",
-    tls_to_quic: "TLS→QUIC хост (напр., vk.com)",
-    quic_burst: "QUIC-хост (напр., fastly.net)",
-    dns_query: "DNS-сервер (напр., 8.8.8.8) или домен",
-    random: "Свой домен (опционально)",
-  };
+  /**
+   * Examples taken from the database rather than written down.
+   *
+   * A hint naming hosts that were true in Q1 2026 ages exactly as badly as the
+   * pools did, and for the same reason. These are hosts that qualify right
+   * now, for the role this profile actually asks for.
+   *
+   * Worked out once per role and region and kept, because the two maps below
+   * used to ask for the same thing twice — three examples for the hint, one
+   * for the placeholder — and each ask sorted a several-hundred-entry array.
+   * Eleven profiles came to twenty-two sorts on every recompute, and the
+   * second of each pair re-derived a prefix of what the first had just built.
+   */
+  const exampleCache = new Map<string, string[]>();
+
+  function examplesFor(role: DomainRole, count: number): string[] {
+    const region = config.hostRegion;
+    const key = `${role}|${region}`;
+
+    let ranked = exampleCache.get(key);
+    if (!ranked) {
+      const regions =
+        region === "any" ? undefined : [region as DomainRegion];
+      const found = hostsFor({ regions, role });
+      const pool = found.length ? found : hostsFor({ role, allowUnknown: true });
+
+      // An example is meant to be recognised, so the shortest names win and
+      // each has to come from a different site. Taking the head of the list
+      // instead gave "00.img.avito.st, 01.img.avito.st, 05.img.avito.st" —
+      // three shards of one CDN, alphabetically first and useless as examples.
+      const seen = new Set<string>();
+      ranked = [];
+      for (const host of [...pool].sort((a, b) => a.length - b.length)) {
+        const site = host.split(".").slice(-2).join(".");
+        if (seen.has(site)) continue;
+        seen.add(site);
+        ranked.push(host);
+        // Nothing asks for more than a handful, and ranking the whole pool to
+        // show three of it is work nobody sees.
+        if (ranked.length === EXAMPLES_KEPT) break;
+      }
+      exampleCache.set(key, ranked);
+    }
+
+    return ranked.slice(0, count);
+  }
+
+  /**
+   * Both maps, built in one pass.
+   *
+   * They were two copies of the same loop over the same table, differing in
+   * the catalogue key and in how many examples they wanted.
+   */
+  const hostHelp = computed(() => {
+    const hints = {} as Record<MimicProfile, string>;
+    const placeholders = {} as Record<MimicProfile, string>;
+
+    for (const profile of Object.keys(PROFILE_ROLE) as MimicProfile[]) {
+      const role = PROFILE_ROLE[profile];
+
+      if (role === "none") {
+        // Noise names no host at all and the field is hidden for it — see
+        // showCustomHost. Nothing reads those, so nothing is written.
+        const isRandom = profile === "random";
+        hints[profile] = isRandom ? translate("gen.host.hint.random") : "";
+        placeholders[profile] = isRandom
+          ? translate("gen.host.placeholder.random")
+          : "";
+        continue;
+      }
+
+      const examples = examplesFor(role, 3);
+      hints[profile] = translate(
+        `gen.host.hint.${role}` as "gen.host.hint.tls",
+        { examples: examples.join(", ") || "—" },
+      );
+      placeholders[profile] = translate(
+        `gen.host.placeholder.${role}` as "gen.host.placeholder.tls",
+        { example: examples[0] ?? "example.com" },
+      );
+    }
+
+    return { hints, placeholders };
+  });
+
+  /** Help text under the custom-host field. */
+  const hintMap = computed(() => hostHelp.value.hints);
+
+  /** Placeholder inside the custom-host field. */
+  const placeholderMap = computed(() => hostHelp.value.placeholders);
 
   // ── Вычисляемые свойства UI ───────────────────────────────────────────────
 
@@ -491,14 +720,18 @@ export function useGenerator() {
   /** true если включён режим роутера */
   const isRouterMode = computed(() => config.routerMode);
 
-  /** true для AWG 1.0 (CPS не поддерживается) */
-  const isCPSSupported = computed(() => version.value !== "1.0");
+  /** Возможности выбранной версии — единственный источник истины о форме. */
+  const caps = computed(() => capsFor(version.value));
 
-  /** true для AWG 2.0 (S3/S4/H3/H4 диапазоны) */
-  const isFullObfuscation = computed(() => version.value === "2.0");
+  /** true если доступна цепочка CPS I1–I5 */
+  const isCPSSupported = computed(() => caps.value.cps);
+
+  /** true для версий с S3/S4 и H1–H4 диапазонами */
+  const isFullObfuscation = computed(() => caps.value.extraSizes);
+
+  /** true для версий с защитой заголовков, паддингом и таймингами */
 
   /** Метка режима интенсивности (для отображения в UI) */
-  const intensityLabel = computed(() => intensity.value.toUpperCase());
 
   /** Dots прогресса итераций (5 точек) */
   const iterDots = computed(() =>
@@ -520,24 +753,40 @@ export function useGenerator() {
 
     // Действия
     generate,
+    runBatch,
+    downloadBatch,
     setVersion,
     setIntensity,
     feedback,
     copyConfig,
     downloadConfig,
+    copyJson,
+    downloadJson,
+    copyMihomo,
+    downloadMihomo,
     addLog,
 
     // Вычисляемые
     plainText,
     previewLines,
+    jsonPayload,
+    jsonText,
+    mihomoText,
     showCustomHost,
     isCPSSupported,
     isFullObfuscation,
+    restoreConfig,
     isRouterMode,
-    intensityLabel,
     iterDots,
     hintMap,
     placeholderMap,
+
+    // Batch
+    batchCount,
+    batchResults,
+
+    // Worker
+    isWorkerRunning,
 
     // Проверка доменов
     domainStatus,

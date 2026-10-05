@@ -1,0 +1,76 @@
+name: "Предложить домен для мимикрии · Propose a mimicry domain"
+description: "Добавить домен в hostPools · Add a domain to hostPools"
+title: "[DOMAIN+] "
+labels: ["enhancement", "infra"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Домены живут в `src/utils/generator/constants.ts` (`hostPools`) и
+        подставляются в CPS-цепочки, чтобы трафик выглядел как обращение к
+        популярному ресурсу. Хороший кандидат — тот, к которому обращаются
+        многие и который вряд ли заблокируют.
+
+        *Domains live in `src/utils/generator/constants.ts` and are used in the
+        CPS chains. A good candidate is one many people already talk to and that
+        is unlikely to be blocked.*
+
+  - type: input
+    id: domain
+    attributes:
+      label: Домен · Domain
+      placeholder: "example-cdn.com"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: pool
+    attributes:
+      label: В какой пул · Which pool
+      multiple: true
+      options:
+        - quic_initial
+        - quic_0rtt
+        - tls_client_hello
+        - dtls
+        - sip
+        - http3
+        - dns
+    validations:
+      required: true
+
+  - type: textarea
+    id: why
+    attributes:
+      label: Почему он подходит · Why it fits
+      description: >
+        Поддержка QUIC/HTTP3, массовость, CDN-провайдер, наличие PoP в регионе,
+        STUN/TURN — что делает его правдоподобным прикрытием и почему он лучше
+        уже имеющихся вариантов.
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Проверки · Evidence
+      description: >
+        Вывод команд, обрезанный до релевантного. Например `dig +short`,
+        `curl -I --http3`, traceroute.
+      render: shell
+      placeholder: |
+        $ dig +short example-cdn.com
+        …
+        $ curl -sI --http3 https://example-cdn.com/ | head -3
+        …
+    validations:
+      required: true
+
+  - type: input
+    id: region
+    attributes:
+      label: Где проверяли · Where you tested from
+      description: Страна и провайдер — доступность сильно от них зависит.
+      placeholder: "Германия, Hetzner · Казахстан, Beeline"
+    validations:
+      required: true

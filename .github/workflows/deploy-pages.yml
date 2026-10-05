@@ -1,24 +1,57 @@
 # ═══════════════════════════════════════════════════════════════════════════════
-# AmneziaWG Architect — CI/CD Pipeline
+# Any Tech ARCHITECT — CI/CD Pipeline
 #
 # Architecture:
 #
-#   ┌──────────┐     ┌───────────┐     ┌──────────────┐
-#   │  lint &  │     │   build   │     │   deploy     │
-#   │  test    ├────►│ + bundle  ├──┬─►│  gh-pages    │
-#   └──────────┘     └───────────┘  │  └──────────────┘
-#                                   │  ┌──────────────┐
-#                                   ├─►│  release     │
-#                                   │  └──────────────┘
-#                                   │  ┌──────────────┐
-#                                   └─►│  standalone  │
-#                                      │  artifact    │
-#                                      └──────────────┘
+#   ┌─────────────┐
+#   │  preflight  │  ← reads [skip ci] / [skip test] / [skip deploy]
+#   └──────┬──────┘
+#          ├──────────────┬──────────────┬────────────┐
+#   ┌──────┴──────┐ ┌─────┴──────┐ ┌─────┴───────┐ ┌──┴────────────────┐
+#   │ lint, types │ │ xray-core  │ │    build    │ │   serve-binary    │
+#   │ and tests   │ │ configs on │ │  + bundle   │ │  (tags only, one  │
+#   │             │ │ real cores │ │             │ │  runner per OS)   │
+#   └──────┬──────┘ └─────┬──────┘ └─────┬───────┘ └──┬────────────────┘
+#          │              │              │            │
+#          │              │              ├──► deploy to gh-pages
+#          │              │              │    (branch pushes)
+#          └──────────────┴──────────────┴────────────┤
+#                                                     ▼
+#                                            ┌─────────────────┐
+#                                            │     release     │  (tags only)
+#                                            │  archive + bin  │
+#                                            └─────────────────┘
 #
-# - lint+test and build run in PARALLEL (both need install, but test doesn't
-#   need build output and build doesn't need test results)
-# - deploy + release fan out from build (parallel when tag push)
-# - standalone artifact is always uploaded from build
+# Release notes are built from the annotated tag message first, then the
+# commit log since the previous version tag. The tag message is Markdown and
+# is emitted as-is, so it brings its own heading.
+#
+#   git tag -s --cleanup=verbatim vX.Y.Z -F .git/TAG_MSG_vX.Y.Z.txt
+#
+# --cleanup=verbatim is not optional: git's default strips every line that
+# starts with `#`, which silently deletes all Markdown headings from the
+# message — and the deletion happens at tag time, so nothing downstream can
+# tell it happened.
+#
+# Pre-releases follow SemVer rather than a list of blessed words: any tag
+# carrying a hyphen after the version is one.
+#
+#   v4.0.0        release
+#   v4.0.0-pre    pre-release — usable, but part of the tool has not caught up
+#   v4.1.0-rc.1   pre-release
+#
+# The list this used to match against held -rc, -beta and -alpha, so any other
+# suffix shipped as a full release with nothing to say it was not one. What the
+# flag changes is not cosmetic: GitHub keeps "latest release" pointing at the
+# previous version, so a pre-release does not become what people are handed by
+# default. The notes and the archive README say so in words as well, because
+# the badge is easy to miss.
+#
+# Commit message directives:
+#   [skip ci]    / [ci skip]       — skip entire pipeline
+#   [skip test]  / [test skip]     — skip lint/typecheck/test job
+#   [skip deploy]/ [deploy skip]   — skip deployment to GitHub Pages
+#
 # ═══════════════════════════════════════════════════════════════════════════════
 
 name: CI/CD Pipeline
@@ -34,17 +67,22 @@ on:
       debug:
         description: "Enable debug logging"
         required: false
-        default: "false"
+        default: false
         type: boolean
       skip_deploy:
         description: "Skip deployment (build + test only)"
         required: false
-        default: "false"
+        default: false
+        type: boolean
+      skip_test:
+        description: "Skip lint & test job"
+        required: false
+        default: false
         type: boolean
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: write
@@ -52,22 +90,92 @@ permissions:
   id-token: write
 
 env:
-  BUN_VERSION: latest
+  # Pinned, not floating: the suite leans on the current runner (fake timers,
+  # mock.module, coverage shape), and a silent major underneath it is how a
+  # green main turns red with no commit of its own. Bump deliberately.
+  BUN_VERSION: 1.4.0
   NODE_ENV: production
 
 # ═══════════════════════════════════════════════════════════════════════════════
 jobs:
   # ───────────────────────────────────────────────────────────────────────────
+  # JOB 0 — Preflight: parse commit directives & set flags
+  # ───────────────────────────────────────────────────────────────────────────
+  preflight:
+    name: 🔎 Preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    # Skip the entire workflow on [skip ci] / [ci skip]
+    if: |
+      !contains(github.event.head_commit.message, '[skip ci]') &&
+      !contains(github.event.head_commit.message, '[ci skip]')
+
+    outputs:
+      skip_test: ${{ steps.flags.outputs.skip_test }}
+      skip_deploy: ${{ steps.flags.outputs.skip_deploy }}
+      is_tag: ${{ steps.flags.outputs.is_tag }}
+      is_pr: ${{ steps.flags.outputs.is_pr }}
+      short_sha: ${{ steps.flags.outputs.short_sha }}
+
+    steps:
+      - name: 🏷️ Parse commit directives
+        id: flags
+        # Untrusted values reach the shell through the environment, never
+        # through ${{ }} inside `run`. Expression interpolation splices the raw
+        # text into the script *before* bash parses it, so a commit message
+        # containing backticks or $( ) executes on the runner — which is how
+        # the v3.2.0 release build failed, and with `contents: write` it is a
+        # code-execution hole, not just a broken step.
+        env:
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+          INPUT_SKIP_TEST: ${{ inputs.skip_test || 'false' }}
+          INPUT_SKIP_DEPLOY: ${{ inputs.skip_deploy || 'false' }}
+          IS_TAG: ${{ github.ref_type == 'tag' }}
+          IS_PR: ${{ github.event_name == 'pull_request' }}
+        run: |
+          # [skip test] / [test skip]
+          if printf '%s' "$COMMIT_MSG" | grep -qiE '\[(skip test|test skip|no test)\]'; then
+            echo "skip_test=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip_test=${INPUT_SKIP_TEST}" >> "$GITHUB_OUTPUT"
+          fi
+
+          # [skip deploy] / [deploy skip]
+          if printf '%s' "$COMMIT_MSG" | grep -qiE '\[(skip deploy|deploy skip|no deploy)\]'; then
+            echo "skip_deploy=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip_deploy=${INPUT_SKIP_DEPLOY}" >> "$GITHUB_OUTPUT"
+          fi
+
+          echo "is_tag=${IS_TAG}" >> "$GITHUB_OUTPUT"
+          echo "is_pr=${IS_PR}" >> "$GITHUB_OUTPUT"
+          echo "short_sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: 📋 Preflight summary
+        run: |
+          echo "### 🔎 Preflight" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Flag | Value |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|------|-------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| skip_test | \`${{ steps.flags.outputs.skip_test }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| skip_deploy | \`${{ steps.flags.outputs.skip_deploy }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| is_tag | \`${{ steps.flags.outputs.is_tag }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| is_pr | \`${{ steps.flags.outputs.is_pr }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| short_sha | \`${{ steps.flags.outputs.short_sha }}\` |" >> "$GITHUB_STEP_SUMMARY"
+
+  # ───────────────────────────────────────────────────────────────────────────
   # JOB 1 — Lint & Test (runs in parallel with build)
   # ───────────────────────────────────────────────────────────────────────────
   test:
     name: 🧪 Lint, Type-check & Test
+    needs: [preflight]
+    if: needs.preflight.outputs.skip_test != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
     steps:
       - name: 📥 Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: 🥟 Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -78,7 +186,10 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: 🔍 Type-check
-        run: bun vue-tsc --noEmit
+        # Use the project's own script so CI and local runs check the same
+        # thing; the bare `vue-tsc --noEmit` here was missing --skipLibCheck
+        # and could fail on dependency typings alone.
+        run: bun run typecheck
 
       - name: 🧪 Run tests with coverage
         run: bun run test:coverage
@@ -96,18 +207,74 @@ jobs:
         run: |
           echo "### 🧪 Test Results" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          if [ -f coverage/coverage-summary.json ]; then
-            LINES=$(cat coverage/coverage-summary.json | python3 -c "import sys,json; d=json.load(sys.stdin)['total']['lines']; print(f\"{d['pct']}%\")" 2>/dev/null || echo "N/A")
+          if [ -f coverage/lcov.info ]; then
+            # `bun test` reports text and lcov only, so the line total comes
+            # from the LF/LH records rather than a json summary. awk keeps it
+            # a one-liner: the earlier python heredoc needed its own
+            # indentation inside this YAML block, which made it easy to break
+            # by reformatting the surrounding step.
+            LINES=$(awk -F: '/^LF:/{lf+=$2} /^LH:/{lh+=$2} END{if (lf) printf "%.1f%%", 100*lh/lf; else print "N/A"}' coverage/lcov.info)
             echo "| Metric | Value |" >> "$GITHUB_STEP_SUMMARY"
             echo "|--------|-------|" >> "$GITHUB_STEP_SUMMARY"
             echo "| Line coverage | ${LINES} |" >> "$GITHUB_STEP_SUMMARY"
           fi
 
   # ───────────────────────────────────────────────────────────────────────────
+  # JOB 1.5 — Ask the real Xray cores whether they would load what we generate
+  #
+  #   Unit tests can only check the generator against our own idea of what
+  #   each release supports, and that idea was wrong three times: VLESS
+  #   Encryption offered on v25.8.29, which has none; ML-DSA-65 treated as
+  #   optional on v25.7.23, which requires it; and an XHTTP mode v24.11.11
+  #   does not have. Each was found by handing the config to the core.
+  #
+  #   Every version's configs run against that version's core. One core for
+  #   all of them proves nothing — unknown keys are ignored, so a config
+  #   naming a feature the core lacks passes anyway.
+  # ───────────────────────────────────────────────────────────────────────────
+  xray-core:
+    name: 🛰️ Xray configs against real cores
+    needs: [preflight]
+    if: needs.preflight.outputs.skip_test != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v7
+
+      - name: 🥟 Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: 📦 Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: 🧬 Generate the config matrix
+        run: bun scripts/configs.ts emit "${RUNNER_TEMP}/xray-cfg"
+
+      - name: 🛰️ Load every config on its own core
+        run: bun scripts/configs.ts check
+
+      - name: 📋 Summary
+        if: always()
+        run: |
+          COUNT=$(find "${RUNNER_TEMP}/xray-cfg" -name '*.json' \
+            -not -name '_index.json' | wc -l)
+          {
+            echo "### 🛰️ Xray core acceptance"
+            echo ""
+            echo "${COUNT} generated configs, each offered to the core of the"
+            echo "version it was generated for."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ───────────────────────────────────────────────────────────────────────────
   # JOB 2 — Build (runs in parallel with test)
   # ───────────────────────────────────────────────────────────────────────────
   build:
     name: 🔨 Build
+    needs: [preflight]
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -119,7 +286,7 @@ jobs:
 
     steps:
       - name: 📥 Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -135,11 +302,22 @@ jobs:
         run: bun run build
 
       - name: 📋 Copy launcher scripts
+        # Steps run under `bash -e`, so `[ -f x ] && cp x y` fails the whole
+        # step the moment a file is absent — the test returns 1 and takes the
+        # step with it. Explicit `if` blocks keep a missing optional file
+        # optional.
         run: |
-          cp scripts/serve.sh dist/serve.sh
-          cp scripts/serve.ps1 dist/serve.ps1
-          cp scripts/serve.bat dist/serve.bat
-          chmod +x dist/serve.sh
+          for f in serve.sh serve.ps1 serve.bat awg-gen.sh; do
+            if [ -f "scripts/$f" ]; then
+              cp "scripts/$f" "dist/$f"
+            fi
+          done
+
+          for f in serve.sh awg-gen.sh; do
+            if [ -f "dist/$f" ]; then
+              chmod +x "dist/$f"
+            fi
+          done
 
       - name: 📊 Collect metadata
         id: meta
@@ -147,31 +325,38 @@ jobs:
           BUILD_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
           DIST_SIZE=$(du -sh dist | cut -f1)
           FILE_COUNT=$(find dist -type f | wc -l | tr -d ' ')
-          VERSION=$(cat package.json | python3 -c "import sys,json; print(json.load(sys.stdin)['version'])")
+          # Read the version with the runtime the project already depends on,
+          # rather than reaching for whatever python happens to be on the image.
+          VERSION=$(bun --print "require('./package.json').version")
 
-          echo "build-time=$BUILD_TIME"  >> "$GITHUB_OUTPUT"
-          echo "dist-size=$DIST_SIZE"    >> "$GITHUB_OUTPUT"
-          echo "file-count=$FILE_COUNT"  >> "$GITHUB_OUTPUT"
-          echo "version=$VERSION"        >> "$GITHUB_OUTPUT"
+          {
+            echo "build-time=$BUILD_TIME"
+            echo "dist-size=$DIST_SIZE"
+            echo "file-count=$FILE_COUNT"
+            echo "version=$VERSION"
+          } >> "$GITHUB_OUTPUT"
 
-          echo "### 🔨 Build Metadata" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Metric | Value |" >> "$GITHUB_STEP_SUMMARY"
-          echo "|--------|-------|" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Version | \`${VERSION}\` |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Build time | ${BUILD_TIME} |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Dist size | ${DIST_SIZE} |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Files | ${FILE_COUNT} |" >> "$GITHUB_STEP_SUMMARY"
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          ### 🔨 Build Metadata
+
+          | Metric | Value |
+          |--------|-------|
+          | Version | \`${VERSION}\` |
+          | Build time | ${BUILD_TIME} |
+          | Dist size | ${DIST_SIZE} |
+          | Files | ${FILE_COUNT} |
+          | Commit | \`${GITHUB_SHA::7}\` |
+          EOF
 
       - name: 📤 Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
           path: dist
 
       - name: 📦 Upload standalone artifact
         uses: actions/upload-artifact@v7
         with:
-          name: amneziawg-architect-v${{ steps.meta.outputs.version }}
+          name: any-tech-architect-v${{ steps.meta.outputs.version }}
           path: |
             dist/
             scripts/
@@ -188,14 +373,18 @@ jobs:
   # ───────────────────────────────────────────────────────────────────────────
   # JOB 3 — Deploy to GitHub Pages
   #   Runs after BOTH test + build pass (on branch push only)
+  #   When test is skipped, only build is required.
   # ───────────────────────────────────────────────────────────────────────────
   deploy:
     name: 🚀 Deploy to GitHub Pages
     if: |
-      github.ref_type == 'branch' &&
-      github.event_name != 'pull_request' &&
-      inputs.skip_deploy != 'true'
-    needs: [test, build]
+      always() &&
+      needs.build.result == 'success' &&
+      (needs.test.result == 'success' || needs.test.result == 'skipped') &&
+      needs.preflight.outputs.is_pr != 'true' &&
+      needs.preflight.outputs.skip_deploy != 'true' &&
+      github.ref_type == 'branch'
+    needs: [preflight, test, xray-core, build]
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
@@ -206,34 +395,106 @@ jobs:
     steps:
       - name: 🌐 Deploy
         id: deploy
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
 
       - name: 📋 Summary
         run: |
-          echo "### 🚀 Deployed to GitHub Pages" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "| | |" >> "$GITHUB_STEP_SUMMARY"
-          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
-          echo "| URL | ${{ steps.deploy.outputs.page_url }} |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Version | \`${{ needs.build.outputs.version }}\` |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Built at | ${{ needs.build.outputs.build-time }} |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Size | ${{ needs.build.outputs.dist-size }} (${{ needs.build.outputs.file-count }} files) |" >> "$GITHUB_STEP_SUMMARY"
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          ### 🚀 Deployed to GitHub Pages
+
+          | | |
+          |---|---|
+          | URL | ${{ steps.deploy.outputs.page_url }} |
+          | Version | \`${{ needs.build.outputs.version }}\` |
+          | Built at | ${{ needs.build.outputs.build-time }} |
+          | Size | ${{ needs.build.outputs.dist-size }} (${{ needs.build.outputs.file-count }} files) |
+          EOF
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # JOB 3.5 — Build the standalone server for each OS (tag push only)
+  #
+  #   awg-serve is a dependency-free static server that ships inside the
+  #   release archive, so someone who downloads it needs nothing installed to
+  #   view the site. Each binary is built on its own runner — that is what
+  #   makes it native rather than cross-compiled.
+  # ───────────────────────────────────────────────────────────────────────────
+  serve-binary:
+    name: 🦀 awg-serve (${{ matrix.label }})
+    needs: [preflight]
+    if: github.ref_type == 'tag'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            label: linux
+            binary: awg-serve
+            asset: awg-serve-linux
+          - os: macos-latest
+            label: macos
+            binary: awg-serve
+            asset: awg-serve-macos
+          - os: windows-latest
+            label: windows
+            binary: awg-serve.exe
+            asset: awg-serve-windows.exe
+
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v7
+
+      - name: 🦀 Toolchain
+        # Runner images ship a current stable Rust, which covers the 2024
+        # edition this crate uses. Printing it makes a future edition bump
+        # visible in the log instead of failing cryptically.
+        run: |
+          rustc --version
+          cargo --version
+
+      - name: 🧪 Test
+        working-directory: tools/awg-serve
+        run: cargo test --locked
+
+      - name: 🔨 Build
+        working-directory: tools/awg-serve
+        run: cargo build --release --locked
+
+      - name: 📦 Stage binary
+        shell: bash
+        run: |
+          mkdir -p out
+          cp "tools/awg-serve/target/release/${{ matrix.binary }}" \
+             "out/${{ matrix.asset }}"
+
+      - name: 📤 Upload
+        uses: actions/upload-artifact@v7
+        with:
+          name: serve-${{ matrix.label }}
+          path: out/${{ matrix.asset }}
+          retention-days: 1
 
   # ───────────────────────────────────────────────────────────────────────────
   # JOB 4 — Create GitHub Release
   #   Runs after BOTH test + build pass (on tag push only)
-  #   Parallel with deploy (when tag also triggers deploy)
   # ───────────────────────────────────────────────────────────────────────────
   release:
     name: 🏷️ GitHub Release
-    if: github.ref_type == 'tag'
-    needs: [test, build]
+    if: |
+      always() &&
+      needs.build.result == 'success' &&
+      needs.serve-binary.result == 'success' &&
+      (needs.test.result == 'success' || needs.test.result == 'skipped') &&
+      github.ref_type == 'tag'
+    needs: [preflight, test, xray-core, build, serve-binary]
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
     steps:
       - name: 📥 Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -243,50 +504,175 @@ jobs:
           name: dist-release
           path: dist
 
-      - name: 🗜️ Create archives
-        run: |
-          TAG="${{ github.ref_name }}"
-          VERSION="${{ needs.build.outputs.version }}"
+      - name: 🦀 Download awg-serve binaries
+        uses: actions/download-artifact@v8
+        with:
+          pattern: serve-*
+          path: bin
+          merge-multiple: true
 
-          # ZIP and TAR.GZ of dist
-          zip -r "amneziawg-architect-${TAG}.zip" dist/ scripts/
-          tar -czf "amneziawg-architect-${TAG}.tar.gz" dist/ scripts/
+      - name: 🚦 Work out the release channel
+        id: channel
+        # SemVer: everything after the first hyphen is the pre-release
+        # identifier. Matching a fixed list of suffixes meant any tag outside
+        # it — `-pre` among them — went out labelled as a full release.
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          if printf '%s' "$TAG" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+-'; then
+            {
+              echo "prerelease=true"
+              echo "label=Pre-release"
+              echo "label_ru=Пре-релиз"
+            } >> "$GITHUB_OUTPUT"
+          else
+            {
+              echo "prerelease=false"
+              echo "label=Release"
+              echo "label_ru=Релиз"
+            } >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: 📋 Assemble archive contents
+        env:
+          TAG: ${{ github.ref_name }}
+          PRERELEASE: ${{ steps.channel.outputs.prerelease }}
+        run: |
+          chmod +x bin/awg-serve-linux bin/awg-serve-macos 2>/dev/null || true
+
+          # The archive gets its own README: someone downloading a release has
+          # no repository to read, so the layout and the ways to run it have to
+          # be explained in the thing they actually have.
+          #
+          # A pre-release says so at the top, in both languages. Somebody who
+          # unpacks a zip is not looking at the badge on the release page.
+          if [ "$PRERELEASE" = "true" ]; then
+            NOTICE_RU='> **Это пре-релиз.** Пользоваться можно — генераторы работают полностью. Часть страниц ещё не прошла ребрендинг и редизайн, поэтому «последним релизом» на GitHub эта версия не считается.'
+            NOTICE_EN='> **This is a pre-release.** It is usable — the generators are complete. Some pages have not been through the rebrand and redesign yet, which is why GitHub does not count this as the latest release.'
+          else
+            NOTICE_RU=''
+            NOTICE_EN=''
+          fi
+
+          sed -e "s/__TAG__/${TAG}/g" \
+              -e "s|__NOTICE_RU__|${NOTICE_RU}|" \
+              -e "s|__NOTICE_EN__|${NOTICE_EN}|" \
+            scripts/archive-README.md > README.md
+
+          # The template is a build input, not something to ship twice.
+          rm -f scripts/archive-README.md
+
+          # The OG image generator is build tooling — it needs the repo and a
+          # font download to do anything, so it is noise in a release archive.
+          rm -rf scripts/og
+
+          echo "Archive contents:"
+          ls -la bin/ scripts/
+          du -sh dist scripts bin
+
+      - name: 🗜️ Create archives
+        # The tag name is whatever the pusher chose, so it reaches the shell as
+        # an environment variable rather than being spliced into the script.
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          zip -rq "any-tech-architect-${TAG}.zip" dist/ scripts/ bin/ README.md
+          tar -czf "any-tech-architect-${TAG}.tar.gz" dist/ scripts/ bin/ README.md
+
+          sha256sum "any-tech-architect-${TAG}.zip" \
+                    "any-tech-architect-${TAG}.tar.gz" \
+            > "checksums-${TAG}.sha256"
 
           echo "✅ Archives:"
-          ls -lh amneziawg-architect-${TAG}.*
+          ls -lh "any-tech-architect-${TAG}.zip" \
+                 "any-tech-architect-${TAG}.tar.gz" \
+                 "checksums-${TAG}.sha256"
 
       - name: 📝 Generate release notes
+        env:
+          TAG: ${{ github.ref_name }}
+          VERSION: ${{ needs.build.outputs.version }}
+          BUILD_TIME: ${{ needs.build.outputs.build-time }}
+          DIST_SIZE: ${{ needs.build.outputs.dist-size }}
+          FILE_COUNT: ${{ needs.build.outputs.file-count }}
+          PRERELEASE: ${{ steps.channel.outputs.prerelease }}
+          CHANNEL: ${{ steps.channel.outputs.label }}
         run: |
-          TAG="${{ github.ref_name }}"
-          VERSION="${{ needs.build.outputs.version }}"
-          PREV_TAG=$(git tag --sort=-version:refname | grep -v "^${TAG}$" | head -n 1)
+          # The checkout gives us the tag ref, but not necessarily the tag
+          # *object* the message lives in. Fetch it explicitly, or the notes
+          # silently fall back to the commit list.
+          git fetch --force --tags --quiet || true
+
+          # Only version tags are candidates for "previous release" — the repo
+          # also carries non-version tags, which would otherwise be picked up
+          # and produce a nonsensical changelog range. -Fx, not a bare -v: the
+          # tag name is full of dots, and as a regex `v3.2.3` also matches
+          # `v3x2x3`.
+          PREV_TAG=$(git tag -l 'v*' --sort=-version:refname \
+            | grep -vFx "${TAG}" | head -n 1)
+
+          # The annotated tag message is the human account of the release, and
+          # it was being thrown away — every release so far was described only
+          # by a list of commit subjects. contents:subject + contents:body
+          # rather than plain contents, because for a signed tag the latter
+          # includes the whole PGP signature block.
+          TAG_SUBJECT=$(git tag -l --format='%(contents:subject)' "${TAG}")
+          TAG_BODY=$(git tag -l --format='%(contents:body)' "${TAG}")
 
           {
-            echo "## AmneziaWG Architect ${TAG}"
-            echo ""
+            # A pre-release announces itself before anything else. The badge on
+            # the release page is small and the notes are what gets quoted.
+            if [ "$PRERELEASE" = "true" ]; then
+              echo "> **Pre-release.** Usable, and not what GitHub hands out as"
+              echo "> the latest release. Install it if you want what is being"
+              echo "> built right now rather than the last version that was"
+              echo "> finished everywhere."
+              echo ""
+            fi
+
+            if [ -n "$TAG_SUBJECT" ]; then
+              # Tag messages are written as Markdown, so they go out verbatim
+              # and bring their own heading. Adding one here on top produced a
+              # duplicate title the moment the message started with `#`.
+              echo "$TAG_SUBJECT"
+              if [ -n "$TAG_BODY" ]; then
+                echo ""
+                echo "$TAG_BODY"
+              fi
+              echo ""
+              echo "---"
+              echo ""
+            else
+              # Nothing on the tag — fall back to naming the release.
+              echo "## Any Tech ARCHITECT ${TAG}"
+              echo ""
+            fi
+
             echo "| | |"
             echo "|---|---|"
             echo "| **Version** | \`${VERSION}\` |"
-            echo "| **Built at** | ${{ needs.build.outputs.build-time }} |"
-            echo "| **Dist size** | ${{ needs.build.outputs.dist-size }} (${{ needs.build.outputs.file-count }} files) |"
+            echo "| **Channel** | ${CHANNEL} |"
+            echo "| **Built at** | ${BUILD_TIME} |"
+            echo "| **Dist size** | ${DIST_SIZE} (${FILE_COUNT} files) |"
+            echo "| **Commit** | \`${GITHUB_SHA::7}\` |"
             echo ""
 
             if [ -n "$PREV_TAG" ]; then
               echo "## Changes since \`${PREV_TAG}\`"
               echo ""
-              # Group by conventional commit prefix
-              for prefix in feat fix refactor perf test docs style chore; do
+              for prefix in feat fix refactor perf test docs style chore ci; do
                 COMMITS=$(git log "${PREV_TAG}..${TAG}" --pretty=format:"- %s (%h)" --no-merges | grep -i "^- ${prefix}" || true)
                 if [ -n "$COMMITS" ]; then
                   case $prefix in
-                    feat)     LABEL="Features" ;;
-                    fix)      LABEL="Bug Fixes" ;;
-                    refactor) LABEL="Refactoring" ;;
-                    perf)     LABEL="Performance" ;;
-                    test)     LABEL="Tests" ;;
-                    docs)     LABEL="Documentation" ;;
-                    style)    LABEL="Styling" ;;
-                    chore)    LABEL="Maintenance" ;;
+                    feat)     LABEL="🚀 Features" ;;
+                    fix)      LABEL="🐛 Bug Fixes" ;;
+                    refactor) LABEL="♻️ Refactoring" ;;
+                    perf)     LABEL="⚡ Performance" ;;
+                    test)     LABEL="🧪 Tests" ;;
+                    docs)     LABEL="📚 Documentation" ;;
+                    style)    LABEL="💄 Styling" ;;
+                    chore)    LABEL="🔧 Maintenance" ;;
+                    ci)       LABEL="👷 CI/CD" ;;
                   esac
                   echo "### ${LABEL}"
                   echo "$COMMITS"
@@ -294,10 +680,9 @@ jobs:
                 fi
               done
 
-              # Uncategorized commits
-              OTHER=$(git log "${PREV_TAG}..${TAG}" --pretty=format:"- %s (%h)" --no-merges | grep -iv "^- \(feat\|fix\|refactor\|perf\|test\|docs\|style\|chore\)" || true)
+              OTHER=$(git log "${PREV_TAG}..${TAG}" --pretty=format:"- %s (%h)" --no-merges | grep -iv "^- \(feat\|fix\|refactor\|perf\|test\|docs\|style\|chore\|ci\)" || true)
               if [ -n "$OTHER" ]; then
-                echo "### Other"
+                echo "### 📦 Other"
                 echo "$OTHER"
                 echo ""
               fi
@@ -311,40 +696,73 @@ jobs:
             echo ""
             echo "## Quick Start"
             echo ""
-            echo "Download the archive, extract, and run:"
+            echo "Extract the archive and run the bundled server. It has no"
+            echo "dependencies — nothing needs to be installed:"
             echo ""
             echo '```bash'
-            echo "# Linux / macOS"
-            echo "./scripts/serve.sh"
-            echo ""
-            echo "# Windows (PowerShell)"
-            echo ".\\scripts\\serve.ps1"
-            echo ""
-            echo "# Windows (CMD)"
-            echo "scripts\\serve.bat"
+            echo "./bin/awg-serve-linux            # Linux"
+            echo "./bin/awg-serve-macos            # macOS"
+            echo "bin\\awg-serve-windows.exe       # Windows"
             echo '```'
             echo ""
-            echo "The script auto-detects bun/npm/python or installs bun."
+            echo "It serves on port 8080 and opens a browser."
+            echo "Pass a port to change it (\`awg-serve 3000\`), or"
+            echo "\`--no-open\` to skip launching the browser."
+            echo ""
+            echo "If you would rather use a runtime you already have, the"
+            echo "launchers look for bun, npx or python and offer to install"
+            echo "bun only if none is found:"
+            echo ""
+            echo '```bash'
+            echo "./scripts/serve.sh               # Linux / macOS"
+            echo ".\\scripts\\serve.ps1             # Windows (PowerShell)"
+            echo "scripts\\serve.bat               # Windows (CMD)"
+            echo '```'
+            echo ""
+            echo "Add \`--check\` to either launcher to see what it found"
+            echo "without starting anything."
+            echo ""
+            echo "The archive also carries \`scripts/awg-gen.sh\`, which"
+            echo "generates AmneziaWG configurations from a terminal with no"
+            echo "browser and no network, and a \`README.md\` describing the"
+            echo "layout. The XRay side is browser-only for now."
+            echo ""
+            echo "## Checksums"
+            echo ""
+            echo '```'
+            cat "checksums-${TAG}.sha256"
+            echo '```'
           } > RELEASE_NOTES.md
 
       - name: 🚀 Create Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
-          name: "AmneziaWG Architect ${{ github.ref_name }}"
+          name: "Any Tech ARCHITECT ${{ github.ref_name }}"
           tag_name: ${{ github.ref_name }}
           body_path: RELEASE_NOTES.md
           draft: false
-          prerelease: ${{ contains(github.ref_name, '-rc') || contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') }}
+          prerelease: ${{ steps.channel.outputs.prerelease == 'true' }}
+          # A pre-release must not become what the download button points at.
+          make_latest: ${{ steps.channel.outputs.prerelease == 'true' && 'false' || 'true' }}
           generate_release_notes: false
           files: |
-            amneziawg-architect-${{ github.ref_name }}.zip
-            amneziawg-architect-${{ github.ref_name }}.tar.gz
+            any-tech-architect-${{ github.ref_name }}.zip
+            any-tech-architect-${{ github.ref_name }}.tar.gz
+            checksums-${{ github.ref_name }}.sha256
 
       - name: 📋 Summary
+        # An unquoted heredoc still expands $( ) and backticks, so the tag name
+        # comes in through the environment here too.
+        env:
+          TAG: ${{ github.ref_name }}
+          CHANNEL: ${{ steps.channel.outputs.label }}
         run: |
-          echo "### 🏷️ Release \`${{ github.ref_name }}\` created" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "| File | |" >> "$GITHUB_STEP_SUMMARY"
-          echo "|------|---|" >> "$GITHUB_STEP_SUMMARY"
-          echo "| amneziawg-architect-${{ github.ref_name }}.zip | ✅ |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| amneziawg-architect-${{ github.ref_name }}.tar.gz | ✅ |" >> "$GITHUB_STEP_SUMMARY"
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          ### 🏷️ ${CHANNEL} \`${TAG}\` created
+
+          | File | |
+          |------|---|
+          | any-tech-architect-${TAG}.zip | ✅ |
+          | any-tech-architect-${TAG}.tar.gz | ✅ |
+          | checksums-${TAG}.sha256 | ✅ |
+          EOF

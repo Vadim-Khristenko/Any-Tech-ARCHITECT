@@ -1,4 +1,20 @@
-name: Build and publish Lite artifact
+# ═══════════════════════════════════════════════════════════════════════════════
+#  Lite build: one self-contained HTML file, published as a pre-release.
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# Runs on the `lite` branch only. The branch is main plus the lite files
+# (src/lite, scripts/lite, vite.lite.config.ts), brought up to date by merging
+# main into it, which happens rarely. The main pipeline (deploy-pages.yml)
+# triggers on main and version tags only, so nothing here deploys the site.
+#
+#   test     the whole suite, the lite tests among it: they fail when the
+#            prepared host pools or strings no longer match their sources
+#   build    bun run build:lite (prepare, vue-tsc, vite) and a size budget
+#   release  lite-vX.Y.Z, a pre-release that never becomes "latest"
+#
+# ═══════════════════════════════════════════════════════════════════════════════
+
+name: Lite build
 
 on:
   push:
@@ -8,57 +24,109 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: lite-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BUN_VERSION: "1.4.0"
+  # The single file has to stay small enough for the slow links it exists for.
+  SIZE_BUDGET_KB: "300"
+
 jobs:
-  build:
+  lite:
+    name: 🪶 Lite build
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: 📥 Checkout
+        uses: actions/checkout@v7
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: 🥟 Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          node-version: 22
-          cache: "npm"
+          bun-version: ${{ env.BUN_VERSION }}
 
-      - name: Install dependencies
-        run: npm ci
+      - name: 📦 Install
+        run: bun install --frozen-lockfile
 
-      - name: Build lite
-        run: npm run build:lite
+      - name: 🧪 Test
+        run: bun run test
 
-      - name: Check dist exists
+      - name: 🔨 Build
+        run: bun run build:lite
+
+      - name: 🧾 Prepared data is committed as built
+        # build:lite re-runs the preparation; a diff means the committed copy
+        # was stale and the tests above would have said so already.
+        run: git diff --exit-code -- src/lite/generated
+
+      - name: 📏 Size budget
         run: |
-          if [ ! -d "dist" ] || [ -z "$(ls -A dist)" ]; then
-            echo "::error::dist directory is missing or empty after build"
+          size=$(stat -c %s dist-lite/index.html)
+          kb=$(( size / 1024 ))
+          echo "dist-lite/index.html: ${kb} KB (budget ${SIZE_BUDGET_KB} KB)"
+          if [ "$kb" -gt "$SIZE_BUDGET_KB" ]; then
+            echo "::error::lite build is ${kb} KB, over the ${SIZE_BUDGET_KB} KB budget"
             exit 1
           fi
+          echo "SIZE_KB=${kb}" >> "$GITHUB_ENV"
 
-      - name: Archive dist
-        run: zip -r "lite-dist-${{ github.sha }}.zip" dist/
+      - name: 📦 Package
+        id: pkg
+        run: |
+          version=$(bun -e 'console.log(require("./package.json").version)')
+          name="any-tech-architect-lite-v${version}"
+          mkdir -p "out/${name}"
+          cp dist-lite/index.html "out/${name}.html"
+          cp dist-lite/index.html "out/${name}/index.html"
+          cp LICENSE "out/${name}/"
+          (cd out && zip -qr "${name}.zip" "${name}")
+          (cd out && sha256sum "${name}.html" "${name}.zip" > "${name}.sha256")
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "name=${name}" >> "$GITHUB_OUTPUT"
 
-      - name: Upload artifact (for inspection)
-        uses: actions/upload-artifact@v4
+      - name: 📝 Release notes
+        env:
+          VERSION: ${{ steps.pkg.outputs.version }}
+          NAME: ${{ steps.pkg.outputs.name }}
+          SHA: ${{ github.sha }}
+        run: |
+          {
+            echo "## Any Tech ARCHITECT Lite v${VERSION}"
+            echo ""
+            echo "> [!WARNING]"
+            echo "> **Облегчённая сборка обновляется редко.** Для актуальной версии используйте полный сайт [architect.vai-rice.space](https://architect.vai-rice.space/) или [основной релиз](https://github.com/${GITHUB_REPOSITORY}/releases/latest)."
+            echo ">"
+            echo "> **The lite build is updated rarely.** For the current version use the full site or the [main release](https://github.com/${GITHUB_REPOSITORY}/releases/latest)."
+            echo ""
+            echo "One HTML file, ${SIZE_KB} KB, no network needed: open \`${NAME}.html\` in any browser."
+            echo ""
+            echo "- AmneziaWG 1.0-3.1 generator with every mimicry profile and client of v${VERSION}"
+            echo "- A check for pasted \`.conf\` files"
+            echo "- No XRay, simulator, MergeKeys or FAQ: those live on the full site"
+            echo ""
+            echo "Commit: \`${SHA}\`"
+            echo ""
+            echo "## Checksums"
+            echo ""
+            echo '```'
+            cat "out/${NAME}.sha256"
+            echo '```'
+          } > LITE_NOTES.md
+
+      - name: 🚀 Pre-release
+        uses: softprops/action-gh-release@v3
         with:
-          name: lite-dist-${{ github.sha }}
-          path: lite-dist-${{ github.sha }}.zip
-          retention-days: 7
-
-      - name: Create lite release and upload asset
-        uses: ncipollo/release-action@v1
-        with:
-          tag: lite-${{ github.sha }}
-          name: "Lite build — ${{ github.sha }}"
-          body: |
-            🔧 Automated Lite build artifact.
-            - Commit: `${{ github.sha }}`
-            - Branch: `${{ github.ref_name }}`
-            - Triggered by: `${{ github.actor }}`
-
-            > Does not replace main releases.
+          name: "Any Tech ARCHITECT Lite v${{ steps.pkg.outputs.version }}"
+          tag_name: lite-v${{ steps.pkg.outputs.version }}
+          target_commitish: ${{ github.sha }}
+          body_path: LITE_NOTES.md
           prerelease: true
-          makeLatest: false
-          allowUpdates: true
-          artifacts: lite-dist-${{ github.sha }}.zip
-          artifactContentType: application/zip
+          make_latest: false
+          generate_release_notes: false
+          files: |
+            out/${{ steps.pkg.outputs.name }}.html
+            out/${{ steps.pkg.outputs.name }}.zip
+            out/${{ steps.pkg.outputs.name }}.sha256

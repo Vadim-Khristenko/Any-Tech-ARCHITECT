@@ -1,1609 +1,398 @@
 <script setup lang="ts">
 /**
- * MergeKeysView.vue — Full Vue 3 port of the legacy mergekeys.html page.
+ * MergeKeys — a workbench for keys.
  *
- * Two tabs:
- *   1. "update" — apply obfuscation patch (Jc/Jmin/Jmax/I1–I5) to a vpn:// key
- *   2. "merge"  — merge containers from multiple vpn:// keys into one master key
+ * Four modes over one shared result, because the first question is never
+ * "merge or rewrite" — it is what the string in the clipboard actually holds.
+ * A key that turns out to be a subscription rather than a tunnel, or a
+ * container whose three copies of itself disagree, is invisible until
+ * something says so.
  *
- * All operations are local (pako zlib in-browser). No data leaves the browser.
+ * This file is deliberately thin: the hero, the mode switcher, and whichever
+ * panel is active. Each mode lives in its own component under
+ * `components/keys/` and every one of them reads the same workbench, so state
+ * is in one place and markup is in four small ones.
+ *
+ * Nothing leaves the tab, which is the only reason a page that handles private
+ * keys can exist at all.
  */
 
-import { onMounted, watch } from "vue";
-import { useRoute } from "vue-router";
-import { useMergeKeys } from "@/composables/useMergeKeys";
-import {
-  GitMerge,
-  SlidersHorizontal,
-  HelpCircle,
-  ChevronDown,
-  Key,
-  Clipboard,
-  Zap,
-  Eye,
-  Trash2,
-  CheckCircle2,
-  XCircle,
-  Copy,
-  Download,
-  FileJson,
-  Layers,
-  PlusCircle,
-  X,
-  ShieldAlert,
-  Info,
-  Check,
-  Settings2,
-} from "lucide-vue-next";
+import { computed, onMounted, ref } from "vue";
+import { Info, Layers, Search, Shuffle, Wand2 } from "lucide-vue-next";
+import { useI18n } from "@/i18n";
+import { useKeyWorkbench, type WorkbenchMode } from "@/composables/useKeyWorkbench";
+import RichText from "@/components/RichText";
+import ModeInspect from "@/components/keys/ModeInspect.vue";
+import ModeMerge from "@/components/keys/ModeMerge.vue";
+import ModeRefresh from "@/components/keys/ModeRefresh.vue";
+import ModeBuild from "@/components/keys/ModeBuild.vue";
+import KeyResult from "@/components/keys/KeyResult.vue";
 
-const route = useRoute();
+const { t } = useI18n();
+const w = useKeyWorkbench();
 
-const {
-  // Tab
-  activeTab,
-  switchTab,
-  // Pending
-  hasPendingCfg,
-  pendingBannerText,
-  compatPills,
-  // Tab 1: Update
-  singleInput,
-  singleOutput,
-  singleSummary,
-  singleErrorMsg,
-  singlePreviewJson,
-  singleState,
-  clearSingleResult,
-  singleClear,
-  applyObfuscation,
-  singleDecodeOnly,
-  // Tab 2: Merge
-  mergeSlots,
-  mergeOutput,
-  mergeSummary,
-  mergeErrorMsg,
-  mergeWarnings,
-  mergePreviewJson,
-  mergePreviewLabel,
-  mergeState,
-  canAddSlot,
-  clearMergeResult,
-  addSlot,
-  removeSlot,
-  clearSlot,
-  clearAllSlots,
-  mergeDecodeSlot,
-  mergeContainers,
-  // Tab 3: Inspector
-  inspectInput,
-  inspectParsed,
-  inspectError,
-  inspectState,
-  inspectEditing,
-  inspectEditJson,
-  inspectKey,
-  startEditing,
-  saveEdit,
-  cancelEdit,
-  clearInspect,
-  // Slot validation
-  slotValid,
-  validateSlot,
-  // Shared
-  copyToClipboard,
-  isCopied,
-  downloadResult,
-  // How-it-works
-  howUpdateOpen,
-  howMergeOpen,
-  toggleHowUpdate,
-  toggleHowMerge,
-  // Slot helpers
-  getSlotLabel,
-  // Init
-  initFromRoute,
-} = useMergeKeys();
+const MODES: { id: WorkbenchMode; icon: typeof Search }[] = [
+    { id: "inspect", icon: Search },
+    { id: "merge", icon: Shuffle },
+    { id: "refresh", icon: Wand2 },
+    { id: "build", icon: Layers },
+];
 
-/** Syntax-highlight JSON for the inspector view */
-function highlightJson(obj: unknown): string {
-  const json = JSON.stringify(obj, null, 4);
-  return json
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"([^"]+)"(?=\s*:)/g, '<span class="json-key">"$1"</span>')
-    .replace(/: "([^"]*)"/g, ': <span class="json-string">"$1"</span>')
-    .replace(/: (\d+)/g, ': <span class="json-number">$1</span>')
-    .replace(/: (true|false|null)/g, ': <span class="json-bool">$1</span>');
-}
+const tk = (key: string) => t(key as "mk.mode.inspect.title");
+
+const PANELS = {
+    inspect: ModeInspect,
+    merge: ModeMerge,
+    refresh: ModeRefresh,
+    build: ModeBuild,
+} as const;
+
+const panel = computed(() => PANELS[w.mode.value]);
+
+/* ── A config handed over by one of the generators ───────────────────────── */
+
+const handoff = ref(false);
 
 onMounted(() => {
-  const tabParam = (route.query.tab as string) || null;
-  initFromRoute(tabParam);
-});
-
-/* If user navigates with ?tab= query, react to it */
-watch(
-  () => route.query.tab,
-  (tab) => {
-    if (tab === "merge" || tab === "update") {
-      switchTab(tab);
+    /*
+     * The generators drop a parameter set here on their way over. Read once and
+     * cleared: a stale handoff surfacing on a later visit would attach a config
+     * to a key the reader never meant to touch.
+     */
+    try {
+        const raw = sessionStorage.getItem("architect:pending-key");
+        if (raw) {
+            w.refreshParams.value = raw;
+            w.mode.value = "refresh";
+            handoff.value = true;
+            sessionStorage.removeItem("architect:pending-key");
+        }
+    } catch {
+        // Storage blocked. The page works without it.
     }
-  }
-);
-
-function pillIcon(color: string) {
-  if (color === "red") return X;
-  if (color === "amber") return Layers;
-  return Check;
-}
+});
 </script>
 
 <template>
-  <div class="mk-wrap fade-in">
-    <!-- Header -->
-    <div class="mk-header">
-      <div class="mk-badge">
-        <GitMerge :size="12" />
-        MERGE KEYS
-      </div>
-      <h1>MERGE<span>KEYS</span></h1>
-      <p>Обновление обфускации и объединение ключей Amnezia VPN</p>
-    </div>
+    <div class="mk rise">
+        <!-- ══ Hero ═════════════════════════════════════════════════════ -->
+        <header class="mk-hero">
+            <h1 class="mk-wordmark">
+                <span class="mk-wordmark-pre">{{ t("mk.hero.pre") }}</span>
+                <span class="mk-wordmark-main">MergeKeys</span>
+            </h1>
 
-    <!-- Pending cfg banner (from generator) -->
-    <div v-if="hasPendingCfg" class="mk-banner">
-      <div class="mk-banner-icon">
-        <CheckCircle2 :size="18" />
-      </div>
-      <div class="mk-banner-text">
-        <b>Конфиг из генератора загружен.</b>
-        {{ pendingBannerText }}
-        Вставьте ваш vpn://-ключ ниже и нажмите «Применить».
-      </div>
-    </div>
+            <p class="lede mk-lede">{{ t("mk.hero.lede") }}</p>
+            <RichText class="prose mk-desc" :text="t('mk.hero.desc')" inline />
 
-    <!-- No pending cfg notice -->
-    <div v-if="!hasPendingCfg" class="mk-notice">
-      <div class="mk-notice-icon">
-        <Info :size="18" />
-      </div>
-      <div class="mk-notice-text">
-        <b>Конфиг обфускации не передан.</b>
-        Для обновления параметров Jc/Jmin/Jmax/I1–I5 вернитесь на
-        <router-link to="/">главную страницу</router-link>, нажмите
-        <b>«СГЕНЕРИРОВАТЬ»</b>, затем <b>«Открыть MergeKeys»</b>.<br />
-        Вы также можете отредактировать ключ вручную во вкладке
-        <b @click="switchTab('inspect')" class="mk-notice-link">«Инспектор»</b>.<br />
-        Вкладка <b>«Объединить ключи»</b> работает без генератора.
-      </div>
-    </div>
-
-    <!-- Tabs -->
-    <div class="mk-tabs">
-      <button
-        class="mk-tab-btn"
-        :class="{ active: activeTab === 'update' }"
-        @click="switchTab('update')"
-      >
-        <SlidersHorizontal :size="14" />
-        Обновить обфускацию
-      </button>
-      <button
-        class="mk-tab-btn"
-        :class="{ active: activeTab === 'merge' }"
-        @click="switchTab('merge')"
-      >
-        <GitMerge :size="14" />
-        Объединить ключи
-      </button>
-
-      <button
-        class="mk-tab-btn"
-        :class="{ active: activeTab === 'inspect' }"
-        @click="switchTab('inspect')"
-      >
-        <Eye :size="14" />
-        Инспектор
-      </button>
-    </div>
-
-    <!-- ═══════════════════════════════════════════════════════════
-         PANE 1 — Update obfuscation
-    ═══════════════════════════════════════════════════════════ -->
-    <div v-show="activeTab === 'update'" class="mk-pane visible">
-      <!-- How-it-works -->
-      <div class="mk-how" :class="{ open: howUpdateOpen }">
-        <div class="mk-how-head" @click="toggleHowUpdate">
-          <HelpCircle :size="14" class="icon-amber" />
-          <span class="mk-how-title">Как это работает</span>
-          <span class="mk-how-arrow">
-            <ChevronDown :size="14" />
-          </span>
-        </div>
-        <div class="mk-how-body">
-          <div class="mk-how-item">
-            <div class="mk-how-num">1</div>
-            <div>
-              На главной странице нажмите
-              <b>«СГЕНЕРИРОВАТЬ»</b>, затем
-              <b>«Открыть MergeKeys»</b> — новые параметры обфускации будут
-              переданы сюда автоматически.
+            <div class="well mk-privacy">
+                <Info :size="15" />
+                <p>{{ t("mk.hero.privacy") }}</p>
             </div>
-          </div>
-          <div class="mk-how-item">
-            <div class="mk-how-num">2</div>
-            <div>
-              Вставьте ваш существующий
-              <b>vpn://-ключ</b> Amnezia (AWG или AWG + XRay и т.д.) в поле
-              ниже.
-            </div>
-          </div>
-          <div class="mk-how-item">
-            <div class="mk-how-num">3</div>
-            <div>
-              Нажмите <b>«Применить обфускацию»</b>. Инструмент обновит только
-              клиентские параметры: <b>Jc, Jmin, Jmax</b> и (при AWG 2.0)
-              <b>I1–I5</b>. Серверные H1–H4, S1–S4 и ключи — не тронуты.
-            </div>
-          </div>
-          <div class="mk-how-item">
-            <div class="mk-how-num">4</div>
-            <div>
-              Скопируйте готовый ключ и импортируйте его в
-              <b>Amnezia VPN</b>.
-            </div>
-          </div>
-          <div class="mk-compat mk-compat-warn">
-            <ShieldAlert :size="15" class="flex-shrink" />
-            <span>
-              <b>Важно:</b> параметры H1–H4 и S1–S4 — серверные. Их изменение
-              без пересинхронизации сервера разорвёт соединение. Этот инструмент
-              их не меняет.
-            </span>
-          </div>
-        </div>
-      </div>
+        </header>
 
-      <!-- Input card -->
-      <div class="mk-card">
-        <div class="mk-card-head">
-          <Key :size="14" class="icon-amber" />
-          <span class="mk-card-title">Ваш существующий ключ</span>
-          <!-- AWG version compat info pills -->
-          <div class="mk-info-row">
-            <span
-              v-for="(pill, pi) in compatPills"
-              :key="pi"
-              class="mk-info-pill"
-              :class="`mk-pill-${pill.color}`"
+        <!-- ══ Modes ════════════════════════════════════════════════════ -->
+        <nav class="mk-modes" role="tablist" :aria-label="t('mk.modes.label')">
+            <button
+                v-for="m in MODES"
+                :key="m.id"
+                class="mk-mode"
+                :class="{ 'is-active': w.mode.value === m.id }"
+                role="tab"
+                :aria-selected="w.mode.value === m.id"
+                @click="w.mode.value = m.id"
             >
-              <component :is="pillIcon(pill.color)" :size="9" />
-              {{ pill.label }}
-            </span>
-          </div>
-        </div>
-        <div class="mk-card-body">
-          <div>
-            <div class="mk-label">
-              <Clipboard :size="11" />
-              Вставьте vpn://-ключ Amnezia
-            </div>
-            <textarea
-              v-model="singleInput"
-              class="mk-ta"
-              rows="4"
-              placeholder="vpn://AAAGX..."
-              @input="clearSingleResult()"
-            ></textarea>
-          </div>
-
-          <div class="mk-actions">
-            <button class="mk-btn-primary" @click="applyObfuscation">
-              <Zap :size="14" />
-              Применить обфускацию
-            </button>
-            <button class="mk-btn-sec" @click="singleDecodeOnly">
-              <Eye :size="13" />
-              Просмотр JSON
-            </button>
-            <button class="mk-btn-ghost" @click="singleClear">
-              <Trash2 :size="13" />
-              Очистить
-            </button>
-          </div>
-
-          <!-- Result block -->
-          <div
-            v-if="singleState !== 'idle'"
-            class="mk-result"
-            style="display: flex"
-          >
-            <!-- Error -->
-            <div
-              v-if="singleState === 'error'"
-              class="mk-err"
-              style="display: flex"
-            >
-              <div class="mk-err-icon">
-                <XCircle :size="15" />
-              </div>
-              <div class="mk-err-text">{{ singleErrorMsg }}</div>
-            </div>
-
-            <!-- OK -->
-            <div
-              v-if="singleState === 'ok'"
-              class="mk-ok"
-              style="display: flex"
-            >
-              <div class="mk-ok-pill">
-                <CheckCircle2 :size="14" />
-                <span>Ключ обновлён успешно</span>
-                <span class="mk-summary" style="margin-left: auto; text-align: right">
-                  {{ singleSummary }}
+                <component :is="m.icon" :size="17" class="mk-mode-icon" />
+                <span class="mk-mode-text">
+                    <span class="mk-mode-title">{{ tk(`mk.mode.${m.id}.title`) }}</span>
+                    <span class="mk-mode-hint">{{ tk(`mk.mode.${m.id}.hint`) }}</span>
                 </span>
-              </div>
+            </button>
+        </nav>
 
-              <div>
-                <div class="mk-label">
-                  <Key :size="11" />
-                  Готовый ключ
-                </div>
-                <div class="mk-out-row">
-                  <textarea
-                    :value="singleOutput"
-                    class="mk-ta"
-                    rows="3"
-                    readonly
-                  ></textarea>
-                  <div class="mk-out-actions">
-                    <button
-                      class="mk-btn-sec"
-                      :class="{ copied: isCopied('singleCopy') }"
-                      title="Копировать"
-                      @click="copyToClipboard(singleOutput, 'singleCopy')"
-                    >
-                      <template v-if="isCopied('singleCopy')">
-                        ✓ Скопировано!
-                      </template>
-                      <template v-else>
-                        <Copy :size="13" />
-                        Копировать
-                      </template>
-                    </button>
-                    <button
-                      class="mk-btn-ghost"
-                      title="Скачать JSON"
-                      @click="downloadResult(singleOutput)"
-                    >
-                      <Download :size="13" />
-                      JSON
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
+        <!-- ══ The active mode ══════════════════════════════════════════ -->
+        <component :is="panel" :w="w" :handoff="handoff" />
 
-            <!-- Preview (decode only) -->
-            <div
-              v-if="singleState === 'preview'"
-              class="mk-preview"
-              style="display: flex"
-            >
-              <div class="mk-preview-label">
-                <FileJson :size="11" style="vertical-align: middle" />
-                Содержимое ключа (только просмотр)
-              </div>
-              <pre class="mk-preview-code">{{ singlePreviewJson }}</pre>
-            </div>
-          </div>
-        </div>
-      </div>
+        <!-- ══ What it produced ═════════════════════════════════════════ -->
+        <KeyResult :w="w" />
     </div>
-    <!-- /update pane -->
-
-    <!-- ═══════════════════════════════════════════════════════════
-         PANE 2 — Merge containers
-    ═══════════════════════════════════════════════════════════ -->
-    <div v-show="activeTab === 'merge'" class="mk-pane visible">
-      <!-- How-it-works -->
-      <div class="mk-how" :class="{ open: howMergeOpen }">
-        <div class="mk-how-head" @click="toggleHowMerge">
-          <HelpCircle :size="14" class="icon-amber" />
-          <span class="mk-how-title">Зачем объединять ключи?</span>
-          <span class="mk-how-arrow">
-            <ChevronDown :size="14" />
-          </span>
-        </div>
-        <div class="mk-how-body">
-          <div class="mk-how-item">
-            <div class="mk-how-num">?</div>
-            <div>
-              Amnezia VPN поддерживает несколько контейнеров (протоколов) в
-              одном ключе: <b>AWG + XRay, AWG + OpenVPN</b> и т.д. Это
-              позволяет переключаться между протоколами без смены ключа.
-            </div>
-          </div>
-          <div class="mk-how-item">
-            <div class="mk-how-num">1</div>
-            <div>
-              Вставьте два или более vpn://-ключа в слоты ниже. Например,
-              первый — ключ AWG, второй — ключ XRay от того же сервера.
-            </div>
-          </div>
-          <div class="mk-how-item">
-            <div class="mk-how-num">2</div>
-            <div>
-              Нажмите <b>«Объединить»</b>. Контейнеры из всех ключей будут
-              собраны в один мастер-ключ. Дубликаты (одинаковое имя контейнера)
-              пропускаются с предупреждением.
-            </div>
-          </div>
-          <div class="mk-how-item">
-            <div class="mk-how-num">3</div>
-            <div>
-              Если открыт из генератора — новые параметры обфускации AWG будут
-              применены автоматически к AWG-контейнерам в итоговом ключе.
-            </div>
-          </div>
-          <div class="mk-compat mk-compat-info">
-            <Info :size="15" class="flex-shrink" />
-            <span>
-              Метаданные (dns1, dns2, hostName, defaultContainer) берутся из
-              <b>первого ключа</b>. Описание объединяется через « + ».
-            </span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Slots card -->
-      <div class="mk-card">
-        <div class="mk-card-head">
-          <Layers :size="14" class="icon-amber" />
-          <span class="mk-card-title">Ключи для объединения</span>
-          <span class="mk-summary" style="color: var(--text3)">
-            минимум 2, максимум 4
-          </span>
-        </div>
-        <div class="mk-card-body">
-          <!-- Dynamic slots -->
-          <div class="mk-slots-list">
-            <div
-              v-for="(slot, idx) in mergeSlots"
-              :key="slot.id"
-              class="mk-slot"
-            >
-              <div class="mk-slot-head">
-                <span class="mk-slot-num">{{ idx + 1 }}</span>
-                <span class="mk-slot-label">
-                  <Key :size="11" />
-                  {{ getSlotLabel(idx) }}
-                  <span class="mk-slot-hint">(vpn://...)</span>
-                </span>
-                <button
-                  v-if="mergeSlots.length > 2 && idx === mergeSlots.length - 1"
-                  class="mk-btn-icon mk-btn-icon-sm"
-                  title="Удалить слот"
-                  @click="removeSlot(idx)"
-                >
-                  <X :size="11" />
-                </button>
-              </div>
-              <div class="mk-slot-row">
-                <textarea
-                  v-model="slot.value"
-                  class="mk-ta"
-                  rows="3"
-                  placeholder="vpn://AAAGX..."
-                  @input="clearMergeResult()"
-                ></textarea>
-                <div class="mk-slot-btns">
-                  <button
-                    class="mk-btn-icon"
-                    title="Просмотр JSON"
-                    @click="mergeDecodeSlot(idx)"
-                  >
-                    <Eye :size="13" />
-                  </button>
-                  <button
-                    class="mk-btn-icon mk-btn-icon-danger"
-                    title="Очистить"
-                    @click="clearSlot(idx)"
-                  >
-                    <X :size="13" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Add slot button -->
-          <button
-            v-if="canAddSlot"
-            class="mk-add-slot"
-            @click="addSlot"
-          >
-            <PlusCircle :size="13" />
-            Добавить ещё один ключ
-          </button>
-
-          <div class="mk-divider"></div>
-
-          <div class="mk-actions">
-            <button class="mk-btn-primary" @click="mergeContainers">
-              <GitMerge :size="14" />
-              Объединить
-            </button>
-            <button class="mk-btn-ghost" @click="clearAllSlots">
-              <Trash2 :size="13" />
-              Очистить всё
-            </button>
-          </div>
-
-          <!-- Result block -->
-          <div
-            v-if="mergeState !== 'idle'"
-            class="mk-result"
-            style="display: flex"
-          >
-            <!-- Error -->
-            <div
-              v-if="mergeState === 'error'"
-              class="mk-err"
-              style="display: flex"
-            >
-              <div class="mk-err-icon">
-                <XCircle :size="15" />
-              </div>
-              <div class="mk-err-text">{{ mergeErrorMsg }}</div>
-            </div>
-
-            <!-- Warnings -->
-            <div
-              v-if="mergeWarnings.length > 0"
-              class="mk-warnings"
-              style="display: block"
-            >
-              <div
-                v-for="(w, wi) in mergeWarnings"
-                :key="wi"
-                style="margin-bottom: 4px"
-              >
-                ⚠ {{ w }}
-              </div>
-            </div>
-
-            <!-- OK -->
-            <div
-              v-if="mergeState === 'ok'"
-              class="mk-ok"
-              style="display: flex"
-            >
-              <div class="mk-ok-pill">
-                <CheckCircle2 :size="14" />
-                <span>Ключи объединены</span>
-                <span
-                  class="mk-summary"
-                  style="margin-left: auto; text-align: right"
-                >
-                  {{ mergeSummary }}
-                </span>
-              </div>
-
-              <div>
-                <div class="mk-label">
-                  <Key :size="11" />
-                  Объединённый ключ
-                </div>
-                <div class="mk-out-row">
-                  <textarea
-                    :value="mergeOutput"
-                    class="mk-ta"
-                    rows="3"
-                    readonly
-                  ></textarea>
-                  <div class="mk-out-actions">
-                    <button
-                      class="mk-btn-sec"
-                      :class="{ copied: isCopied('mergeCopy') }"
-                      title="Копировать"
-                      @click="copyToClipboard(mergeOutput, 'mergeCopy')"
-                    >
-                      <template v-if="isCopied('mergeCopy')">
-                        ✓ Скопировано!
-                      </template>
-                      <template v-else>
-                        <Copy :size="13" />
-                        Копировать
-                      </template>
-                    </button>
-                    <button
-                      class="mk-btn-ghost"
-                      title="Скачать JSON"
-                      @click="downloadResult(mergeOutput)"
-                    >
-                      <Download :size="13" />
-                      JSON
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Preview -->
-            <div
-              v-if="mergeState === 'preview'"
-              class="mk-preview"
-              style="display: flex"
-            >
-              <div class="mk-preview-label">
-                <FileJson :size="11" style="vertical-align: middle" />
-                {{ mergePreviewLabel }}
-              </div>
-              <pre class="mk-preview-code">{{ mergePreviewJson }}</pre>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-    <!-- /merge pane -->
-
-    <!-- ═══════════════════════════════════════════════════════════
-         PANE 3 — Key Inspector
-         ═══════════════════════════════════════════════════════════ -->
-    <div v-if="activeTab === 'inspect'" class="mk-pane">
-      <div class="mk-card">
-        <div class="mk-card-head">
-          <Eye :size="16" class="icon-accent" />
-          <span class="mk-card-title">Инспектор ключей</span>
-        </div>
-
-        <div class="mk-card-body">
-          <!-- Input -->
-          <label class="mk-label">VPN-ключ</label>
-          <textarea
-            v-model="inspectInput"
-            class="mk-ta"
-            rows="3"
-            placeholder="vpn://..."
-          ></textarea>
-          <div class="mk-field-hint">
-            Вставьте vpn://-ключ, чтобы увидеть и отредактировать его содержимое.
-            Все операции локальны — данные не покидают браузер.
-          </div>
-
-          <!-- Actions -->
-          <div class="mk-actions">
-            <button class="mk-btn-primary" @click="inspectKey">
-              <Eye :size="14" />
-              Декодировать
-            </button>
-            <button class="mk-btn-ghost" @click="clearInspect">
-              <X :size="14" />
-              Очистить
-            </button>
-          </div>
-
-          <!-- Error -->
-          <div v-if="inspectState === 'error'" class="mk-err">
-            <XCircle :size="16" />
-            <span>{{ inspectError }}</span>
-          </div>
-
-          <!-- Parsed result -->
-          <div v-if="inspectState === 'parsed' && inspectParsed">
-            <div class="mk-ok">
-              <CheckCircle2 :size="16" />
-              <span class="mk-ok-pill">Декодировано</span>
-            </div>
-
-            <!-- Toolbar -->
-            <div class="inspect-toolbar">
-              <button
-                v-if="!inspectEditing"
-                class="mk-btn-sec"
-                @click="startEditing"
-              >
-                <Settings2 :size="14" />
-                Редактировать
-              </button>
-              <template v-else>
-                <button class="mk-btn-primary" @click="saveEdit">
-                  <Check :size="14" />
-                  Сохранить
-                </button>
-                <button class="mk-btn-ghost" @click="cancelEdit">
-                  <X :size="14" />
-                  Отмена
-                </button>
-              </template>
-              <button
-                class="mk-btn-ghost"
-                @click="copyToClipboard(inspectInput, 'inspect-key')"
-              >
-                <component
-                  :is="isCopied('inspect-key') ? Check : Copy"
-                  :size="14"
-                />
-                {{ isCopied("inspect-key") ? "Скопировано" : "Скопировать ключ" }}
-              </button>
-            </div>
-
-            <!-- View mode: highlighted JSON -->
-            <pre
-              v-if="!inspectEditing"
-              class="inspect-json"
-            ><code v-html="highlightJson(inspectParsed)" /></pre>
-
-            <!-- Edit mode: textarea -->
-            <textarea
-              v-else
-              v-model="inspectEditJson"
-              class="mk-ta mk-ta-mono"
-              rows="20"
-            ></textarea>
-
-            <!-- Edit error -->
-            <div v-if="inspectEditing && inspectError" class="mk-err">
-              <XCircle :size="14" />
-              <span>{{ inspectError }}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-    <!-- /inspect pane -->
-  </div>
 </template>
 
 <style scoped>
-/* ── MergeKeys page-specific styles (scoped) ──────────────────── */
-
-.mk-wrap {
-  position: relative;
-  z-index: 10;
-  flex: 1;
-  width: 95%;
-  max-width: 960px;
-  margin: 0 auto;
-  padding: 36px 20px 60px;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-/* Header */
-.mk-header {
-  text-align: center;
-  padding-bottom: 8px;
-}
-
-.mk-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 12px;
-  background: rgba(232, 168, 64, 0.1);
-  border: 1px solid rgba(232, 168, 64, 0.28);
-  border-radius: 20px;
-  font-family: var(--fu);
-  font-size: 0.65rem;
-  font-weight: 700;
-  color: var(--amber2);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  margin-bottom: 14px;
-}
-
-.mk-header h1 {
-  font-family: var(--fu);
-  font-weight: 900;
-  font-size: clamp(1.6rem, 4vw, 2.6rem);
-  letter-spacing: -0.02em;
-  margin-bottom: 8px;
-}
-.mk-header h1 span {
-  color: transparent;
-  -webkit-text-stroke: 1px rgba(100, 212, 224, 0.47);
-}
-.mk-header p {
-  color: var(--text2);
-  font-size: 0.88rem;
-}
-
-/* Pending banner */
-.mk-banner {
-  display: flex;
-  align-items: flex-start;
-  gap: 14px;
-  padding: 14px 18px;
-  background: rgba(92, 184, 122, 0.07);
-  border: 1px solid rgba(92, 184, 122, 0.25);
-  border-radius: 12px;
-}
-.mk-banner-icon {
-  color: var(--green);
-  flex-shrink: 0;
-  margin-top: 1px;
-}
-.mk-banner-text {
-  font-size: 0.78rem;
-  color: var(--text2);
-  line-height: 1.5;
-}
-.mk-banner-text b {
-  color: var(--green);
-}
-
-/* No-cfg notice */
-.mk-notice {
-  display: flex;
-  align-items: flex-start;
-  gap: 14px;
-  padding: 14px 18px;
-  background: rgba(232, 168, 64, 0.06);
-  border: 1px solid rgba(232, 168, 64, 0.2);
-  border-radius: 12px;
-}
-.mk-notice-icon {
-  color: var(--amber);
-  flex-shrink: 0;
-  margin-top: 1px;
-}
-.mk-notice-text {
-  font-size: 0.78rem;
-  color: var(--text2);
-  line-height: 1.5;
-}
-.mk-notice-text b {
-  color: var(--amber2);
-}
-.mk-notice-text a {
-  color: var(--accent);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
-/* Tabs */
-.mk-tabs {
-  display: flex;
-  gap: 0;
-  background: var(--bg2);
-  border: 1px solid var(--border2);
-  border-radius: 12px;
-  padding: 5px;
-  align-self: center;
-}
-.mk-tab-btn {
-  background: transparent;
-  border: none;
-  color: var(--text3);
-  padding: 10px 22px;
-  border-radius: 8px;
-  font-family: var(--fu);
-  font-size: 0.75rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: 0.25s;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  white-space: nowrap;
-}
-.mk-tab-btn:hover {
-  color: var(--text);
-}
-.mk-tab-btn.active {
-  background: var(--bg4);
-  color: var(--accent);
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25);
-}
-
-/* Panes */
-.mk-pane {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-
-/* Section card */
-.mk-card {
-  background: var(--bg2);
-  border: 1px solid var(--border2);
-  border-radius: 16px;
-  overflow: hidden;
-}
-.mk-card-head {
-  padding: 14px 20px;
-  border-bottom: 1px solid var(--border2);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-.mk-card-title {
-  font-family: var(--fm);
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  color: var(--text2);
-  flex: 1;
-  text-transform: uppercase;
-}
-.mk-card-body {
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-/* Label */
-.mk-label {
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: var(--text3);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: 6px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-/* Textarea */
-.mk-ta {
-  width: 100%;
-  background: var(--bg3);
-  border: 1px solid var(--border2);
-  border-radius: 10px;
-  padding: 12px;
-  color: var(--text);
-  font-family: var(--fm);
-  font-size: 0.7rem;
-  line-height: 1.5;
-  resize: vertical;
-  outline: none;
-  transition: border-color 0.3s cubic-bezier(0.22, 1, 0.36, 1);
-  box-sizing: border-box;
-}
-.mk-ta:focus {
-  border-color: rgba(232, 168, 64, 0.4);
-}
-.mk-ta::placeholder {
-  color: var(--text3);
-}
-
-/* Readonly output */
-.mk-ta[readonly] {
-  color: var(--amber2);
-  cursor: text;
-  background: #080604;
-  border-color: rgba(232, 168, 64, 0.2);
-  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.3);
-}
-
-/* Action row */
-.mk-actions {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-/* Primary action button */
-.mk-btn-primary {
-  background: linear-gradient(135deg, var(--amber) 0%, #c47b1a 100%);
-  border: none;
-  padding: 12px 20px;
-  border-radius: 10px;
-  color: var(--bg);
-  font-family: var(--fu);
-  font-weight: 800;
-  font-size: 0.78rem;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  transition: 0.25s;
-  white-space: nowrap;
-}
-.mk-btn-primary:hover {
-  filter: brightness(1.1);
-  transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(232, 168, 64, 0.25);
-}
-.mk-btn-primary:active {
-  transform: translateY(0);
-}
-
-/* Secondary button */
-.mk-btn-sec {
-  background: rgba(232, 168, 64, 0.08);
-  border: 1px solid rgba(232, 168, 64, 0.25);
-  padding: 11px 16px;
-  border-radius: 10px;
-  color: var(--amber2);
-  font-family: var(--fu);
-  font-weight: 700;
-  font-size: 0.75rem;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  transition: 0.25s;
-  white-space: nowrap;
-}
-.mk-btn-sec:hover {
-  background: rgba(232, 168, 64, 0.14);
-  transform: translateY(-1px);
-}
-
-/* Ghost button */
-.mk-btn-ghost {
-  background: transparent;
-  border: 1px solid var(--border2);
-  padding: 11px 14px;
-  border-radius: 10px;
-  color: var(--text3);
-  font-family: var(--fu);
-  font-weight: 700;
-  font-size: 0.75rem;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
-  white-space: nowrap;
-}
-.mk-btn-ghost:hover {
-  color: var(--text2);
-  border-color: rgba(232, 168, 64, 0.2);
-}
-
-/* Icon button (small) */
-.mk-btn-icon {
-  background: rgba(232, 168, 64, 0.08);
-  border: 1px solid rgba(232, 168, 64, 0.2);
-  border-radius: 8px;
-  padding: 7px 10px;
-  color: var(--amber2);
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: 0.2s;
-  flex-shrink: 0;
-}
-.mk-btn-icon:hover {
-  background: rgba(232, 168, 64, 0.15);
-}
-
-.mk-btn-icon-sm {
-  width: 26px;
-  height: 26px;
-  border-radius: 6px;
-}
-
-.mk-btn-icon-danger {
-  background: rgba(212, 96, 74, 0.08);
-  border-color: rgba(212, 96, 74, 0.2);
-  color: var(--red);
-}
-.mk-btn-icon-danger:hover {
-  background: rgba(212, 96, 74, 0.15);
-}
-
-/* Result block */
-.mk-result {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-/* Status pills */
-.mk-ok {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.mk-ok-pill {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 14px;
-  background: rgba(92, 184, 122, 0.07);
-  border: 1px solid rgba(92, 184, 122, 0.2);
-  border-radius: 10px;
-  font-size: 0.75rem;
-  color: var(--green2);
-  flex-wrap: wrap;
-}
-.mk-err {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 12px 14px;
-  background: rgba(212, 96, 74, 0.07);
-  border: 1px solid rgba(212, 96, 74, 0.25);
-  border-radius: 10px;
-}
-.mk-err-icon {
-  color: var(--red);
-  flex-shrink: 0;
-  margin-top: 1px;
-}
-.mk-err-text {
-  font-size: 0.75rem;
-  color: var(--red);
-  line-height: 1.5;
-  font-family: var(--fm);
-}
-
-/* Preview block */
-.mk-preview {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.mk-preview-label {
-  font-size: 0.7rem;
-  font-family: var(--fm);
-  color: var(--text3);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-.mk-preview-code {
-  background: var(--bg);
-  border: 1px solid var(--border2);
-  border-radius: 10px;
-  padding: 14px;
-  font-family: var(--fm);
-  font-size: 0.65rem;
-  color: var(--text2);
-  overflow: auto;
-  max-height: 320px;
-  white-space: pre;
-  line-height: 1.6;
-}
-
-/* Warnings */
-.mk-warnings {
-  padding: 10px 14px;
-  background: rgba(232, 168, 64, 0.05);
-  border: 1px solid rgba(232, 168, 64, 0.2);
-  border-radius: 10px;
-  font-size: 0.72rem;
-  color: var(--amber2);
-  line-height: 1.6;
-  font-family: var(--fm);
-}
-
-/* Output row */
-.mk-out-row {
-  display: flex;
-  gap: 8px;
-  align-items: flex-start;
-}
-.mk-out-row .mk-ta {
-  flex: 1;
-}
-.mk-out-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  flex-shrink: 0;
-}
-
-/* Slots list */
-.mk-slots-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-/* Slot */
-.mk-slot {
-  background: var(--bg3);
-  border: 1px solid var(--border2);
-  border-radius: 12px;
-  padding: 14px;
-  transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
-  animation: fadeInUp 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-.mk-slot:focus-within {
-  border-color: rgba(232, 168, 64, 0.35);
-  background: var(--bg4);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-}
-.mk-slot-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 10px;
-}
-.mk-slot-num {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: rgba(232, 168, 64, 0.12);
-  border: 1px solid rgba(232, 168, 64, 0.25);
-  font-size: 0.6rem;
-  font-weight: 700;
-  color: var(--amber2);
-  flex-shrink: 0;
-}
-.mk-slot-label {
-  font-size: 0.7rem;
-  font-family: var(--fm);
-  font-weight: 600;
-  color: var(--text3);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.mk-slot-hint {
-  color: var(--text3);
-  font-weight: 400;
-  text-transform: none;
-}
-.mk-slot-row {
-  display: flex;
-  gap: 8px;
-  align-items: flex-start;
-}
-.mk-slot-btns {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-/* Add slot button */
-.mk-add-slot {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 12px;
-  background: transparent;
-  border: 1px dashed var(--border2);
-  border-radius: 12px;
-  color: var(--text3);
-  font-family: var(--fm);
-  font-size: 0.72rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: 0.2s;
-  width: 100%;
-}
-.mk-add-slot:hover {
-  border-color: rgba(232, 168, 64, 0.3);
-  color: var(--accent);
-  background: rgba(232, 168, 64, 0.03);
-}
-
-/* Info pills row */
-.mk-info-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-.mk-info-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 10px;
-  border-radius: 20px;
-  font-size: 0.65rem;
-  font-family: var(--fm);
-  font-weight: 600;
-  border: 1px solid;
-}
-.mk-pill-amber {
-  background: rgba(232, 168, 64, 0.08);
-  border-color: rgba(232, 168, 64, 0.25);
-  color: var(--amber2);
-}
-.mk-pill-red {
-  background: rgba(212, 96, 74, 0.07);
-  border-color: rgba(212, 96, 74, 0.2);
-  color: var(--red);
-}
-.mk-pill-green {
-  background: rgba(92, 184, 122, 0.07);
-  border-color: rgba(92, 184, 122, 0.2);
-  color: var(--green2);
-}
-
-/* Section divider */
-.mk-divider {
-  height: 1px;
-  background: var(--border2);
-  margin: 4px 0;
-}
-
-/* How-it-works collapse */
-.mk-how {
-  background: var(--bg2);
-  border: 1px solid var(--border2);
-  border-radius: 14px;
-  overflow: hidden;
-}
-.mk-how-head {
-  padding: 14px 18px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  cursor: pointer;
-  user-select: none;
-  transition: background 0.2s;
-}
-.mk-how-head:hover {
-  background: rgba(232, 168, 64, 0.06);
-}
-.mk-how-title {
-  font-size: 0.75rem;
-  font-family: var(--fm);
-  font-weight: 700;
-  color: var(--text2);
-  flex: 1;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-.mk-how-arrow {
-  color: var(--text3);
-  transition: transform 0.25s;
-  display: flex;
-}
-.mk-how.open .mk-how-arrow {
-  transform: rotate(180deg);
-}
-.mk-how-body {
-  max-height: 0;
-  overflow: hidden;
-  padding: 0 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  transition:
-    max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1),
-    padding 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-}
-.mk-how.open .mk-how-body {
-  max-height: 9999px;
-  padding: 10px 18px 18px;
-}
-.mk-how-item {
-  display: flex;
-  gap: 12px;
-  font-size: 0.75rem;
-  color: var(--text2);
-  line-height: 1.6;
-}
-.mk-how-num {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: rgba(232, 168, 64, 0.12);
-  border: 1px solid rgba(232, 168, 64, 0.25);
-  color: var(--amber2);
-  font-family: var(--fm);
-  font-size: 0.65rem;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  margin-top: 1px;
-}
-
-/* Copied state */
-.mk-btn-sec.copied {
-  background: rgba(92, 184, 122, 0.12);
-  border-color: rgba(92, 184, 122, 0.3);
-  color: var(--green);
-}
-
-/* Summary text */
-.mk-summary {
-  font-size: 0.72rem;
-  color: var(--text2);
-  font-family: var(--fm);
-  line-height: 1.5;
-}
-
-/* Version compat warning */
-.mk-compat {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 10px 14px;
-  border-radius: 10px;
-  font-size: 0.73rem;
-  line-height: 1.5;
-  margin-top: 4px;
-}
-.mk-compat-warn {
-  background: rgba(255, 152, 0, 0.06);
-  border: 1px solid rgba(255, 152, 0, 0.22);
-  color: #ffb74d;
-}
-.mk-compat-info {
-  background: rgba(100, 212, 224, 0.05);
-  border: 1px solid rgba(100, 212, 224, 0.18);
-  color: #64d4e0;
-}
-
-/* Utility */
-.icon-amber {
-  color: var(--amber2);
-}
-.flex-shrink {
-  flex-shrink: 0;
-}
-
-/* Animation */
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.fade-in {
-  animation: fadeInUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-/* ── Mobile ──────────────────────────────────────────────────── */
-@media (max-width: 600px) {
-  .mk-wrap {
-    width: 100%;
-    padding: 24px 12px 48px;
-  }
-
-  .mk-tabs {
-    width: 100%;
-    flex-direction: column;
-    border-radius: 14px;
-  }
-  .mk-tab-btn {
-    width: 100%;
-    justify-content: center;
-    padding: 11px 14px;
-    font-size: 0.75rem;
-    border-radius: 8px;
-  }
-  .mk-out-row {
-    flex-direction: column;
-  }
-  .mk-out-actions {
-    flex-direction: row;
-    width: 100%;
-  }
-  .mk-out-actions .mk-btn-sec,
-  .mk-out-actions .mk-btn-ghost {
-    flex: 1;
-    justify-content: center;
-  }
-
-  .mk-card-head {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-
-  .mk-ok-pill {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 6px;
-  }
-
-  .mk-ok-pill .mk-summary {
-    margin-left: 0 !important;
-    text-align: left !important;
-  }
-}
-
-/* ── Inspector ──────────────────────────────────────────────────────── */
-
-.inspect-toolbar {
-  display: flex;
-  gap: 8px;
-  margin: 14px 0;
-  flex-wrap: wrap;
-  padding-bottom: 14px;
-  border-bottom: 1px solid var(--border2);
-}
-
-.inspect-json {
-  background: #060503;
-  border: 1px solid var(--border2);
-  border-radius: 10px;
-  padding: 18px;
-  overflow-x: auto;
-  font-family: var(--fm);
-  font-size: 0.72rem;
-  line-height: 1.7;
-  max-height: 550px;
-  overflow-y: auto;
-  color: var(--text);
-  white-space: pre;
-  word-wrap: break-word;
-  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.3);
-}
-
-/* Scrollbar styling for JSON viewer */
-.inspect-json::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-.inspect-json::-webkit-scrollbar-track {
-  background: transparent;
-}
-.inspect-json::-webkit-scrollbar-thumb {
-  background: var(--border);
-  border-radius: 3px;
+.mk {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: var(--sp-8) var(--sp-gutter) var(--sp-10);
+    /* One rhythm for the page, so no section leans on a neighbour's margin. */
+    display: grid;
+    gap: var(--sp-7);
+    align-content: start;
 }
 
 /*
- * v-html inserts spans inside <code>. In scoped CSS, :deep() penetrates
- * the scoped attribute boundary so the child spans actually get styled.
+ * A grid track is `min-width: auto` by default, which means it refuses to
+ * shrink below its content — and a key or a CPS chain has no break
+ * opportunity in it at all. One of those inside pushed the whole page wider
+ * than the viewport and dragged every panel's right edge off screen with it.
+ *
+ * Stated on the page, the panels and the result alike, because the overflow
+ * travels up through every grid it passes.
  */
-.inspect-json :deep(.json-key) {
-  color: var(--amber2);
+.mk > * {
+    min-width: 0;
 }
 
-.inspect-json :deep(.json-string) {
-  color: var(--green2);
-  word-break: break-all;
+/* ── Hero ─────────────────────────────────────────────────────────────── */
+.mk-hero {
+    display: grid;
+    gap: var(--sp-4);
 }
 
-.inspect-json :deep(.json-number) {
-  color: var(--blue);
+.mk-wordmark {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-1);
+    margin: 0;
 }
 
-.inspect-json :deep(.json-bool) {
-  color: var(--text3);
+.mk-wordmark-pre {
+    font-family: var(--fm);
+    font-size: var(--t-sm);
+    letter-spacing: var(--track-label);
+    text-transform: uppercase;
+    color: var(--ink-3);
 }
 
-.mk-ta-mono {
-  font-family: var(--fm);
-  font-size: 0.72rem;
-  line-height: 1.5;
-  min-height: 300px;
+.mk-wordmark-main {
+    font-family: var(--fu);
+    font-weight: 900;
+    font-size: clamp(2.2rem, 7vw, 3.4rem);
+    line-height: 1;
+    letter-spacing: var(--track-display);
+    color: var(--accent-ink);
 }
 
-/* Notice link */
-.mk-notice-link {
-  cursor: pointer;
-  color: var(--accent);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-.mk-notice-link:hover {
-  color: var(--amber3);
+.mk-lede,
+.mk-desc {
+    max-width: 68ch;
+    margin: 0;
 }
 
-/* Accent icon in card head */
-.icon-accent {
-  color: var(--amber);
+.mk-privacy {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--sp-3);
+    color: var(--accent-ink);
 }
 
-/* Field hint under textarea */
-.mk-field-hint {
-  font-size: 0.7rem;
-  color: var(--text3);
-  line-height: 1.4;
-  margin-top: -8px;
+.mk-privacy p {
+    margin: 0;
+    font-size: var(--t-sm);
+    line-height: 1.6;
+    color: var(--ink-2);
+}
+
+/* ── Modes ────────────────────────────────────────────────────────────── */
+.mk-modes {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: var(--sp-2);
+}
+
+.mk-mode {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--sp-3);
+    padding: var(--sp-4);
+    text-align: left;
+    border: var(--rule) solid var(--line);
+    border-radius: var(--r-2);
+    background: var(--surface-solid);
+    color: var(--ink-2);
+    cursor: pointer;
+    transition:
+        border-color var(--trans-fast),
+        background var(--trans-fast),
+        color var(--trans-fast);
+}
+
+.mk-mode:hover {
+    color: var(--text);
+    border-color: var(--accent-ink);
+}
+
+.mk-mode.is-active {
+    background: var(--surface-solid-2);
+    border-color: var(--accent-ink);
+    color: var(--text);
+}
+
+/* The icon keeps its box so titles line up whatever the icon's own width. */
+.mk-mode-icon {
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+.mk-mode-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.mk-mode-title {
+    font-family: var(--fw);
+    font-weight: 800;
+    font-size: var(--t-sm);
+}
+
+.mk-mode-hint {
+    font-size: var(--t-2xs);
+    color: var(--ink-3);
+    line-height: 1.4;
+}
+
+@media (max-width: 640px) {
+    .mk {
+        padding: var(--sp-6) var(--sp-gutter) var(--sp-8);
+        gap: var(--sp-6);
+    }
+}
+</style>
+
+<!--
+    Shared by every mode panel.
+
+    Unscoped on purpose: the four panels are separate components but one form,
+    and duplicating an input's padding four times is how four inputs end up
+    slightly different heights. Everything here is `mk-` prefixed and belongs
+    to this page.
+-->
+<style>
+.mk-panel {
+    display: grid;
+    gap: var(--sp-3);
+    align-content: start;
+    min-width: 0;
+}
+
+.mk-panel > * {
+    min-width: 0;
+}
+
+.mk-panel > .h {
+    margin: 0;
+}
+
+.mk-panel > .lede {
+    margin: 0 0 var(--sp-2);
+    max-width: 72ch;
+}
+
+.mk-input {
+    display: block;
+    width: 100%;
+    margin: 0;
+    padding: var(--sp-4);
+    background: var(--ground-2);
+    border: var(--rule) solid var(--line);
+    border-radius: var(--r-2);
+    color: var(--text);
+    font-family: var(--fm);
+    font-size: var(--t-xs);
+    line-height: 1.6;
+    resize: vertical;
+    word-break: break-all;
+}
+
+.mk-input:focus {
+    outline: none;
+    border-color: var(--accent-ink);
+}
+
+.mk-error {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--sp-2);
+    margin: 0;
+    font-size: var(--t-sm);
+    line-height: 1.5;
+    color: var(--red);
+}
+
+.mk-error svg {
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.mk-note {
+    margin: 0;
+    font-size: var(--t-sm);
+    line-height: 1.6;
+    color: var(--ink-3);
+    text-wrap: pretty;
+}
+
+.mk-found {
+    margin: 0;
+    font-size: var(--t-xs);
+    color: var(--accent-ink);
+}
+
+/* Actions sit on one baseline and wrap as a group. */
+.mk-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-2);
+}
+
+.mk-fields {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: var(--sp-3);
+}
+
+.mk-field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+    flex: 1 1 220px;
+}
+
+.mk-field-label {
+    font-family: var(--fm);
+    font-size: var(--t-2xs);
+    letter-spacing: var(--track-label);
+    text-transform: uppercase;
+    color: var(--ink-3);
+}
+
+/* A label introducing the control under it, rather than sitting beside one. */
+.mk-stack-label {
+    display: block;
+    margin-top: var(--sp-2);
+}
+
+.mk-text {
+    padding: var(--sp-3) var(--sp-4);
+    background: var(--ground-2);
+    border: var(--rule) solid var(--line);
+    border-radius: var(--r-1);
+    color: var(--text);
+    font-family: var(--fw);
+    font-size: var(--t-sm);
+}
+
+.mk-text:focus {
+    outline: none;
+    border-color: var(--accent-ink);
+}
+
+@media (max-width: 640px) {
+    .mk-actions .btn {
+        flex: 1 1 100%;
+        justify-content: center;
+    }
 }
 </style>
