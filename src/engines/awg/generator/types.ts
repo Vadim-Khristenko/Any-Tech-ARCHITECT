@@ -37,6 +37,17 @@ export type BrowserProfile = string;
 // Lives in shared/fingerprints, beside the data it describes.
 export type { BfpSlot } from "@/shared/fingerprints";
 
+/**
+ * How a profile should shape one packet, beyond what the user chose.
+ *
+ * Set by the generator, never by the user: `compact` is asked for when the
+ * whole I1–I5 chain would not fit the kernel module's netlink budget (see
+ * ./chainBudget.ts). A profile with no shorter form of itself ignores it.
+ */
+export interface ProfileOptions {
+  compact?: boolean;
+}
+
 /** Input parameters for the generator. */
 export interface GeneratorInput {
   version: AWGVersion;

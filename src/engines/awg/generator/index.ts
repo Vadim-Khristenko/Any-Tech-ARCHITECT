@@ -11,7 +11,9 @@ import type {
   GeneratorInput,
   Intensity,
   MimicProfile,
+  ProfileOptions,
 } from "./types";
+import { chainBytes, fitChainBudget, KMOD_CHAIN_BUDGET } from "./chainBudget";
 import { PROFILE_LABELS } from "./constants";
 import { clientCaps } from "./clients";
 import {
@@ -52,6 +54,7 @@ export * from "./clients";
 export * from "./awg3";
 export * from "./render";
 export * from "./summary";
+export * from "./chainBudget";
 
 export { mkQUICi, mkQUIC0, mkHTTP3, mkTLS, mkNoise, mkDTLS12, mkDTLS13, mkSIP, mkDNS, mkEntropy };
 /** @deprecated pre-4.2.0 name for mkDTLS12. */
@@ -77,9 +80,13 @@ export function genI1(
   input: GeneratorInput,
   profile: MimicProfile,
   iv: number,
+  opts: ProfileOptions = {},
 ): string {
   const id = normalizeProfile(profile);
-  const dispatch: Record<string, (i: GeneratorInput, iv: number) => string> = {
+  const dispatch: Record<
+    string,
+    (i: GeneratorInput, iv: number, opts: ProfileOptions) => string
+  > = {
     quic_initial: mkQUICi,
     quic_0rtt: mkQUIC0,
     tls_client_hello: mkTLS,
@@ -95,11 +102,11 @@ export function genI1(
 
   if (id === "random") {
     const keys = Object.keys(dispatch) as MimicProfile[];
-    return genI1(input, keys[rnd(0, keys.length - 1)], iv);
+    return genI1(input, keys[rnd(0, keys.length - 1)], iv, opts);
   }
 
   const fn = dispatch[id] ?? dispatch.quic_initial;
-  return fn(input, iv);
+  return fn(input, iv, opts);
 }
 
 /**
@@ -270,6 +277,42 @@ function resolveJmax(jmin: number, drawn: number, version: AWGVersion): number {
 }
 
 /**
+ * The five chains for a profile, I1 first.
+ *
+ * Composite profiles name a packet per slot; the rest put the profile in I1
+ * and, with "mimic all", in every slot, entropy otherwise.
+ */
+function buildChain(
+  input: GeneratorInput,
+  profile: MimicProfile,
+  iv: number,
+  opts: ProfileOptions = {},
+): string[] {
+  const entropy = (slot: number) => mkEntropy(input, slot, iv);
+
+  if (profile === "tls_to_quic") {
+    return [mkTLS(input, iv), mkQUICi(input, iv), entropy(2), entropy(3), entropy(4)];
+  }
+  if (profile === "quic_burst") {
+    return [
+      mkQUICi(input, iv),
+      mkQUIC0(input, iv),
+      mkHTTP3(input, iv),
+      entropy(3),
+      entropy(4),
+    ];
+  }
+  if (profile === "dns_query") {
+    return [0, 1, 2, 3, 4].map((slot) =>
+      slot === 0 || input.mimicAll ? mkDNS(input, iv + slot) : entropy(slot),
+    );
+  }
+  return [0, 1, 2, 3, 4].map((slot) =>
+    slot === 0 || input.mimicAll ? genI1(input, profile, iv, opts) : entropy(slot),
+  );
+}
+
+/**
  * Generate a complete AmneziaWG obfuscation configuration.
  */
 export function genCfg(input: GeneratorInput): AWGConfig {
@@ -376,8 +419,6 @@ export function genCfg(input: GeneratorInput): AWGConfig {
    * an obfuscation they do not have.
    */
   const hasCPS = caps.cps && client.supportsI1I5;
-  const isComposite = profile === "tls_to_quic" || profile === "quic_burst";
-  const isDns = profile === "dns_query";
 
   let i1 = "",
     i2 = "",
@@ -385,48 +426,20 @@ export function genCfg(input: GeneratorInput): AWGConfig {
     i4 = "",
     i5 = "";
 
-  if (!hasCPS) {
-    // AWG 1.0 — без CPS
-  } else if (isComposite && profile === "tls_to_quic") {
-    i1 = mkTLS(effectiveInput, iv);
-    i2 = mkQUICi(effectiveInput, iv);
-    i3 = mkEntropy(effectiveInput, 2, iv);
-    i4 = mkEntropy(effectiveInput, 3, iv);
-    i5 = mkEntropy(effectiveInput, 4, iv);
-  } else if (isComposite && profile === "quic_burst") {
-    i1 = mkQUICi(effectiveInput, iv);
-    i2 = mkQUIC0(effectiveInput, iv);
-    i3 = mkHTTP3(effectiveInput, iv);
-    i4 = mkEntropy(effectiveInput, 3, iv);
-    i5 = mkEntropy(effectiveInput, 4, iv);
-  } else if (isDns) {
-    i1 = mkDNS(effectiveInput, iv);
-    i2 = input.mimicAll
-      ? mkDNS(effectiveInput, iv + 1)
-      : mkEntropy(effectiveInput, 1, iv);
-    i3 = input.mimicAll
-      ? mkDNS(effectiveInput, iv + 2)
-      : mkEntropy(effectiveInput, 2, iv);
-    i4 = input.mimicAll
-      ? mkDNS(effectiveInput, iv + 3)
-      : mkEntropy(effectiveInput, 3, iv);
-    i5 = input.mimicAll
-      ? mkDNS(effectiveInput, iv + 4)
-      : mkEntropy(effectiveInput, 4, iv);
-  } else {
-    i1 = genI1(effectiveInput, profile, iv);
-    i2 = input.mimicAll
-      ? genI1(effectiveInput, profile, iv)
-      : mkEntropy(effectiveInput, 1, iv);
-    i3 = input.mimicAll
-      ? genI1(effectiveInput, profile, iv)
-      : mkEntropy(effectiveInput, 2, iv);
-    i4 = input.mimicAll
-      ? genI1(effectiveInput, profile, iv)
-      : mkEntropy(effectiveInput, 3, iv);
-    i5 = input.mimicAll
-      ? genI1(effectiveInput, profile, iv)
-      : mkEntropy(effectiveInput, 4, iv);
+  if (hasCPS) {
+    /*
+     * Built for the kernel module's budget whichever client was picked: the
+     * same block goes into the server's config, and a Linux server running
+     * awg-quick on the module is the common case. First the profile's full
+     * form, then its compact one, then entropy in the trailing slots.
+     */
+    let chain = buildChain(effectiveInput, profile, iv);
+    if (chainBytes(chain) > KMOD_CHAIN_BUDGET) {
+      chain = buildChain(effectiveInput, profile, iv, { compact: true });
+    }
+    [i1, i2, i3, i4, i5] = fitChainBudget(chain, (slot) =>
+      mkEntropy(effectiveInput, slot, iv),
+    ) as [string, string, string, string, string];
   }
 
   if (input.routerMode && hasCPS) {

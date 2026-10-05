@@ -954,6 +954,8 @@ export const en: Catalog = {
     "{key}: the CPS chain syntax is not valid.",
   "find.awg.cps_tag_unsupported":
     "The {tag} tag is not supported by {client}.",
+  "find.awg.cps_chain_too_long":
+    "I1-I5 take {total} bytes over netlink together, more than the {max} the AmneziaWG kernel module can carry in one message. On a server or router running the module the interface comes up, `awg show` answers “Message too long” and nothing gets through. amneziawg-go clients are not affected. Shorten the chains or keep the mimicry to I1-I3.",
   "find.awg.conf.not_obfuscated":
     "No AmneziaWG parameters (H/S/J/I) in this config — it looks like plain WireGuard.",
   "find.awg.conf.template":

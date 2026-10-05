@@ -22,6 +22,7 @@ import { error, warn } from "@/shared/findings";
 import type { Finding } from "@/types/findings";
 import { parseRangeValue } from "@/shared/validation";
 import { MIN_S_WITH_HEADER_PROTECTION } from "./generator/awg3";
+import { chainBytes, KMOD_CHAIN_BUDGET } from "./generator/chainBudget";
 import {
   INIT_TO_RESPONSE,
   INIT_TO_COOKIE,
@@ -351,6 +352,27 @@ function checkChains(p: AwgParamInput, options: AwgRuleOptions): Finding[] {
         );
       }
     }
+  }
+
+  /*
+   * A warning, not an error: amneziawg-go takes any length, and a client on
+   * it is fine. The kernel module is not (see generator/chainBudget.ts), and
+   * the same block usually goes onto a Linux server running it, where the
+   * interface comes up and then carries nothing. Issue #17.
+   */
+  const total = chainBytes(
+    CHAIN_FIELDS.map((key) => {
+      const value = p[key];
+      return value === undefined || value === "0" ? "" : String(value).trim();
+    }),
+  );
+  if (total > KMOD_CHAIN_BUDGET) {
+    found.push(
+      warn("I1-I5", "awg.cps_chain_too_long", {
+        total,
+        max: KMOD_CHAIN_BUDGET,
+      }),
+    );
   }
 
   return found;

@@ -961,6 +961,8 @@ export const ru = {
     "{key}: неверный синтаксис CPS-цепочки.",
   "find.awg.cps_tag_unsupported":
     "Тег {tag} не поддерживается клиентом {client}.",
+  "find.awg.cps_chain_too_long":
+    "I1-I5 вместе занимают {total} байт в netlink, больше {max}, которые ядерный модуль AmneziaWG принимает одним сообщением. На сервере или роутере с модулем интерфейс поднимется, `awg show` ответит «Message too long», и трафик не пойдёт. Клиентов на amneziawg-go это не касается. Сократите цепочки или оставьте мимикрию в I1-I3.",
   "find.awg.conf.not_obfuscated":
     "Параметров AmneziaWG (H/S/J/I) в конфиге нет — похоже, это обычный WireGuard.",
   "find.awg.conf.template":
