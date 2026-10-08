@@ -25,6 +25,7 @@ import { useHistory } from "@/composables/useHistory";
 import { downloadText } from "@/utils/download";
 import SendToForge from "@/components/SendToForge.vue";
 import HistoryPanel from "@/components/HistoryPanel.vue";
+import AwgSwitchboard from "@/components/awg/AwgSwitchboard.vue";
 import type { AwgHistoryEntry } from "@/engines/awg/history";
 import type { GeneratorHistoryEntry } from "@/types/generatorHistory";
 import { awgParamRecord, notesForVersion } from "@/engines/awg/generator";
@@ -75,6 +76,7 @@ const {
     domainStatus,
     checkSelectedDomain,
     restoreConfig,
+    resetPreset,
 } = useGenerator();
 
 const { copy, isCopied } = useCopyFeedback();
@@ -109,16 +111,14 @@ const client = computed(() => clients.find((c) => c.id === config.clientId));
  */
 const hpkManaged = computed(() => !!client.value?.limits.managesHeaderProtection);
 /*
- * Identical S1–S4, the docs-compat mode: header protection and random
- * trailers both on. Equal sizes are a shared fingerprint on their own;
- * the random tail is what smears it, so without trailers there is nothing
- * to show. Trailers exist only on 3.1, which scopes this there.
+ * H1-H4 replaced by the standard 1-4 ("Disable H1-H4" in the switch group):
+ * the headers zone says so instead of drawing four one-value ranges.
  */
-const showSameS = computed(
-  (): boolean =>
-    version.value === "3.1" &&
-    config.useHeaderProtection &&
-    config.useRandomTrailers,
+const headersDisabled = computed(
+    (): boolean =>
+        !!currentAwg.value &&
+        [currentAwg.value.h1, currentAwg.value.h2, currentAwg.value.h3, currentAwg.value.h4].join() ===
+            "1,2,3,4",
 );
 const releases = computed(() => client.value?.releases ?? []);
 
@@ -421,8 +421,10 @@ const spans = computed(() => {
         return { lo: n, hi: n };
     };
 
-    const single = cfg.version === "1.0" || cfg.version === "1.5";
-    const raw = single
+    const legacy = cfg.version === "1.0" || cfg.version === "1.5";
+    // Disabled headers are single values too: 1, 2, 3, 4.
+    const single = legacy || headersDisabled.value;
+    const raw = legacy
         ? [cfg.h1s, cfg.h2s, cfg.h3s, cfg.h4s]
         : [cfg.h1, cfg.h2, cfg.h3, cfg.h4];
 
@@ -994,21 +996,6 @@ function toSimulator() {
                     <span v-if="config.useHeaderProtection && (version === '3.0' || version === '3.1')" class="hint">
                         {{ t("gen.sizes.floor") }}
                     </span>
-                    <!--
-                        Identical S1–S4, the docs-compat mode. Shown only with
-                        header protection and random trailers on: equal sizes
-                        for everyone who followed the advice are a shared
-                        fingerprint, and the per-packet random tail is what
-                        smears it. Without trailers the switch stays hidden —
-                        and a hidden switch must not act, so buildInput gates
-                        the flag on the same condition.
-                    -->
-                    <label v-if="showSameS" class="switch" style="margin-top:8px">
-                        <input v-model="config.useSameS" type="checkbox" @change="generate()" />
-                        <span class="switch-track"></span>
-                        <span>{{ t("gen.sameS.label") }}</span>
-                    </label>
-                    <p v-if="showSameS" class="hint">{{ t("gen.sameS.hint") }}</p>
                 </div>
 
                 <div class="disclose" :class="{ 'is-open': openHelp === 'sizes' }">
@@ -1054,9 +1041,10 @@ function toSimulator() {
                 <p class="zone-note">{{ t("gen.zone.headers.note") }}</p>
 
                 <div class="zone-body">
-                    <p class="hint">{{ t("gen.headers.rule") }}</p>
+                    <p v-if="headersDisabled" class="hint">{{ t("gen.headers.disabled") }}</p>
+                    <p v-else class="hint">{{ t("gen.headers.rule") }}</p>
 
-                    <div v-if="spans.length" class="axis">
+                    <div v-if="spans.length && !headersDisabled" class="axis">
                         <template v-for="s in spans" :key="s.key">
                             <span class="axis-label" :style="{ left: `${Math.min(s.left, 96)}%` }">
                                 {{ s.key }}
@@ -1350,115 +1338,19 @@ function toSimulator() {
                 </div>
             </section>
 
-            <!-- ── AWG 3.0 ────────────────────────────────────────────── -->
-            <section v-if="version === '3.0' || version === '3.1'" class="zone gen-span-12">
-                <div class="zone-head">
-                    <span class="zone-title">{{ t("gen.zone.transport") }}</span>
-                    <span class="zone-aside">
-                        <button
-                            class="help-btn"
-                            :class="{ 'is-on': openHelp === 'awg3' }"
-                            :data-tooltip="t('gen.help.open')"
-                            @click="toggleHelp('awg3')"
-                        >
-                            ?
-                        </button>
-                    </span>
-                </div>
-
-                <p class="zone-note">{{ t("gen.zone.transport.note") }}</p>
-
-                <div class="zone-body gen-switchrow">
-                    <!--
-                        The switch stays visible for clients that manage the key
-                        themselves too: protection on means the cipher runs from
-                        the in-app key, and the S floor below follows the switch
-                        rather than the emitted line. The note says where the
-                        key itself lives.
-                    -->
-                    <label class="switch">
-                        <input v-model="config.useHeaderProtection" type="checkbox" @change="generate()" />
-                        <span class="switch-track"></span>
-                        <span>{{ t("awg3.hpk.switch") }} <span class="mono">(HeaderProtectionKey)</span></span>
-                    </label>
-                    <label class="switch">
-                        <input v-model="config.useContentPadding" type="checkbox" @change="generate()" />
-                        <span class="switch-track"></span>
-                        <span>{{ t("awg3.cpa.switch") }} <span class="mono">(ContentPaddingAddition)</span></span>
-                    </label>
-                    <label class="switch">
-                        <input v-model="config.useRandomTimings" type="checkbox" @change="generate()" />
-                        <span class="switch-track"></span>
-                        <span>{{ t("awg3.timings.title") }}</span>
-                    </label>
-                    <!--
-                        The 3.1 switches. A 3.0 device refuses both keys at
-                        config parse, so they exist only on the 3.1 tab.
-                    -->
-                    <template v-if="version === '3.1'">
-                        <label class="switch">
-                            <input v-model="config.useRandomTrailers" type="checkbox" @change="generate()" />
-                            <span class="switch-track"></span>
-                            <span>{{ t("awg3.trailers.switch") }} <span class="mono">(RandomTrailers)</span></span>
-                        </label>
-                        <label class="switch">
-                            <input v-model="config.useDisableCookies" type="checkbox" @change="generate()" />
-                            <span class="switch-track"></span>
-                            <span>{{ t("awg3.cookies.switch") }} <span class="mono">(DisableCookies)</span></span>
-                        </label>
-                        <!--
-                            Narrow H1-H4 for the 3.1 bug. Visible only on 3.1
-                            and only when the triggering feature is on — wide
-                            header intervals cost CPU in amneziawg-go 3.1 packet
-                            classification and can misclassify when header
-                            protection is active. Clamping each range to ~20k
-                            fixes the bug at the cost of slightly less header
-                            obfuscation. Detailed note lives in the help drawer
-                            and in i18n gen.narrowH.*
-                        -->
-                        <label v-if="config.useHeaderProtection" class="switch">
-                            <input v-model="config.useNarrowH" type="checkbox" @change="generate()" />
-                            <span class="switch-track"></span>
-                            <span>{{ t("gen.narrowH.label") }}</span>
-                        </label>
-                    </template>
-                    <p v-if="version === '3.1' && config.useHeaderProtection" class="hint" style="margin-top:8px">
-                        {{ t("gen.narrowH.detail") }}
-                    </p>
-                </div>
-
-                <div class="disclose" :class="{ 'is-open': openHelp === 'awg3' }">
-                    <div>
-                        <div class="zone-help">
-                            <div v-for="h in helpFor('awg3')" :key="h.key" class="zone-help-item">
-                                <span class="zone-help-key">{{ h.key }}</span>
-                                <span>
-                                    {{ h.note }}
-                                    <span class="zone-help-meta" :data-tooltip="scopeHint(h.scope)">
-                                        {{ scopeLabel(h.scope) }} · {{ t("gen.since", { v: h.since }) }}
-                                    </span>
-                                </span>
-                            </div>
-                            <div v-if="hpkManaged" class="zone-help-item">
-                                <span class="zone-help-key">HeaderProtectionKey</span>
-                                <span>
-                                    {{ t("client.note.amneziaVpnHpk") }}
-                                    <span class="zone-help-meta" :data-tooltip="scopeHint('shared')">
-                                        {{ scopeLabel("shared") }} · {{ t("gen.since", { v: "3.0" }) }}
-                                    </span>
-                                </span>
-                            </div>
-                            <div v-if="version === '3.1'" class="zone-help-item">
-                                <span class="zone-help-key">{{ t("gen.narrowH.label") }}</span>
-                                <span>
-                                    {{ t("gen.narrowH.help") }}
-                                    <span class="zone-help-meta">local · since 3.1</span>
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
+            <!--
+                The protocol switches, one group by revision. Shown from 3.0;
+                the component owns the layout, this page owns the state.
+            -->
+            <AwgSwitchboard
+                v-if="version === '3.0' || version === '3.1'"
+                :version="version"
+                :state="config"
+                :hpk-managed="hpkManaged"
+                :current="currentAwg"
+                @change="generate()"
+                @preset="resetPreset()"
+            />
         </div>
 
         <!-- ══ Actions ═════════════════════════════════════════════════ -->
