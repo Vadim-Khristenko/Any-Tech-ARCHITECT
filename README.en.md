@@ -5,7 +5,7 @@
 [Русский](README.md) · **English**
 
 [![Open the generator](https://img.shields.io/badge/Open_the_generator-architect.vai--rice.space-e8a840?style=for-the-badge)](https://architect.vai-rice.space/en)
-[![Version 4.4.0](https://img.shields.io/badge/version-4.4.0-e8a840?style=for-the-badge)](#whats-new-in-440)
+[![Version 4.5.0](https://img.shields.io/badge/version-4.5.0-e8a840?style=for-the-badge)](#whats-new-in-450)
 [![AmneziaWG 3.1](https://img.shields.io/badge/AmneziaWG-3.1-5fbf7f?style=for-the-badge)](#amneziawg)
 [![XRay REALITY](https://img.shields.io/badge/XRay-REALITY-5b9bd5?style=for-the-badge)](#xray)
 [![MIT](https://img.shields.io/badge/License-MIT-c49040?style=for-the-badge)](LICENSE)
@@ -41,9 +41,28 @@ There are two engines, doing the same job from opposite directions.
 
 ---
 
-## What's new in 4.4.0
+## What's new in 4.5.0
 
-A release built out of your reports, plus one long-promised disguise.
+**The protocol switches are one group now** and follow the version: pick 3.0
+or 3.1 and they move to where that version recommends. The "Recommended for
+3.x" button puts them back if you changed something.
+
+- **Disable H1-H4.** H1-H4 become the standard 1, 2, 3, 4, as Amnezia VPN
+  itself writes them. Under header encryption the ranges hide nothing on the
+  wire, and with random trailers their width costs lost packets. Without
+  encryption the generator will not do it: there 1-4 would go out in the clear.
+- **Unite S1-S4.** One padding value for every packet type, as the
+  recommendations have it. Both switches open only on 3.1 with header
+  encryption and random trailers on.
+- **3.1 defaults:** MTU 1280, random trailers and disabled H1-H4. With trailers,
+  packets are lengthened up to the largest size already seen from the peer, and
+  full size has to cross any path without fragmenting.
+- **Names and explanations** of the switches are rewritten: each says what it
+  does, what it is called in the `.conf`, and whether both ends must match.
+- **The FAQ** grew to 78 answers: presets, MTU 1280, both new switches,
+  `Message too long`, wg-easy and the STUN profile.
+
+### In 4.4.0
 
 - **STUN / TURN.** A new profile replays what WebRTC sends before a call starts:
   a Binding to a STUN server, an Allocate to a TURN relay, the same Allocate
@@ -114,8 +133,9 @@ These parameters were verified **against the source** of `amneziawg-go`,
 > checking handshake sizes and tests every transport packet against H1, H2 and
 > H3. The bytes there are random, so the share lost is `1 − Π(1 − Wᵢ / 2³²)`,
 > with `W` the width of a range. Three ranges of 300 million lose about 20% of
-> the traffic, and no counter will show it. The generator keeps them under
-> 50,000, and H4 is not part of the cost at all.
+> the traffic, and no counter will show it. On 3.1 the generator disables
+> H1-H4 by default, and otherwise keeps them under 50,000. H4 is not part of
+> the cost at all.
 
 ### Mimicry profiles
 
@@ -227,7 +247,7 @@ chain it never sends.
 <td width="50%" valign="top">
 <img src="public/assets/og-faq-en.png" alt="FAQ" width="100%">
 <h3>FAQ</h3>
-71 answers on parameters, version differences and common failure modes.
+78 answers on parameters, version differences and common failure modes.
 Searches both languages at once, with categories and linkable answers.
 </td>
 <td width="50%" valign="top">
