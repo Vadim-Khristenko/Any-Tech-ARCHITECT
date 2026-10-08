@@ -5,7 +5,7 @@
 [Русский](README.md) · **English**
 
 [![Open the generator](https://img.shields.io/badge/Open_the_generator-architect.vai--rice.space-e8a840?style=for-the-badge)](https://architect.vai-rice.space/en)
-[![Version 4.5.0](https://img.shields.io/badge/version-4.5.0-e8a840?style=for-the-badge)](#whats-new-in-450)
+[![Version 4.5.1](https://img.shields.io/badge/version-4.5.1-e8a840?style=for-the-badge)](#whats-new-in-450)
 [![AmneziaWG 3.1](https://img.shields.io/badge/AmneziaWG-3.1-5fbf7f?style=for-the-badge)](#amneziawg)
 [![XRay REALITY](https://img.shields.io/badge/XRay-REALITY-5b9bd5?style=for-the-badge)](#xray)
 [![MIT](https://img.shields.io/badge/License-MIT-c49040?style=for-the-badge)](LICENSE)
