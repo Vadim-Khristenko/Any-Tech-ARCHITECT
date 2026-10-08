@@ -93,8 +93,12 @@ export function mkDNS(input: GeneratorInput, iv: number): string {
   // lower one and the draw threw, which killed the Generate button silently.
   const ceiling = Math.min(512, input.mtu - 20);
   const wanted = ceiling <= 64 ? Math.max(0, ceiling) : rnd(64, ceiling);
+  // The <t> and <c> bytes travel inside the Padding option too: appended
+  // after it they trailed the OPT record outside its declared length, and
+  // with <r> off they followed the question with ARCOUNT 0.
+  const tagBytes = (input.useTagT ? 4 : 0) + (input.useTagC ? 4 : 0);
   const room =
-    input.mtu - DNS_HEADER - questionBytes - OPT_FIXED - PAD_OPTION_HEADER;
+    input.mtu - DNS_HEADER - questionBytes - OPT_FIXED - PAD_OPTION_HEADER - tagBytes;
   const padding = input.useTagR
     ? Math.max(
         0,
@@ -102,7 +106,8 @@ export function mkDNS(input: GeneratorInput, iv: number): string {
       )
     : 0;
 
-  const padded = padding > 0;
+  const optionData = padding + tagBytes;
+  const padded = optionData > 0;
   const arcount = padded ? "0001" : "0000";
 
   // OPT: root name, type 41, CLASS carries the UDP payload size, TTL is zero
@@ -112,10 +117,10 @@ export function mkDNS(input: GeneratorInput, iv: number): string {
       "0029" +
       u16(EDNS_UDP_SIZE) +
       "00000000" +
-      u16(PAD_OPTION_HEADER + padding) +
+      u16(PAD_OPTION_HEADER + optionData) +
       // Option code 12 is Padding; its length is the bytes that follow.
       "000c" +
-      u16(padding)
+      u16(optionData)
     : "";
 
   const hex = assertEvenHex(
@@ -125,7 +130,7 @@ export function mkDNS(input: GeneratorInput, iv: number): string {
 
   return (
     `<b 0x${hex}>` +
-    (padded ? splitPad(padding) : "") +
+    (padding > 0 ? splitPad(padding) : "") +
     (input.useTagT ? "<t>" : "") +
     (input.useTagC ? "<c>" : "")
   );

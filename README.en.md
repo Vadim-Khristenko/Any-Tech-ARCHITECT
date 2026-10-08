@@ -29,7 +29,7 @@ A very lightweight build of Architect for weak devices, slow links and working
 offline. **One HTML file of about 170 KB**: download it, open it from disk, and
 it works with no internet, no install and no outside requests.
 
-The branch currently matches main version **4.5.0**.
+The branch currently matches main version **4.5.1**.
 
 | What is in | What is not |
 |:--|:--|
@@ -46,8 +46,8 @@ main version rather than rewritten: lite is built from the same engine code.
 ## Download
 
 The ready file is in the
-[**lite-v4.5.0**](https://github.com/Vadim-Khristenko/Any-Tech-ARCHITECT/releases/tag/lite-v4.5.0)
-pre-release: `any-tech-architect-lite-v4.5.0.html`. Open it in any browser. A
+[**lite-v4.5.1**](https://github.com/Vadim-Khristenko/Any-Tech-ARCHITECT/releases/tag/lite-v4.5.1)
+pre-release: `any-tech-architect-lite-v4.5.1.html`. Open it in any browser. A
 zip and checksums sit next to it.
 
 ## How it is built

@@ -32,6 +32,21 @@ export interface DtlsChainOpts {
   poolKey: string;
   /** ClientHello body: legacy_version + random + version tail. */
   body: string;
+  /**
+   * The extensions a body that reaches its extensions block carries, as hex,
+   * without the length in front. When set, the extensions length is written
+   * here and covers what the tags add after them: those bytes go into a
+   * GREASE extension (RFC 8701), whose content a receiver must ignore, so the
+   * ClientHello parses to its last byte. Padding (RFC 7685) would be the
+   * obvious home, but its content has to be zeros and `<r>` is not.
+   */
+  extensions?: string;
+}
+
+/** A GREASE extension type, one of 0x0a0a, 0x1a1a ... 0xfafa. */
+function greaseType(): string {
+  const n = rnd(0, 15).toString(16);
+  return `${n}a${n}a`;
 }
 
 /**
@@ -55,14 +70,32 @@ export function dtlsChain(
     (input.useTagC ? TAG_BYTES : 0) +
     (input.useTagT ? TAG_BYTES : 0);
 
-  const fixed = RECORD_HEADER + HANDSHAKE_HEADER + opts.body.length / 2;
+  // Two bytes of extensions length, and four of GREASE header when the
+  // tags put anything after the declared extensions.
+  const extOverhead = opts.extensions === undefined ? 0 : 2 + 4;
+  const fixed =
+    RECORD_HEADER +
+    HANDSHAKE_HEADER +
+    opts.body.length / 2 +
+    (opts.extensions?.length ?? 0) / 2 +
+    extOverhead;
   const padding = input.useTagR
     ? calcPadding(fixed, tagBytes, getFpRange(input, "dtls"), iv, input.mtu)
     : 0;
 
+  const trail = tagBytes + padding;
+  let body = opts.body;
+  if (opts.extensions !== undefined) {
+    const grease = trail > 0 ? greaseType() + hexPad(trail, 2) : "";
+    body +=
+      hexPad(opts.extensions.length / 2 + grease.length / 2 + trail, 2) +
+      opts.extensions +
+      grease;
+  }
+
   // The handshake body is everything after the handshake header; the record
   // carries the header and the body together.
-  const bodyLen = opts.body.length / 2 + tagBytes + padding;
+  const bodyLen = body.length / 2 + trail;
   const recordLen = HANDSHAKE_HEADER + bodyLen;
 
   const hex = assertEvenHex(
@@ -84,7 +117,7 @@ export function dtlsChain(
       // Unfragmented: offset zero, fragment length equal to the whole body.
       "000000" +
       hexPad(bodyLen, 3) +
-      opts.body,
+      body,
     opts.label,
   );
 

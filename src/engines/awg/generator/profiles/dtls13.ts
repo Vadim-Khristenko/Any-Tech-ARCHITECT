@@ -18,9 +18,15 @@ const BODY_TAIL_13 =
   "0000" + // session id + cookie, both empty
   "0006" + // suites length
   "130113021303" + // TLS_AES_128_GCM_SHA256, TLS_AES_256_GCM_SHA384, TLS_CHACHA20_POLY1305_SHA256
-  "0100" + // compression: length 1, null
-  "0009" + // extensions length
-  "002b000302fefc"; // supported_versions -> DTLS 1.3
+  "0100"; // compression: length 1, null
+
+/**
+ * supported_versions announcing DTLS 1.3: type 0x002b, length 3, a one-byte
+ * list length of 2, then 0xfefc. Seven bytes; the extensions length in front
+ * of it is written by dtlsChain, which also counts what the tags add after it.
+ * It used to be a fixed "0009", two bytes more than were there.
+ */
+const EXTENSIONS_13 = "002b000302fefc";
 
 /**
  * A DTLS 1.3 ClientHello: legacy_version, random, and the §5.3 tail.
@@ -31,5 +37,6 @@ export function mkDTLS13(input: GeneratorInput, iv: number): string {
     poolKey: "dtls_1_3",
     // ClientHello.legacy_version, also {254,253} per RFC 9147 §5.3.
     body: "fefd" + rh(32) + BODY_TAIL_13,
+    extensions: EXTENSIONS_13,
   });
 }
