@@ -149,7 +149,8 @@ export const en: Catalog = {
   "gen.sw.linked.locked": "Turn on header encryption and random trailers to open “Disable H1-H4” and “Unite S1-S4”.",
   "gen.sw.hpk.title": "Header encryption",
   "gen.sw.hpk.desc": "The packet type and housekeeping fields leave encrypted with ChaCha20, the handshake whole. S1-S4 stay at 12 bytes or more: the nonce comes from them.",
-  "gen.sw.hpk.managed": "The key lives in Amnezia VPN and is switched on there; it is not written to the file.",
+  "gen.sw.hpk.managed":
+    "Amnezia VPN generates the key itself: tick HeaderProtectionKey in the server's protocol settings in the app. It is not written to the config. Without that box there is no encryption, and disabled H1-H4 would go out in the clear.",
   "gen.sw.cpa.title": "Traffic padding",
   "gen.sw.cpa.desc": "Every data packet gets a random extra instead of the even 16-byte alignment, so sizes stop repeating.",
   "gen.sw.timers.title": "Floating timers",
@@ -325,7 +326,7 @@ export const en: Catalog = {
   "client.note.goNoTagC":
     "The tunnel here is amneziawg-go, and it has no <c> at all: its vocabulary is <b>, <t>, <r>, <rc>, <rd>, <d>, <ds>, <dz>. The packet counter exists only in the Linux kernel module.",
   "client.note.amneziaVpnHpk":
-    "Amnezia VPN manages HeaderProtectionKey itself: flip the toggle in the app and it generates the key, so this tool leaves the field out of configs built for it.",
+    "Amnezia VPN generates HeaderProtectionKey itself: tick HeaderProtectionKey in the server's protocol settings and the app writes the key onto the server and into the client configs. That is why this tool leaves the field out. If the server was not set up through the app, pick the AmneziaWG client instead: a config imported without a key cannot have protection switched on in the app.",
   "client.engine.unverified": "an unconfirmed engine",
   "client.note.kmodTags":
     "The only engine where <c> works: the packet counter is implemented here and nowhere else. It does not know <d>, <ds> or <dz>, which exist only in amneziawg-go. An unfamiliar tag takes the whole junk packet down with it.",
@@ -398,7 +399,7 @@ export const en: Catalog = {
   "conf.awg3Hpk":
     "AWG 3.0 — shared header protection key (identical on both ends)",
   "conf.awg3HpkManaged":
-    "No HeaderProtectionKey line: the app manages the key itself, enabled by its toggle and picked up on config import, so S1-S4 above stay at 12+ for the cipher nonce",
+    "No HeaderProtectionKey line: Amnezia VPN generates the key. Tick HeaderProtectionKey in the server's protocol settings in the app, or there is no encryption. S1-S4 above stay at 12+ for the cipher nonce",
   "conf.awg3Cpa": "AWG 3.0 — random transport packet padding",
   "conf.blockHeaders": "Packet type markers. Must match the server and must not overlap",
   "conf.blockSizes": "Random padding in front of each kind of packet",

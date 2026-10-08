@@ -42,8 +42,10 @@ export interface RenderLabels {
   awg3Hpk: string;
   /**
    * Said instead of the key when the client manages it itself: the switch
-   * is on, the cipher will run, but the key lives in the app — enabled by
-   * its toggle or picked up on config import — and never in this file.
+   * is on, and the app generates the key once HeaderProtectionKey is ticked
+   * in the server's protocol settings (amnezia-client awgConfigModel.cpp,
+   * configure_container.sh). An imported config without a key cannot turn
+   * it on, so the comment has to say where the box is.
    */
   awg3HpkManaged: string;
   awg3Cpa: string;
@@ -76,7 +78,7 @@ export const DEFAULT_LABELS: RenderLabels = {
     "The chosen client does not send I1-I5, so this config carries none. The tunnel works without them; what they add is the mimicry, and writing fields the client will not send would only look like it",
   awg3Hpk: "Header encryption. The key is shared, and the padding above feeds its nonce",
   awg3HpkManaged:
-    "No HeaderProtectionKey line: the app manages the key itself, enabled by its toggle and picked up on config import, so S1-S4 above stay at 12+ for the cipher nonce",
+    "No HeaderProtectionKey line: Amnezia VPN generates the key. Tick HeaderProtectionKey in the server's protocol settings in the app, or there is no encryption. S1-S4 above stay at 12+ for the cipher nonce",
   awg3Cpa: "Extra random padding on every transport packet",
   awg3Timers: "Randomised protocol timers instead of the fixed constants",
 
