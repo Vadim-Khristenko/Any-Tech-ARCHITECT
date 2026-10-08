@@ -280,7 +280,9 @@ describe("the DTLS 1.3 ClientHello the generator emits", () => {
     expect(u16(bytes, 67), "suite 3").toBe(0x1303);
     expect(bytes[69], "compression length").toBe(1);
     expect(bytes[70], "null compression").toBe(0);
-    expect(u16(bytes, 71), "extensions length").toBe(9);
+    // Seven: supported_versions is 4 bytes of header and 3 of data. This said
+    // 9 and so did the generator, two bytes past the end of the block.
+    expect(u16(bytes, 71), "extensions length").toBe(7);
     expect(u16(bytes, 73), "supported_versions").toBe(0x002b);
     expect(u16(bytes, 75), "extension length").toBe(3);
     expect(bytes[77], "versions length").toBe(2);
