@@ -18,6 +18,7 @@ import {
   type RenderLabels,
 } from "@/engines/awg/generator";
 import { capsFor } from "@/engines/awg/generator/versions";
+import { linkedSwitchesOn, versionPreset } from "@/engines/awg/generator/presets";
 import { healthCheckConf } from "@/engines/awg/healthCheck";
 import { resolveFinding, sortFindings, type Finding } from "@/shared/findings";
 import { translate } from "./i18n";
@@ -56,17 +57,28 @@ export function liteDefaults(): GeneratorInput {
     useDisableCookies: false,
     useNarrowH: false,
     useSameS: false,
+    useDisableH: false,
   };
 }
 
 /** Which switches mean anything on a version. Hidden ones must not act. */
-export function switchesFor(version: GeneratorInput["version"]) {
-  const caps = capsFor(version);
+export function switchesFor(form: Pick<GeneratorInput, "version" | "useHeaderProtection" | "useRandomTrailers">) {
+  const caps = capsFor(form.version);
   return {
     cps: caps.cps,
     awg3: caps.headerProtection,
     awg31: caps.featureFlags,
+    /** "Disable H1-H4" and "Unite S1-S4": 3.1 with protection and trailers. */
+    linked: linkedSwitchesOn(form),
   };
+}
+
+/**
+ * The form after a version change: the switches and MTU move to where the
+ * new version recommends, as on the full site (generator/presets.ts).
+ */
+export function withVersion(form: GeneratorInput, version: GeneratorInput["version"]): GeneratorInput {
+  return { ...form, version, ...versionPreset(version) };
 }
 
 /**
@@ -75,17 +87,14 @@ export function switchesFor(version: GeneratorInput["version"]) {
  * 3.1 together with protection and trailers.
  */
 export function toInput(form: GeneratorInput): GeneratorInput {
-  const on = switchesFor(form.version);
+  const on = switchesFor(form);
   return {
     ...form,
     useRandomTrailers: on.awg31 && form.useRandomTrailers,
     useDisableCookies: on.awg31 && form.useDisableCookies,
-    useNarrowH: on.awg31 && !!form.useNarrowH,
-    useSameS:
-      !!form.useSameS &&
-      form.version === "3.1" &&
-      form.useHeaderProtection &&
-      form.useRandomTrailers,
+    useNarrowH: on.awg31 && !!form.useNarrowH && !(on.linked && form.useDisableH),
+    useSameS: on.linked && !!form.useSameS,
+    useDisableH: on.linked && !!form.useDisableH,
   };
 }
 

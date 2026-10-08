@@ -29,14 +29,14 @@ A very lightweight build of Architect for weak devices, slow links and working
 offline. **One HTML file of about 170 KB**: download it, open it from disk, and
 it works with no internet, no install and no outside requests.
 
-The branch currently matches main version **4.4.0**.
+The branch currently matches main version **4.5.0**.
 
 | What is in | What is not |
 |:--|:--|
 | The AmneziaWG 1.0, 1.5, 2.0, 3.0 and 3.1 generator | XRay / REALITY |
 | All 12 mimicry profiles, STUN / TURN included | The packet simulator |
 | All 14 clients with their ceilings and builds | MergeKeys and `vpn://` |
-| The 3.x block switches and the 3.1 flags | The FAQ and the About page |
+| 3.x switches with per-version presets, Disable H1-H4, Unite S1-S4 | The FAQ and the About page |
 | A check for pasted `.conf` files | Batch generation and history |
 | Russian and English | Animation, web fonts, icons |
 
@@ -46,8 +46,8 @@ main version rather than rewritten: lite is built from the same engine code.
 ## Download
 
 The ready file is in the
-[**lite-v4.4.0**](https://github.com/Vadim-Khristenko/Any-Tech-ARCHITECT/releases/tag/lite-v4.4.0)
-pre-release: `any-tech-architect-lite-v4.4.0.html`. Open it in any browser. A
+[**lite-v4.5.0**](https://github.com/Vadim-Khristenko/Any-Tech-ARCHITECT/releases/tag/lite-v4.5.0)
+pre-release: `any-tech-architect-lite-v4.5.0.html`. Open it in any browser. A
 zip and checksums sit next to it.
 
 ## How it is built

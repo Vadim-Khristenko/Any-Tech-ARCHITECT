@@ -13,7 +13,8 @@ import { AWG_VERSIONS } from "@/engines/awg/generator/versions";
 import { engineHasTag, type CpsTag } from "@/engines/awg/generator/engines";
 import { clientCaps } from "@/engines/awg/generator/clients";
 import type { GeneratorInput } from "@/engines/awg/generator";
-import { check, generate, liteDefaults, switchesFor } from "./form";
+import { check, generate, liteDefaults, switchesFor, withVersion } from "./form";
+import { versionPreset } from "@/engines/awg/generator/presets";
 import { getLocale, setLocale, translate as t, type LiteLocale } from "./i18n";
 
 declare const __BUILD_TIME__: string;
@@ -27,7 +28,9 @@ const REGIONS = ["any", "ru", "global", "eu", "uk", "by", "cn"] as const;
 /* ── State ────────────────────────────────────────────────────────────────── */
 
 function load(): GeneratorInput {
-  const defaults = liteDefaults();
+  // Start from the preset of the default version, so a first visit on 3.0
+  // looks like the full site does.
+  const defaults = { ...liteDefaults(), ...versionPreset(liteDefaults().version) };
   try {
     const saved = JSON.parse(localStorage.getItem(STORE) ?? "null");
     if (saved && typeof saved === "object") return { ...defaults, ...saved, iterCount: 0 };
@@ -97,7 +100,7 @@ const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as 
 
 /* ── Building the page ────────────────────────────────────────────────────── */
 
-const TOGGLES: [keyof GeneratorInput, string, "base" | "awg3" | "awg31"][] = [
+const TOGGLES: [keyof GeneratorInput, string, "base" | "awg3" | "awg31" | "linked"][] = [
   ["mimicAll", "lite.mimicAll", "base"],
   ["routerMode", "lite.routerMode", "base"],
   ["useExtremeMax", "lite.extreme", "base"],
@@ -107,7 +110,9 @@ const TOGGLES: [keyof GeneratorInput, string, "base" | "awg3" | "awg31"][] = [
   ["useRandomTrailers", "lite.trailers", "awg31"],
   ["useDisableCookies", "lite.cookies", "awg31"],
   ["useNarrowH", "lite.narrowH", "awg31"],
-  ["useSameS", "lite.sameS", "awg31"],
+  // Shown only with header protection and trailers both on, as on the full site.
+  ["useDisableH", "lite.disableH", "linked"],
+  ["useSameS", "lite.sameS", "linked"],
 ];
 
 const TAGS: [keyof GeneratorInput, CpsTag][] = [
@@ -186,6 +191,7 @@ function build(root: HTMLElement): void {
     "div",
     { class: "actions" },
     tr("button", "lite.generate", { id: "generate", type: "button", class: "primary" }),
+    tr("button", "lite.preset", { id: "preset", type: "button" }),
     tr("button", "lite.copy", { id: "copy", type: "button" }),
     tr("button", "lite.download", { id: "download", type: "button" }),
   );
@@ -240,16 +246,31 @@ function readForm(): GeneratorInput {
   return next;
 }
 
+/** Put the form's values back into the controls, after a preset changed them. */
+function writeForm(): void {
+  for (const [key] of TOGGLES) $<HTMLInputElement>(`opt-${key}`).checked = Boolean(form[key]);
+  $<HTMLInputElement>("mtu").value = String(form.mtu);
+}
+
+/** Apply the preset of a version to the form and the controls. */
+function applyPreset(version: GeneratorInput["version"]): void {
+  form = withVersion(readForm(), version);
+  writeForm();
+}
+
 function clamp(n: number, lo: number, hi: number, fallback: number): number {
   return Number.isFinite(n) ? Math.min(hi, Math.max(lo, Math.round(n))) : fallback;
 }
 
 /** Hide what the version or the client does not have. */
 function syncAvailability(): void {
-  const on = switchesFor(form.version);
+  const on = switchesFor(form);
   for (const el of document.querySelectorAll<HTMLElement>("[data-group]")) {
     const group = el.dataset.group;
-    el.hidden = (group === "awg3" && !on.awg3) || (group === "awg31" && !on.awg31);
+    el.hidden =
+      (group === "awg3" && !on.awg3) ||
+      (group === "awg31" && !on.awg31) ||
+      (group === "linked" && !on.linked);
   }
   $("tags").hidden = !on.cps;
 
@@ -375,9 +396,14 @@ function start(): void {
     const target = e.target as HTMLElement;
     if (target.id === "paste") return;
     if (target.id === "client") $<HTMLSelectElement>("release").value = "";
+    if (target.id === "version") applyPreset($<HTMLSelectElement>("version").value as GeneratorInput["version"]);
     run();
   });
   $("generate").addEventListener("click", run);
+  $("preset").addEventListener("click", () => {
+    applyPreset(form.version);
+    run();
+  });
   $("copy").addEventListener("click", () => void copy());
   $("download").addEventListener("click", download);
   $("check").addEventListener("click", runCheck);

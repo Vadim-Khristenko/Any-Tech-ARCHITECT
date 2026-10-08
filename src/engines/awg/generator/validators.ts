@@ -46,12 +46,19 @@ export function rangesOverlap(
   return a.min <= b.max && b.min <= a.max;
 }
 
-/** Validate that H1-H4 ranges do not overlap with each other. */
+/**
+ * Validate that H1-H4 ranges do not overlap with each other.
+ *
+ * `headersProtected`: the type field leaves encrypted (header protection on),
+ * so 1-4 shows nothing on the wire and is what Amnezia VPN writes itself; the
+ * reserved-zone warning is for headers that travel in the clear.
+ */
 export function validateHeaderRanges(
   h1: string,
   h2: string,
   h3: string,
   h4: string,
+  headersProtected = false,
 ): ValidationFinding[] {
   const out: ValidationFinding[] = [];
   const hs: Array<[string, [number, number] | null]> = [
@@ -77,7 +84,7 @@ export function validateHeaderRanges(
   }
 
   for (const [name, r] of hs) {
-    if (r && r[0] >= 1 && r[0] <= 4) {
+    if (!headersProtected && r && r[0] >= 1 && r[0] <= 4) {
       out.push({
         field: name,
         level: "warn",
@@ -397,8 +404,14 @@ export function validateGeneratedConfig(
   clientId?: string,
   clientRelease?: string | null,
 ): ValidationFinding[] {
+  // Protected when a key is in the file, or when the client keeps the key
+  // itself (Amnezia VPN): either way the cipher covers the type field.
+  const headersProtected =
+    capsFor(cfg.version).headerProtection &&
+    (!!cfg.awg3?.headerProtectionKey ||
+      (!!clientId && clientCaps(clientId, clientRelease).limits.managesHeaderProtection));
   const out: ValidationFinding[] = [
-    ...validateHeaderRanges(cfg.h1, cfg.h2, cfg.h3, cfg.h4),
+    ...validateHeaderRanges(cfg.h1, cfg.h2, cfg.h3, cfg.h4, headersProtected),
     ...validateSizes(cfg),
     ...validateAwg3(cfg),
   ];

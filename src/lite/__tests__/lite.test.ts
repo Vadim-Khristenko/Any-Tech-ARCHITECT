@@ -9,7 +9,7 @@ import { allPools, stringSubset } from "../../../scripts/lite/prepare";
 import { HOSTS, POOLS } from "../generated/pools";
 import { STRINGS } from "../generated/strings";
 import { keyFor, pickHost, poolFor } from "../domains";
-import { check, generate, liteDefaults, toInput } from "../form";
+import { check, generate, liteDefaults, toInput, withVersion } from "../form";
 import { setLocale, translate } from "../i18n";
 
 /**
@@ -85,6 +85,24 @@ describe("the lite form", () => {
     expect(input.useDisableCookies).toBe(false);
     expect(input.useNarrowH).toBe(false);
     expect(input.useSameS).toBe(false);
+  });
+
+  it("moves to the version's preset on a version change, as the full site does", () => {
+    const form = withVersion(liteDefaults(), "3.1");
+    expect(form.mtu).toBe(1280);
+    expect(form.useRandomTrailers).toBe(true);
+    expect(form.useDisableH).toBe(true);
+    const back = withVersion(form, "2.0");
+    expect(back.mtu).toBe(1500);
+    expect(back.useDisableH).toBe(false);
+  });
+
+  it("disables H1-H4 on the 3.1 preset and only with protection and trailers", () => {
+    const on = generate(withVersion(liteDefaults(), "3.1")).config;
+    expect([on.h1, on.h2, on.h3, on.h4]).toEqual(["1", "2", "3", "4"]);
+    const off = toInput({ ...withVersion(liteDefaults(), "3.1"), useRandomTrailers: false });
+    expect(off.useDisableH).toBe(false);
+    expect(off.useSameS).toBe(false);
   });
 
   it("checks a pasted config in the current language", () => {

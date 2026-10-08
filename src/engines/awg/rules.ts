@@ -309,9 +309,12 @@ function checkHeaders(p: AwgParamInput, options: AwgRuleOptions): Finding[] {
    * With HeaderProtectionKey the type field goes out encrypted, and 1-4 is
    * what Amnezia VPN itself writes into H1-H4 for its 3.x containers: the
    * headers are kept only for compatibility, and nothing on the wire shows
-   * them. The reserved zone is a problem only where they are visible.
+   * them. The reserved zone is a problem only where they are visible. A
+   * client that keeps the key in the app (Amnezia VPN) writes no key line,
+   * and writes 1-4 only with its protection toggle on.
    */
-  const headersVisible = !hasValue(p.HeaderProtectionKey);
+  const headersVisible =
+    !hasValue(p.HeaderProtectionKey) && options.client?.managesHeaderProtection !== true;
 
   for (const [key, r] of parsed) {
     if (!r) continue;

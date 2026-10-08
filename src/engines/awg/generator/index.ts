@@ -14,6 +14,7 @@ import type {
   ProfileOptions,
 } from "./types";
 import { chainBytes, fitChainBudget, KMOD_CHAIN_BUDGET } from "./chainBudget";
+import { DISABLED_HEADERS, linkedSwitchesOn } from "./presets";
 import { PROFILE_LABELS } from "./constants";
 import { clientCaps } from "./clients";
 import {
@@ -57,6 +58,7 @@ export * from "./awg3";
 export * from "./render";
 export * from "./summary";
 export * from "./chainBudget";
+export * from "./presets";
 
 export { mkQUICi, mkQUIC0, mkHTTP3, mkTLS, mkNoise, mkDTLS12, mkDTLS13, mkSIP, mkDNS, mkEntropy, mkSTUN };
 export { STUN_FLOW, STUN_VARIANTS, type StunVariant } from "./profiles";
@@ -387,10 +389,17 @@ export function genCfg(input: GeneratorInput): AWGConfig {
   };
   const text = (field: string): string => String(drawn[field] ?? "");
 
-  const h1 = text("h1");
-  const h2 = text("h2");
-  const h3 = text("h3");
-  const h4 = text("h4");
+  /*
+   * Disabled headers: the standard 1-4, as Amnezia VPN writes them. Gated
+   * here and not only on the page, because 1-4 without header protection
+   * would put WireGuard's own type bytes on the wire in the clear. The
+   * request is what counts, not the emitted key: a client that manages the
+   * key itself still runs the cipher once its toggle is on.
+   */
+  const headersOff = input.useDisableH === true && linkedSwitchesOn(input);
+  const [h1, h2, h3, h4] = headersOff
+    ? DISABLED_HEADERS
+    : [text("h1"), text("h2"), text("h3"), text("h4")];
   const h1s = int("h1s");
   const h2s = int("h2s");
   const h3s = int("h3s");

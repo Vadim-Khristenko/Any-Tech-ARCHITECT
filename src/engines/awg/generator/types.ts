@@ -145,6 +145,18 @@ export interface GeneratorInput {
    * backwards compat with stored inputs.
    */
   useSameS?: boolean;
+
+  /**
+   * Write H1-H4 as the standard 1, 2, 3, 4 instead of drawing ranges.
+   *
+   * What Amnezia VPN itself writes for its 3.x containers. With header
+   * protection on, the type field leaves encrypted, so the ranges hide
+   * nothing on the wire; with random trailers on, their width is exactly
+   * what makes the receiver drop transport packets (issue #14). Acts only
+   * on 3.1 with both of those on, like `useSameS`, and the page shows it
+   * only then. Optional for backwards compat with stored inputs.
+   */
+  useDisableH?: boolean;
 }
 
 /**

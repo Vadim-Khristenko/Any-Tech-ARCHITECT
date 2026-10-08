@@ -90,6 +90,7 @@ const dayCount = computed(() =>
  * 4.3.0: 1200 tests — floor holds.
  * 4.3.1: 1208 tests — floor holds.
  * 4.4.0: 1268 tests, bump floor to 1200+.
+ * 4.5.0: 1291 tests, floor holds.
  */
 const TEST_FLOOR = "1200+";
 
