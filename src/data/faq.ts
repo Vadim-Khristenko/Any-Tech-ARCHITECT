@@ -98,8 +98,8 @@ export const FAQ_ENTRIES: FaqEntry[] = [
       en: "Do the server and client need matching parameters?",
     },
     answer: {
-      ru: "**Частично**, и это стоит разделить точно. **Совпадать обязаны `S1–S4`, `H1–H4` и `HeaderProtectionKey`**: именно ими принимающая сторона опознаёт пакет, и расхождение означает, что он будет отброшен молча, без ошибки.\n\nНе обязаны совпадать `Jc`, `Jmin`, `Jmax`, цепочка `I1–I5` и `ContentPaddingAddition` — это отправитель делает у себя, а получателю знать о них нечего. Таймеры 3.0 у каждой стороны свои.\n\n*Подробный разбор с тем, откуда это следует в коде, — в ответе про клиентские, общие и локальные параметры.*",
-      en: "**Partly**, and the split is worth getting exact. **`S1–S4`, `H1–H4` and `HeaderProtectionKey` must match**: they are what the receiving side uses to recognise a packet, and a mismatch means it is dropped silently, with no error.\n\n`Jc`, `Jmin`, `Jmax`, the `I1–I5` chain and `ContentPaddingAddition` do not have to match — the sender does those locally and the receiver has no need to know about them. The 3.0 timers are per-side.\n\n*There is a fuller breakdown, with where this comes from in the code, in the answer on client-side, shared and local parameters.*",
+      ru: "**Частично**, и это стоит разделить точно. **Совпадать обязаны `S1-S4`, `H1-H4`, `HeaderProtectionKey` и на 3.1 `RandomTrailers`**: по ним принимающая сторона опознаёт пакет, и расхождение означает, что он будет отброшен молча, без ошибки. С хвостами это особенно коварно: приёмник без них отбрасывает удлинённые рукопожатия, и туннель просто не поднимается.\n\nНе обязаны совпадать `Jc`, `Jmin`, `Jmax`, цепочка `I1-I5` и `ContentPaddingAddition`: это отправитель делает у себя, а получателю знать о них нечего. Таймеры 3.0 и `DisableCookies` у каждой стороны свои.\n\n*Подробный разбор с тем, откуда это следует в коде, есть в ответе про клиентские, общие и локальные параметры.*",
+      en: "**Partly**, and the split is worth getting exact. **`S1-S4`, `H1-H4`, `HeaderProtectionKey` and, on 3.1, `RandomTrailers` must match**: they are what the receiving side uses to recognise a packet, and a mismatch means it is dropped silently, with no error. Trailers are the sneaky one: a receiver without them drops the lengthened handshakes and the tunnel simply never comes up.\n\n`Jc`, `Jmin`, `Jmax`, the `I1-I5` chain and `ContentPaddingAddition` do not have to match: the sender does those locally and the receiver has no need to know about them. The 3.0 timers and `DisableCookies` are per side.\n\n*There is a fuller breakdown, with where this comes from in the code, in the answer on client-side, shared and local parameters.*",
     },
     keywords: ["сервер", "server", "клиент", "client", "симметрия"],
   },
@@ -570,6 +570,19 @@ export const FAQ_ENTRIES: FaqEntry[] = [
     keywords: ["совместимость", "compatibility", "int32", "windows", "лимиты"],
   },
   {
+    id: "client-wg-easy",
+    category: "clients",
+    question: {
+      ru: "Почему wg-easy не принимает конфиги, которые создаёт генератор?",
+      en: "Why does wg-easy refuse the configs the generator makes?",
+    },
+    answer: {
+      ru: "wg-easy 15.x принимает H1-H4 только в диапазоне от 5 до 2147483647. Это половина того, что допускает протокол.\n\n**Выберите wg-easy в списке клиентов.** Тогда диапазоны раскладываются под этот потолок.\n\nwg-easy запускает `awg-quick`, который использует модуль ядра, если он есть на хосте, и amneziawg-go, если его нет. Поэтому генератор использует только те теги цепочки, которые понимают оба движка.",
+      en: "wg-easy 15.x accepts H1-H4 only from 5 to 2147483647, which is half of what the protocol allows.\n\n**Pick wg-easy in the client list.** The ranges are then laid out under that cap.\n\nwg-easy runs `awg-quick`, which uses the kernel module if the host has it and amneziawg-go otherwise. So the generator uses only the chain tags that both of those understand.",
+    },
+    keywords: ["wg-easy", "wg easy", "h1-h4", "2147483647", "лимит", "limit", "awg-quick"],
+  },
+  {
     id: "report-problem",
     category: "clients",
     question: {
@@ -690,6 +703,19 @@ export const FAQ_ENTRIES: FaqEntry[] = [
     ],
   },
   {
+    id: "profile-stun",
+    category: "tuning",
+    question: {
+      ru: "Что такое профиль STUN / TURN?",
+      en: "What is the STUN / TURN profile?",
+    },
+    answer: {
+      ru: "Профиль повторяет то, что WebRTC отправляет до начала звонка. Сначала идёт запрос Binding к STUN-серверу: только 20-байтный заголовок, как его шлют браузеры. Затем первый Allocate к TURN, а за ним тот же Allocate уже с учётными данными: имя пользователя по схеме TURN REST, хост как REALM, nonce и HMAC. В конце идут проверки связности ICE.\n\nС галкой «Применять профиль для I2–I5» цепочка проходит весь этот поток. Если она действует только на I1, то I1 это авторизованный Allocate.\n\nПакеты построены по RFC 8489, RFC 8656 и RFC 8445.\n\nFINGERPRINT добавляется только тогда, когда каждый байт известен заранее, то есть при выключенных случайных тегах. Неверный FINGERPRINT выдаёт больше, чем его отсутствие.",
+      en: "It replays what WebRTC sends before a call starts. First comes a Binding request to a STUN server: just the 20-byte header, as browsers send it. Then a first TURN Allocate, followed by the same Allocate with credentials: a TURN REST username, the host as REALM, a nonce and an HMAC. Finally come the ICE connectivity checks.\n\nWith \"apply to I2-I5\" the chain walks that whole flow. On its own, I1 is the authenticated Allocate.\n\nThe packets are built per RFC 8489, RFC 8656 and RFC 8445.\n\nFINGERPRINT is added only when every byte is known in advance, which means random tags are off, because a wrong FINGERPRINT gives more away than a missing one.",
+    },
+    keywords: ["stun", "turn", "webrtc", "allocate", "ice", "binding", "fingerprint", "rfc 8489"],
+  },
+  {
     id: "warn-not-anonymity",
     category: "warnings",
     question: {
@@ -790,8 +816,8 @@ export const FAQ_ENTRIES: FaqEntry[] = [
       en: "On 3.x with protection and trailers, do H1–H4 still affect anything?",
     },
     answer: {
-      ru: "**Да, и сильно: без них туннель не опознает ни один пакет.** Приёмный тракт сверяет H1–H4 на каждом пакете при любом наборе фич: защита только шифрует байты типа, а магия всё равно матчится, хвосты меняют только сравнение длин. Проверка непересечения тоже безусловна.\n\nОтсюда три следствия. Пустыми их оставлять нельзя. Одинаковыми нельзя: пересечение это сломанный туннель, а не слабый. Значения 1–4 зарезервированы под настоящие типы WireGuard.\n\nДиапазоны держите широкими, если только не лечите конкретный баг CPU на 3.1 узкими: для него в генераторе есть отдельный переключатель.",
-      en: "**Yes, a lot: without them the tunnel recognises no packet at all.** The receive path matches H1–H4 on every packet under any feature set: protection only encrypts the type bytes while the magic still matches, and trailers only change the length comparison. The no-overlap check is unconditional too.\n\nThree consequences follow. They cannot be left empty. They cannot be identical: an overlap is a broken tunnel, not a weak one. Values 1–4 are reserved for the real WireGuard message types.\n\nKeep the ranges wide unless you are treating the specific 3.1 CPU bug with narrow ones: the generator has a separate switch for that.",
+      ru: "**Да: без них туннель не опознает ни один пакет.** Приёмный тракт сверяет H1-H4 на каждом пакете при любом наборе фич: шифрование только прячет байты типа на проводе, а значения всё равно сравниваются, хвосты меняют только проверку длины. Проверка непересечения тоже безусловна.\n\nОтсюда следствия. Пустыми их оставлять нельзя, пересекаться им нельзя: пересечение это сломанный туннель, а не слабый. И они должны совпадать на обеих сторонах.\n\nА вот **широкими их на 3.1 держать незачем**. Под шифрованием заголовков диапазоны на проводе ничего не прячут, а со случайными хвостами ширина H1-H3 прямо превращается в потерянные пакеты. Поэтому на 3.1 генератор по умолчанию ставит «Отключить H1-H4»: стандартные 1, 2, 3, 4, как у самой Amnezia VPN. Без шифрования заголовков 1-4 запрещены: там они уходят в открытом виде как настоящие типы WireGuard.",
+      en: "**Yes: without them the tunnel recognises no packet at all.** The receive path matches H1-H4 on every packet under any feature set: encryption only hides the type bytes on the wire while the values are still compared, and trailers only change the length check. The no-overlap check is unconditional too.\n\nSo they cannot be left empty and they cannot overlap: an overlap is a broken tunnel, not a weak one. And they must match on both ends.\n\nWhat there is **no reason for on 3.1 is keeping them wide**. Under header encryption the ranges hide nothing on the wire, and with random trailers the width of H1-H3 turns straight into lost packets. That is why the generator's 3.1 default is \"Disable H1-H4\": the standard 1, 2, 3, 4, as Amnezia VPN itself writes them. Without header encryption 1-4 are off limits: there they would go out in the clear as WireGuard's real message types.",
     },
     keywords: ["h1", "магия", "magic", "пересечение", "overlap", "trailers"],
   },
@@ -820,6 +846,58 @@ export const FAQ_ENTRIES: FaqEntry[] = [
       en: "Only on 3.1 with protection on, and only if you see the problem. Wide H1–H4 (up to 100M) make amneziawg-go 3.1 spend visibly more CPU classifying packets, and with HeaderProtection on they misclassify on overlapping intervals.\n\n## What the switch does\n\nIt narrows every range to ~20k (H4 ~30k). The bug goes away at the cost of slightly weaker header obfuscation: the narrower the range, the more often values repeat.\n\n## When to leave it off\n\nOn other versions and without protection the switch is not shown, and rightly so: wide ranges only help there. Off by default.",
     },
     keywords: ["narrow", "узкие", "cpu", "разброс", "spread", "misclassify", "h1"],
+  },
+  {
+    id: "awg31-switches-presets",
+    category: "awg31",
+    question: {
+      ru: "Что происходит с переключателями, когда я меняю версию протокола?",
+      en: "What happens to the switches when I change the protocol version?",
+    },
+    answer: {
+      ru: "**Смена версии ставит переключатели 3.x в положение, рекомендованное для этой версии.**\n\n## Версия 3.0\n\nНа 3.0 включены шифрование заголовков (`HeaderProtectionKey`), паддинг трафика (`ContentPaddingAddition`) и плавающие таймеры.\n\n## Версия 3.1\n\nНа 3.1 включено то же самое плюс случайные хвосты (`RandomTrailers`), переключатель «Отключить H1-H4» и MTU 1280. «Без cookie-ответов» (`DisableCookies`) остаётся выключенным: под нагрузкой отказ от cookie может сломать keepalive за NAT.\n\n## Версии от 1.0 до 2.0\n\nУ версий от 1.0 до 2.0 этих переключателей нет вовсе, а MTU по умолчанию 1500.\n\nЕсли вы что-то поменяли вручную, кнопка «Рекомендуемые для 3.1» вернёт рекомендованные значения. Повторный выбор той же версии ваши правки не трогает.",
+      en: "**Changing the version puts the 3.x switches where that version recommends.**\n\n## Version 3.0\n\nOn 3.0 header encryption (`HeaderProtectionKey`), traffic padding (`ContentPaddingAddition`) and randomised timers are on.\n\n## Version 3.1\n\nOn 3.1 the same three are on, plus random trailers (`RandomTrailers`), \"Disable H1-H4\" and an MTU of 1280. \"No cookie replies\" (`DisableCookies`) stays off, because under load refusing cookies can break keepalive behind NAT.\n\n## Versions from 1.0 to 2.0\n\nVersions 1.0 through 2.0 have none of these switches, and their default MTU is 1500.\n\nIf you changed something by hand, the \"Recommended for 3.1\" button puts the recommended values back. Selecting the same version again keeps your changes.",
+    },
+    keywords: ["переключатели", "switches", "рекомендовано", "recommended", "версия", "version", "пресет", "preset"],
+  },
+  {
+    id: "awg31-mtu-1280",
+    category: "awg31",
+    question: {
+      ru: "Почему версия 3.1 начинает с MTU 1280?",
+      en: "Why does 3.1 start at MTU 1280?",
+    },
+    answer: {
+      ru: "Из-за случайных хвостов. **С `RandomTrailers` amneziawg-go удлиняет каждый пакет хвостом, который дотягивает его до самого большого пакета, уже виденного от этого пира** (`peer.udpWindow`). Поэтому большая часть трафика уходит почти полного размера.\n\nПолный размер должен проходить по любому пути без фрагментации: фрагментация медленнее и заметна со стороны.\n\n**1280 выбран потому, что это размер, который обязан пропускать любой путь IPv6.** Поэтому 3.1 стартует ниже привычных 1500.\n\nMTU можно выставить свой.",
+      en: "Because of the random trailers. **With `RandomTrailers` on, amneziawg-go lengthens each packet up to the largest packet already seen from that peer** (`peer.udpWindow`). So much of the traffic goes out at close to full size.\n\nFull size has to pass every path without fragmenting, since fragmentation is slower and conspicuous.\n\n**1280 was chosen because it is the size every IPv6 path is required to carry.** That is why 3.1 starts below the usual 1500.\n\nYou can still set your own MTU.",
+    },
+    keywords: ["mtu", "1280", "ipv6", "фрагментация", "fragmentation", "хвосты", "trailers", "udpwindow"],
+  },
+  {
+    id: "awg31-disable-h",
+    category: "awg31",
+    question: {
+      ru: "Что делает «Отключить H1-H4»?",
+      en: "What does \"Disable H1-H4\" do?",
+    },
+    answer: {
+      ru: "Переключатель ставит H1-H4 в стандартные значения 1, 2, 3 и 4. **Это те же значения, которые Amnezia VPN сама пишет в контейнеры 3.x.**\n\nЗначения 1-4 обычно не используют, потому что это настоящие типы сообщений WireGuard. Здесь это безопасно по другой причине: при шифровании заголовков поле типа на проводе зашифровано, так что широкие диапазоны на проводе ничего не прячут.\n\nЗачем это вообще нужно: при включённых случайных хвостах приёмник проверяет каждый транспортный пакет на попадание в H1-H3, и пакеты, чьи байты попали в диапазон, отбрасываются. Ширина диапазона прямо превращается в потерянные пакеты. При значениях 1-4 каждый H это одно значение, и потерь нет.\n\nH1-H4 должны совпадать на обеих сторонах, как и раньше.\n\nБез шифрования заголовков значения 1-4 вывели бы собственные типы WireGuard в открытом виде, поэтому генератор в этом случае отказывается это делать.\n\nПереключатель появляется только на 3.1, и только когда включены и шифрование заголовков, и случайные хвосты.",
+      en: "The switch sets H1-H4 to the standard values 1, 2, 3 and 4. **These are the values Amnezia VPN itself writes for its 3.x containers.**\n\nValues 1-4 are normally avoided, because they are WireGuard's own message types. Here that is safe for a different reason: with header encryption on, the type field is encrypted on the wire, so wide ranges hide nothing there anyway.\n\nThe reason to do it at all is random trailers. With them on, the receiver tests every transport packet against H1-H3 and drops those whose bytes land inside a range. Range width therefore turns straight into lost packets. With 1-4 each H is a single value, and the loss disappears.\n\nH1-H4 must match on both ends, as before.\n\nWithout header encryption, 1-4 would put WireGuard's own type bytes on the wire in the clear, which is why the generator refuses to do it then.\n\nThe switch appears only on 3.1, and only when header encryption and random trailers are both on.",
+    },
+    keywords: ["disable h1-h4", "h1-h4", "заголовки", "headers", "хвосты", "trailers", "потери", "loss"],
+  },
+  {
+    id: "awg31-random-trailers-both-ends",
+    category: "awg31",
+    question: {
+      ru: "Обязан ли RandomTrailers совпадать на обеих сторонах?",
+      en: "Does RandomTrailers have to match on both ends?",
+    },
+    answer: {
+      ru: "Да. **Приёмник по собственному флагу решает, считать ли рукопожатие, которое длиннее ожидаемого, всё ещё рукопожатием.** Если у одной стороны хвосты выключены, она отбрасывает удлинённые рукопожатия от партнёра, у которого хвосты включены, и туннель не поднимается.\n\nЕсли туннель на 3.1 не поднимается, сверьте переключатель случайных хвостов на сервере и на клиенте.",
+      en: "Yes. **The receiver reads its own flag to decide whether a handshake longer than expected is still a handshake.** A peer with trailers off drops the lengthened handshakes from a peer with them on, and the tunnel never comes up.\n\nIf a 3.1 tunnel will not come up, check that the random trailers switch is set the same on the server and on the client.",
+    },
+    keywords: ["randomtrailers", "хвосты", "trailers", "рукопожатие", "handshake", "обе стороны", "both ends"],
   },
   {
     id: "awg3-support",
@@ -853,12 +931,12 @@ export const FAQ_ENTRIES: FaqEntry[] = [
     id: "same-s",
     category: "awg31",
     question: {
-      ru: "В рекомендациях советуют одинаковые S1–S4. Включить?",
-      en: "The recommendations advise identical S1–S4. Should I switch it on?",
+      ru: "В рекомендациях советуют одинаковые S1-S4. Что делает «Объединить S1-S4»?",
+      en: "The recommendations advise identical S1-S4. What does \"Unite S1-S4\" do?",
     },
     answer: {
-      ru: "**Можно, но мы не советуем, и вот почему.** Одинаковые размеры легальны: типы пакетов всё равно различаются длинами, устройство такой конфиг принимает. Проблема не в устройстве, а в соседях: **одно значение у всех, кто последовал совету, это общий отпечаток**, называющий рекомендацию, а не вас.\n\nСлучайные разные S стоят ничего и такого следа не оставляют. Переключатель «Одинаковые S1–S4» в генераторе существует для тех, кому нужен ровно советуемый вид. Он показывается только на 3.1 при включённых защите и случайных хвостах: хвост дописывает случайные байты к каждому пакету и размывает длины, без него одинаковые S светятся сильнее.\n\nДаже в этом режиме значение тянется случайно из 12–32, а не берётся константой.",
-      en: "**You can, but we advise against it, and here is why.** Identical sizes are legal: packet types still differ in length, and the device accepts such a config. The problem is not the device but the neighbours: **one value shared by everyone who followed the advice is a common fingerprint**, naming the recommendation rather than you.\n\nRandom distinct S values cost nothing and leave no such trace. The \"Identical S1–S4\" switch in the generator exists for whoever wants exactly the advised look. It shows only on 3.1 with protection and random trailers on: the tail appends random bytes to every packet and smears the lengths, while without it identical S values stand out more.\n\nEven in this mode the value is drawn at random from 12–32 rather than taken as a constant.",
+      ru: "Переключатель «Объединить S1-S4» задаёт одно значение паддинга для всех четырёх типов пакетов, как советуют рекомендации AmneziaWG. **Включить можно, но по умолчанию мы его не включаем, и вот почему.**\n\nОдинаковые размеры легальны, и длины пакетов всё равно разные: базовые размеры сообщений различаются (148, 92, 64 и 32 байта), так что одинаковый паддинг не делает два типа сообщений одной длины. Проблема не в устройстве, а в соседях: **одно значение у всех, кто последовал совету, это общий отпечаток**, который называет рекомендацию, а не вас. Случайные разные S стоят ничего и такого следа не оставляют.\n\nПоэтому переключатель показывается только на 3.1 при включённых шифровании заголовков и случайных хвостах: хвост дописывает случайные байты к каждому пакету и размывает длины. Даже в этом режиме значение тянется случайно из 12-32, а не берётся константой, и под шифрованием заголовков не опускается ниже 12 байт.",
+      en: "The \"Unite S1-S4\" switch gives all four packet types one padding value, as the AmneziaWG recommendations advise. **You can turn it on, but the tool does not by default, and here is why.**\n\nIdentical sizes are legal, and packet lengths still differ: the base message sizes are different (148, 92, 64 and 32 bytes), so equal padding does not make two message types the same length. The problem is not the device but the neighbours: **one value shared by everyone who followed the advice is a common fingerprint** that names the recommendation rather than you. Random distinct S values cost nothing and leave no such trace.\n\nThat is why the switch shows only on 3.1 with header encryption and random trailers on: the trailer appends random bytes to every packet and smears the lengths. Even in this mode the value is drawn at random from 12-32 rather than taken as a constant, and under header encryption it never goes below 12 bytes.",
     },
     keywords: ["одинаковые", "identical", "same", "рекомендации", "recommendations", "s1"],
   },
@@ -915,6 +993,19 @@ export const FAQ_ENTRIES: FaqEntry[] = [
       en: "**The device refused the config outright: no interface was created, so look at the config, not the network.** Ping and ports have nothing to do with it.\n\n## First: S against the key\n\nUsually it is an S under 12 with header protection on. Check: is there a `HeaderProtectionKey` in the config (or is the in-app protection toggle on, where the app manages the key), and are all of S1–S4 at 12 or above. The bound is exactly 12: it is accepted, 11 is not.\n\n## Second: H overlap\n\n`H1–H4` must not overlap each other; the device checks that too.\n\n## Third: keys from another version\n\nThe 3.1 keys (`RandomTrailers`, `DisableCookies`) are refused by a 3.0 device when reading. Config and device versions must match.\n\nThe pasted-config check in the generator catches all three cases before anything is copied onto the device.",
     },
     keywords: ["invalid argument", "setconf", "отклоняет", "rejected", "einval", "не создаётся"],
+  },
+  {
+    id: "awg-kmod-message-too-long",
+    category: "troubleshooting",
+    question: {
+      ru: "Интерфейс поднимается, но `awg show` пишет «Message too long». Что делать?",
+      en: "The interface comes up but `awg show` says \"Message too long\". What do I do?",
+    },
+    answer: {
+      ru: "Это ограничение модуля ядра Linux, а не ошибка конфига в целом.\n\nМодуль получает все параметры интерфейса одним сообщением netlink, которое должно умещаться в одну страницу памяти. Цепочка `I1`-`I5` вместе занимает около 3,4 КБ этой страницы. Длинные цепочки в неё не влезают: в одном пользовательском отчёте пять SIP-пакетов дали 3820 байт.\n\n**Генератор держит всю цепочку `I1`-`I5` в пределах 3200 байт для каждого клиента.** Причина простая: тот же блок часто ставится и на сервер, где работает модуль. Если цепочка получается длиннее, генератор действует по шагам: сначала берёт полную форму профиля, затем компактную (для SIP это однобуквенные заголовки по RFC 3261), и наконец заменяет последний `I` случайными пакетами. `I1` при этом не трогается никогда.\n\nЕсли вы вставили собственную цепочку, которая в страницу не влезет, проверка конфига предупредит об этом.\n\nКлиенты на amneziawg-go этим ограничением не затронуты.",
+      en: "This is a limit of the Linux kernel module, not a fault in the config as a whole.\n\nThe module receives all the interface parameters in one netlink message, which has to fit in a single memory page. The `I1`-`I5` chain alone takes about 3.4 KB of that page. Long chains do not fit: in one user report five SIP packets came to 3820 bytes.\n\n**The generator keeps the whole `I1`-`I5` chain within 3200 bytes for every client.** The reason is simple: the same block usually goes onto a server that runs the module too. When a chain would be longer, the generator works down in steps: it first uses the profile's full form, then a compact one (for SIP, one-letter headers from RFC 3261), and finally replaces the trailing `I` with random packets. `I1` is never touched.\n\nIf you paste your own chain that will not fit, the config check warns you about it.\n\namneziawg-go clients are not affected by this limit.",
+    },
+    keywords: ["message too long", "netlink", "kernel module", "модуль ядра", "awg show", "i1-i5", "страница", "page"],
   },
   {
     id: "slow-connect",
