@@ -40,6 +40,7 @@ import { renderMihomoProxy } from "@/engines/awg/mihomoFormat";
 import type { AwgContainer } from "@/engines/keys";
 import type { GeneratorInput } from "@/engines/awg/generator";
 import { AWG_VERSIONS, capsFor } from "@/engines/awg/generator/versions";
+import { linkedSwitchesOn, versionPreset } from "@/engines/awg/generator/presets";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Типы
@@ -170,7 +171,24 @@ export function useGenerator() {
     // общий отпечаток. Показывается только при защите заголовков и
     // случайных хвостах, которые размывают длины пакетов и гасят урон.
     useSameS: false,
+    // Стандартные H1-H4 = 1, 2, 3, 4 (как пишет Amnezia VPN). Только 3.1 при
+    // защите заголовков и случайных хвостах: под шифром диапазоны ничего не
+    // прячут, а с хвостами их ширина стоит потерянных пакетов (#14).
+    useDisableH: false,
   });
+
+  /**
+   * Put the switches where the version recommends them.
+   *
+   * Picking a version is picking a feature set, so the switches follow it:
+   * on a version change, and once at start for the version remembered from
+   * the last visit. Everything outside the preset (profile, client, tags,
+   * junk) stays as the user left it. See engines/awg/generator/presets.ts.
+   */
+  function applyPreset(v: AWGVersion): void {
+    Object.assign(config, versionPreset(v));
+  }
+  applyPreset(version.value);
 
   // ── Состояние UI ──────────────────────────────────────────────────────────
 
@@ -219,16 +237,14 @@ export function useGenerator() {
       useRandomTimings: config.useRandomTimings,
       useRandomTrailers: config.useRandomTrailers,
       useDisableCookies: config.useDisableCookies,
-      useNarrowH: config.useNarrowH,
+      // Narrowing ranges means nothing once they are replaced by 1-4.
+      useNarrowH: config.useNarrowH && !(config.useDisableH && linkedOn()),
       // Спрятанный переключатель действовать не должен: одинаковые S
       // работают только на 3.1 в связке с защитой и хвостами, которая их
       // и показывает. Иначе старый сохранённый флажок или смена версии
       // с включённым флажком тихо меняли бы размеры.
-      useSameS:
-        config.useSameS &&
-        version.value === "3.1" &&
-        config.useHeaderProtection &&
-        config.useRandomTrailers,
+      useSameS: config.useSameS && linkedOn(),
+      useDisableH: config.useDisableH && linkedOn(),
     };
   }
 
@@ -331,8 +347,24 @@ export function useGenerator() {
   // ── Переключение версии / интенсивности ───────────────────────────────────
 
   function setVersion(v: AWGVersion) {
+    if (v !== version.value) applyPreset(v);
     version.value = v;
     generate();
+  }
+
+  /** Put the switches back where the current version recommends them. */
+  function resetPreset() {
+    applyPreset(version.value);
+    generate();
+  }
+
+  /** "Disable H1-H4" and "Unite S1-S4" can act: 3.1, protection and trailers on. */
+  function linkedOn(): boolean {
+    return linkedSwitchesOn({
+      version: version.value,
+      useHeaderProtection: config.useHeaderProtection,
+      useRandomTrailers: config.useRandomTrailers,
+    });
   }
 
   /**
@@ -743,6 +775,7 @@ export function useGenerator() {
 
   return {
     // Состояние
+    resetPreset,
     version,
     intensity,
     config,

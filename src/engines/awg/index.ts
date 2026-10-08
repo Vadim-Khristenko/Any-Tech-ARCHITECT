@@ -78,6 +78,7 @@ function createDefaults(): GeneratorInput {
     useDisableCookies: false,
     useNarrowH: false,
     useSameS: false,
+    useDisableH: false,
   };
 }
 
