@@ -413,7 +413,7 @@ export const TIMELINE: TimelineEntry[] = [
   },
   {
     version: "4.5.2",
-    date: { ru: "11.11.2026", en: "Nov 11, 2026" },
+    date: { ru: "12.11.2026", en: "Nov 12, 2026" },
     title: {
       ru: "Что отвергает демон, а что просто нежелательно",
       en: "What the daemon refuses and what is merely unwise",

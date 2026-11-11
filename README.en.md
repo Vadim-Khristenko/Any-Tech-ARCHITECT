@@ -270,7 +270,7 @@ is where problems turn up most often.
 
 Claiming and checking are different things, so:
 
-- **1200+ automated tests** on every build, on Bun's built-in runner.
+- **1300+ automated tests** on every build, on Bun's built-in runner.
 - Configs are generated in thousands and tested against invariants, including
   that no key material repeats between generations.
 - Packets are parsed as their own protocols: QUIC per RFC 9000, TLS per 8446,

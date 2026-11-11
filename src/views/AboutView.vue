@@ -92,9 +92,9 @@ const dayCount = computed(() =>
  * 4.4.0: 1268 tests, bump floor to 1200+.
  * 4.5.0: 1291 tests, floor holds.
  * 4.5.1: 1303 tests, floor holds.
- * 4.5.2: 1318 tests, floor holds.
+ * 4.5.2: 1318 tests, bump floor to 1300+.
  */
-const TEST_FLOOR = "1200+";
+const TEST_FLOOR = "1300+";
 
 const chips = computed(() => [
     {
