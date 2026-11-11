@@ -959,14 +959,16 @@ export const en: Catalog = {
     "Jmax = {jmax} is at or above the MTU ({mtu}) — junk packets will fragment, and fragmentation is itself conspicuous.",
   "find.awg.size_max":
     "{key} = {value}: the maximum is {max}, above which the packet no longer fits in a UDP datagram.",
-  "find.awg.s4_max":
-    "S4 = {s4}: the protocol caps transport padding at {max} bytes.",
+  "find.awg.s_over_min_mtu":
+    "{key} = {value}: above {max} the padded packet no longer fits the IPv6 minimum MTU of 1280 and may be fragmented on some paths. The daemon accepts it, but a fragmented handshake is fragile and stands out.",
+  "find.awg.s4_large":
+    "S4 = {s4}: every data packet grows by this much, and above {max} bytes it shows in throughput. Nothing refuses it.",
   "find.awg.s4_zero":
     "S4 = 0 — transport packet obfuscation is off.",
   "find.awg.s4_over_client":
     "S4 = {s4} is above the maximum of {max} for {client}.",
   "find.awg.size_collision":
-    "{a} and {b} produce the same packet length — two message types become indistinguishable by size, which is exactly what the padding is there to prevent.",
+    "{a} and {b} produce the same packet length. On AWG 1.0 and 1.5 the daemon and Amnezia VPN refuse such a config; from 2.0 it runs, but two message types share a size, which is exactly what the padding is there to prevent.",
   "find.awg.h_overlap":
     "The {a} and {b} ranges overlap: the receiver cannot tell one message type from the other.",
   "find.awg.h_width_loss":

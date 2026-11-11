@@ -8,7 +8,8 @@
  *   - H1–H4 and every timer are strings there, so this config's ranges pass
  *     through untouched — v1.x singles as numbers-in-strings, v2+ as "lo-hi".
  *   - `version: 3` is the switch to the v3 implementation; any other value
- *     lands on the legacy one, which is why it is emitted for 3.0 only.
+ *     lands on the legacy one, and the 3.x fields are written only on v3,
+ *     so it goes out for 3.0 and 3.1 alike.
  *   - `ip` is required (an empty local address fails at load), while
  *     `allowed-ips` is not: the simplified syntax derives 0.0.0.0/0 and ::/0
  *     from the addresses given, which suits a parameter set that has no
@@ -53,8 +54,8 @@ export function renderMihomoProxy(cfg: AWGConfig): string {
 
   out.push(`# AmneziaWG ${cfg.version} for mihomo (Clash.Meta)`);
   out.push("# Replace every YOUR_* value with your own key material.");
-  if (cfg.version === "3.0") {
-    out.push("# AWG 3.0 needs a recent mihomo build (Alpha or a nightly).");
+  if (cfg.version === "3.0" || cfg.version === "3.1") {
+    out.push("# AWG 3.x needs a recent mihomo build (Alpha or a nightly).");
   }
   out.push("proxies:");
   out.push(`  - name: ${q(PROXY_NAME)}`);
@@ -67,7 +68,7 @@ export function renderMihomoProxy(cfg: AWGConfig): string {
   out.push("    udp: true");
 
   out.push("    amnezia-wg-option:");
-  if (cfg.version === "3.0") out.push("      version: 3");
+  if (cfg.version === "3.0" || cfg.version === "3.1") out.push("      version: 3");
 
   // Junk train — the count and the range it draws from.
   out.push(`      jc: ${cfg.jc}`);

@@ -32,6 +32,13 @@ export const WG_MESSAGE_SIZE = {
  *   148 + S1 === 64 + S3   →   S3 === S1 + 84
  *    92 + S2 === 64 + S3   →   S3 === S2 + 28
  */
+/**
+ * The shortest transport message: 16-byte header plus the 16-byte tag, which
+ * is exactly a keepalive. S4 pads it, so S4 + 32 is a size that competes
+ * with the three handshake messages above (amneziawg-go `MessageTransportSize`).
+ */
+export const TRANSPORT_MIN_SIZE = 32;
+
 export const INIT_TO_RESPONSE =
   WG_MESSAGE_SIZE.init - WG_MESSAGE_SIZE.response; // 56
 export const INIT_TO_COOKIE =

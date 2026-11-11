@@ -23,11 +23,8 @@ import type { Finding } from "@/types/findings";
 import { parseRangeValue } from "@/shared/validation";
 import { MIN_S_WITH_HEADER_PROTECTION } from "./generator/awg3";
 import { chainBytes, KMOD_CHAIN_BUDGET } from "./generator/chainBudget";
-import {
-  INIT_TO_RESPONSE,
-  INIT_TO_COOKIE,
-  RESPONSE_TO_COOKIE,
-} from "./messageSizes";
+import { TRANSPORT_MIN_SIZE, WG_MESSAGE_SIZE } from "./messageSizes";
+import type { AWGVersion } from "./generator/types";
 
 /* ── Input ────────────────────────────────────────────────────────────────── */
 
@@ -44,6 +41,12 @@ export interface AwgParamInput {
 export interface AwgRuleOptions {
   /** Interface MTU, for the Jmax fragmentation check. */
   mtu?: number;
+  /**
+   * Protocol version, when the caller knows it. Only the size-collision level
+   * depends on it; a pasted `.conf` has no version marker, so unknown reads
+   * as the lenient case.
+   */
+  version?: AWGVersion;
   /** Client limits, when a target client is selected. */
   client?: {
     name: string;
@@ -83,13 +86,36 @@ const JC_MAX = 128;
 const JC_SLOW = 64;
 
 /**
- * Padding ceilings: a padded message must still fit in a UDP datagram, so the
- * cap is 65535 minus the message it precedes.
+ * Padding bounds.
+ *
+ * amneziawg-go (`device/uapi.go`) and the kernel module (`src/netlink.c`)
+ * take any uint16 for S1-S4, so the only hard limit is the datagram itself:
+ * 65535 minus the message the padding precedes.
+ *
+ * The soft limit is the IPv6 minimum MTU. 1280 minus the message is the
+ * largest padding every path carries without fragmenting, and a fragmented
+ * handshake is both fragile and conspicuous. Over it is a warning.
  */
-const S1_MAX = 1132; // 65535 − MessageInitiationSize (148)
-const S2_MAX = 1188; // 65535 − MessageResponseSize (92)
-const S3_MAX = 1132; // 65535 − MessageCookieReplySize
-const S4_MAX = 32; // amneziawg-tools src/config.c
+const UDP_MAX = 65535;
+const MIN_MTU = 1280;
+const SOFT_MAX = {
+  S1: MIN_MTU - WG_MESSAGE_SIZE.init, // 1132
+  S2: MIN_MTU - WG_MESSAGE_SIZE.response, // 1188
+  S3: MIN_MTU - WG_MESSAGE_SIZE.cookie, // 1216
+} as const;
+const HARD_MAX = {
+  S1: UDP_MAX - WG_MESSAGE_SIZE.init,
+  S2: UDP_MAX - WG_MESSAGE_SIZE.response,
+  S3: UDP_MAX - WG_MESSAGE_SIZE.cookie,
+} as const;
+
+/**
+ * S4 pads every data packet. Nothing caps it (amneziawg-tools reads a plain
+ * uint16, `src/config.c`), but past 32 bytes the per-packet cost shows in
+ * throughput, and the generator never draws above it. A warning, and an
+ * error only against a client that refuses more (`s4_over_client`).
+ */
+const S4_SOFT_MAX = 32;
 
 /** WireGuard's own message types occupy 1–4; an H value there collides. */
 const RESERVED_HEADER_MAX = 4;
@@ -240,20 +266,23 @@ function checkSizes(p: AwgParamInput, options: AwgRuleOptions): Finding[] {
     }
   }
 
-  const ceilings: [string, number | null, number][] = [
-    ["S1", s1, S1_MAX],
-    ["S2", s2, S2_MAX],
-    ["S3", s3, S3_MAX],
+  const ceilings: ["S1" | "S2" | "S3", number | null][] = [
+    ["S1", s1],
+    ["S2", s2],
+    ["S3", s3],
   ];
-  for (const [key, value, max] of ceilings) {
-    if (value !== null && value > max) {
-      found.push(error(key, "awg.size_max", { key, value, max }));
+  for (const [key, value] of ceilings) {
+    if (value === null) continue;
+    if (value > HARD_MAX[key]) {
+      found.push(error(key, "awg.size_max", { key, value, max: HARD_MAX[key] }));
+    } else if (value > SOFT_MAX[key]) {
+      found.push(warn(key, "awg.s_over_min_mtu", { key, value, max: SOFT_MAX[key] }));
     }
   }
 
   if (s4 !== null) {
-    if (s4 > S4_MAX) {
-      found.push(error("S4", "awg.s4_max", { s4, max: S4_MAX }));
+    if (s4 > S4_SOFT_MAX) {
+      found.push(warn("S4", "awg.s4_large", { s4, max: S4_SOFT_MAX }));
     }
     if (s4 === 0 && !s4NonceError && !s4NonceWarn) {
       found.push(warn("S4", "awg.s4_zero"));
@@ -270,18 +299,48 @@ function checkSizes(p: AwgParamInput, options: AwgRuleOptions): Finding[] {
     }
   }
 
-  // Two message types with the same padded length are one signal, and the
-  // whole point of the padding is that they should not be.
-  if (s1 !== null && s2 !== null && s1 + INIT_TO_RESPONSE === s2) {
-    found.push(warn("S2", "awg.size_collision", { a: "S1", b: "S2" }));
-  }
-  if (s1 !== null && s3 !== null && s3 === s1 + INIT_TO_COOKIE) {
-    found.push(warn("S3", "awg.size_collision", { a: "S1", b: "S3" }));
-  }
-  if (s2 !== null && s3 !== null && s3 === s2 + RESPONSE_TO_COOKIE) {
-    found.push(warn("S3", "awg.size_collision", { a: "S2", b: "S3" }));
-  }
+  found.push(...checkSizeCollisions({ s1, s2, s3, s4 }, options.version));
 
+  return found;
+}
+
+/** Message base size each padding sits in front of. */
+const PADDED_BASE = {
+  S1: WG_MESSAGE_SIZE.init,
+  S2: WG_MESSAGE_SIZE.response,
+  S3: WG_MESSAGE_SIZE.cookie,
+  S4: TRANSPORT_MIN_SIZE,
+} as const;
+
+/**
+ * Two message types with the same padded length, over all four sizes.
+ *
+ * The 1.x daemons refuse such a config: v0.2.12 compares init and response
+ * (`device.go:768`), v0.2.14-beta-awg-1.5-1 all four (`isSameSizeMap`), and
+ * Amnezia VPN will not save it (`isPacketSizeEqual`). From 2.0 the daemon
+ * reads size and then header, so the config runs, but two messages share a
+ * length the padding was meant to tell apart. Unknown version: a warning.
+ */
+export function checkSizeCollisions(
+  sizes: { s1: number | null; s2: number | null; s3: number | null; s4: number | null },
+  version?: AWGVersion,
+): Finding[] {
+  const make = version === "1.0" || version === "1.5" ? error : warn;
+  const padded: ["S1" | "S2" | "S3" | "S4", number][] = [];
+  const raw = { S1: sizes.s1, S2: sizes.s2, S3: sizes.s3, S4: sizes.s4 };
+  for (const key of ["S1", "S2", "S3", "S4"] as const) {
+    const value = raw[key];
+    if (value !== null && value !== undefined) padded.push([key, value + PADDED_BASE[key]]);
+  }
+  const found: Finding[] = [];
+  for (let i = 0; i < padded.length; i++) {
+    for (let j = i + 1; j < padded.length; j++) {
+      if (padded[i][1] === padded[j][1]) {
+        const [a, b] = [padded[i][0], padded[j][0]];
+        found.push(make(b, "awg.size_collision", { a, b }));
+      }
+    }
+  }
   return found;
 }
 
