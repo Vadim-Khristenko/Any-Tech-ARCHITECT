@@ -80,8 +80,10 @@ describe("the mihomo export", () => {
         }
       });
 
-      it("flips the v3 switch, and only there", () => {
-        if (version.id === "3.0") {
+      it("flips the v3 switch on every 3.x, and only there", () => {
+        // mihomo writes the 3.x fields into its config only when version is
+        // 3; without it a 3.1 YAML runs the legacy code and loses the block.
+        if (version.id === "3.0" || version.id === "3.1") {
           expect(yaml).toContain("version: 3");
           // The implementation is young upstream; say so where it matters.
           expect(yaml).toContain("nightly");

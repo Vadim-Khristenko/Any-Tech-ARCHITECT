@@ -57,10 +57,10 @@ describe("validateAwgParams", () => {
       ),
     ).toBe(true);
   });
-  it("errors when S4 exceeds the 32-byte protocol limit", () => {
+  it("warns when S4 goes past 32 bytes (throughput, not a protocol limit)", () => {
     expect(
       findings({ S4: 33 }).some(
-        (x) => x.field === "S4" && x.level === "error",
+        (x) => x.field === "S4" && x.level === "warn",
       ),
     ).toBe(true);
   });
@@ -74,10 +74,10 @@ describe("validateAwgParams", () => {
       ),
     ).toBe(true);
   });
-  it("errors when S3 exceeds the protocol limit", () => {
+  it("warns when S3 goes past the IPv6 minimum MTU fit", () => {
     expect(
-      findings({ S3: 1133 }).some(
-        (x) => x.field === "S3" && x.level === "error",
+      findings({ S3: 1217 }).some(
+        (x) => x.field === "S3" && x.level === "warn",
       ),
     ).toBe(true);
   });

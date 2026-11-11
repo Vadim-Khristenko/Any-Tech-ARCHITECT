@@ -14,11 +14,7 @@ import {
   HEADER_PROTECTION_KEY_BYTES,
   MIN_S_WITH_HEADER_PROTECTION,
 } from "./awg3";
-import {
-  INIT_TO_RESPONSE,
-  INIT_TO_COOKIE,
-  RESPONSE_TO_COOKIE,
-} from "../messageSizes";
+import { checkSizeCollisions } from "../rules";
 
 /**
  * Parse a range — "N-M", or "N" for a single value — into [min, max].
@@ -97,38 +93,28 @@ export function validateHeaderRanges(
   return out;
 }
 
-/** Validate the core S-size constraints (S1 + 56 ≠ S2, S4 ≤ 32, etc.). */
+/**
+ * Validate the core S-size constraints: collisions over all four padded sizes
+ * (an error on 1.x, where the daemon refuses them) and S4 past 32.
+ */
 export function validateSizes(cfg: AWGConfig): ValidationFinding[] {
-  const out: ValidationFinding[] = [];
-  if (cfg.s1 + INIT_TO_RESPONSE === cfg.s2) {
-    out.push({
-      field: "S2",
-      level: "warn",
-      code: "awg.size_collision",
-      values: { a: "S1", b: "S2" },
-    });
-  }
-  if (cfg.s3 === cfg.s1 + INIT_TO_COOKIE) {
-    out.push({
-      field: "S3",
-      level: "warn",
-      code: "awg.size_collision",
-      values: { a: "S1", b: "S3" },
-    });
-  }
-  if (cfg.s3 === cfg.s2 + RESPONSE_TO_COOKIE) {
-    out.push({
-      field: "S3",
-      level: "warn",
-      code: "awg.size_collision",
-      values: { a: "S2", b: "S3" },
-    });
-  }
+  const extra = cfg.version ? capsFor(cfg.version).extraSizes : true;
+  const out: ValidationFinding[] = [
+    ...checkSizeCollisions(
+      {
+        s1: cfg.s1,
+        s2: cfg.s2,
+        s3: extra ? cfg.s3 : null,
+        s4: extra ? cfg.s4 : null,
+      },
+      cfg.version,
+    ),
+  ];
   if (cfg.s4 > 32) {
     out.push({
       field: "S4",
-      level: "error",
-      code: "awg.s4_max",
+      level: "warn",
+      code: "awg.s4_large",
       values: { s4: cfg.s4, max: 32 },
     });
   }
